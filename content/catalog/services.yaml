@@ -347,6 +347,50 @@
   ssmNamespaces: [transitgateway]
   icon: Arch_AWS-Transit-Gateway_48
   status: active
+- id: vpc-gateway-endpoint
+  name: Gateway VPC endpoint
+  fullName: Amazon VPC - Gateway endpoint
+  category: networking-content-delivery
+  aliases: [gateway endpoint, vpc endpoint, endpoint de vpc, acceso privado]
+  leakPatterns: ["gateway endpoint", "endpoint de gateway", "endpoint de tipo gateway"]
+  short: "Ruta privada, sin cargo adicional, desde las subredes de una VPC hacia S3 o DynamoDB, agregada en las tablas de ruteo."
+  docs: https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html
+  ssmNamespaces: [vpc]
+  icon: Res_Amazon-VPC_Endpoints_48
+  status: active
+- id: vpc-interface-endpoint
+  name: Interface VPC endpoint (AWS PrivateLink)
+  fullName: Amazon VPC - Interface endpoint (AWS PrivateLink)
+  category: networking-content-delivery
+  aliases: [interface endpoint, privatelink, vpc endpoint, endpoint de vpc, acceso privado]
+  leakPatterns: ["interface endpoint", "endpoint de interfaz", "endpoint de tipo interfaz", "PrivateLink"]
+  short: "Interfaces de red con IP privada en las subredes de una VPC para llegar a servicios de AWS sin salir a internet; cobra por hora y por GB."
+  docs: https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-access-aws-services.html
+  ssmNamespaces: [privatelink]
+  icon: Arch_AWS-PrivateLink_48
+  status: active
+- id: nat-gateway
+  name: NAT gateway
+  fullName: Amazon VPC - NAT gateway
+  category: networking-content-delivery
+  aliases: [nat gateway, nat, salida a internet]
+  leakPatterns: ["NAT gateway", "NAT"]
+  short: "Permite que recursos de subredes privadas inicien conexiones hacia afuera de la VPC sin recibir conexiones entrantes; cobra por hora y por GB."
+  docs: https://docs.aws.amazon.com/vpc/latest/userguide/vpc-nat-gateway.html
+  ssmNamespaces: [vpc]
+  icon: Res_Amazon-VPC_NAT-Gateway_48
+  status: active
+- id: internet-gateway
+  name: Internet gateway
+  fullName: Amazon VPC - Internet gateway
+  category: networking-content-delivery
+  aliases: [internet gateway, igw, salida a internet]
+  leakPatterns: ["Internet gateway", "IGW"]
+  short: "Conecta una VPC con internet: habilita tráfico entrante y saliente para las subredes públicas."
+  docs: https://docs.aws.amazon.com/vpc/latest/userguide/VPC_Internet_Gateway.html
+  ssmNamespaces: [vpc]
+  icon: Res_Amazon-VPC_Internet-Gateway_48
+  status: active
 
 # ── Integración de aplicaciones ──────────────────────────────────────────────────────────────
 - id: sqs

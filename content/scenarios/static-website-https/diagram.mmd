@@ -1,0 +1,18 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: static-website-https v1
+flowchart LR
+  n_visitors(["Visitantes"])
+  n_editor(["Responsable de comunicación"])
+  subgraph g_cloud["Nube"]
+    n_dns["Amazon Route 53"]
+    n_certificate["AWS Certificate Manager"]
+    n_edge["Amazon CloudFront"]
+    n_site_store["Amazon S3"]
+  end
+  n_editor ==>|"1. Sube los archivos nuevos"| n_site_store
+  n_visitors -->|"2. Resuelve el dominio"| n_dns
+  n_visitors -->|"3. Pide la página por HTTPS"| n_edge
+  n_edge --o|"4. Presenta el certificado"| n_certificate
+  n_edge ==>|"5. Pide lo que no está en caché"| n_site_store
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_dns,n_certificate,n_edge,n_site_store slot

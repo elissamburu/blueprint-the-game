@@ -30,6 +30,9 @@
 - id: analytics-engines
   services: [athena, redshift, emr, glue, opensearch]
   note: "Consultas ad hoc vs data warehouse vs clústeres de big data vs ETL vs búsqueda."
+- id: vpc-private-access
+  services: [vpc-gateway-endpoint, vpc-interface-endpoint, nat-gateway, internet-gateway]
+  note: "Acceso privado a servicios de AWS (gateway vs interface endpoint) vs salida a internet (NAT vs internet gateway)."
 - id: api-layer
   services: [apigateway, appsync]
   note: "APIs REST/HTTP/WebSocket vs GraphQL."

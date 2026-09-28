@@ -1,0 +1,344 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: private-vpc-service-access
+version: 1
+status: draft
+lang: es
+level: 300
+areas: [networking, security]
+title: "Una aplicación en subredes privadas que no puede salir a internet"
+summary: "Una aplicación en dos zonas usa almacenamiento, una base NoSQL, secretos, una cola y logs sin ninguna ruta hacia internet."
+estimatedMinutes: 12
+authors:
+  - github: elissamburu
+
+context: |
+  Una fintech corre su **servicio de conciliación** en instancias dentro de **subredes
+  privadas** de una VPC, repartidas en **dos zonas de disponibilidad**. Durante el día, el
+  servicio:
+
+  - toma trabajos pendientes de una **cola de mensajes** que alimenta otro sistema;
+  - lee archivos de movimientos desde **S3** y guarda los resultados en **DynamoDB**:
+    entre ambos mueve **cientos de GB por día**;
+  - obtiene sus claves y credenciales desde **Secrets Manager** al arrancar;
+  - envía sus logs a **CloudWatch**.
+
+  El área de seguridad fue terminante: la VPC **no tiene ni puede tener salida a internet**.
+  Todo el tráfico hacia los servicios de AWS tiene que llegar por conectividad privada.
+
+  El equipo de plataforma es chico: prefiere pocas piezas para configurar y nada que
+  dimensionar o parchear. Y el costo de la conectividad está bajo la lupa.
+
+objectives:
+  - id: no-internet
+    kind: hard
+    category: security
+    text: "La VPC no tiene ni puede tener salida a internet: el tráfico hacia los servicios de AWS viaja por conectividad privada."
+  - id: low-cost
+    kind: soft
+    category: cost
+    text: "Mantener bajo el costo de la conectividad, que mueve cientos de GB por día."
+  - id: simple-ops
+    kind: soft
+    category: operations
+    text: "Operación simple: pocas piezas para configurar y nada que dimensionar ni parchear."
+  - id: multi-az
+    kind: soft
+    category: availability
+    text: "Si una zona de disponibilidad falla, las instancias de la otra siguen llegando a todos los servicios."
+
+diagram:
+  canvas: { width: 1400, height: 900 }
+  groups:
+    - id: region
+      kind: region
+      label: "Región"
+      rect: { x: 40, y: 40, w: 1320, h: 820 }
+      parent: null
+    - id: vpc
+      kind: vpc
+      label: "Red privada de la aplicación"
+      rect: { x: 80, y: 90, w: 760, h: 740 }
+      parent: region
+    - id: az-a
+      kind: az
+      label: "Zona de disponibilidad A"
+      rect: { x: 110, y: 140, w: 300, h: 320 }
+      parent: vpc
+    - id: subnet-a
+      kind: subnet-private
+      label: "Subred privada A"
+      rect: { x: 130, y: 190, w: 260, h: 240 }
+      parent: az-a
+    - id: az-b
+      kind: az
+      label: "Zona de disponibilidad B"
+      rect: { x: 110, y: 490, w: 300, h: 320 }
+      parent: vpc
+    - id: subnet-b
+      kind: subnet-private
+      label: "Subred privada B"
+      rect: { x: 130, y: 540, w: 260, h: 240 }
+      parent: az-b
+
+  nodes:
+    - id: app-a
+      type: fixed
+      service: ec2
+      position: { x: 180, y: 270 }
+      group: subnet-a
+
+    - id: app-b
+      type: fixed
+      service: ec2
+      position: { x: 180, y: 620 }
+      group: subnet-b
+
+    - id: objects
+      type: fixed
+      service: s3
+      position: { x: 1000, y: 120 }
+      group: region
+
+    - id: results
+      type: fixed
+      service: dynamodb
+      position: { x: 1000, y: 260 }
+      group: region
+
+    - id: secrets
+      type: fixed
+      service: secrets-manager
+      position: { x: 1000, y: 400 }
+      group: region
+
+    - id: logs
+      type: fixed
+      service: cloudwatch
+      position: { x: 1000, y: 680 }
+      group: region
+
+    - id: objects-access
+      type: slot
+      role: "Acceso privado desde ambas subredes al almacenamiento de objetos; por acá pasa la mayor parte del volumen diario."
+      position: { x: 560, y: 120 }
+      group: vpc
+      answers:
+        - service: vpc-gateway-endpoint
+          grade: optimal
+          objectives: [no-internet, low-cost, simple-ops]
+          rationale: >
+            Se asocia a las tablas de ruteo de las subredes y agrega una ruta hacia el servicio
+            con una lista de prefijos administrada por AWS: no hace falta salida a internet ni
+            cambiar la aplicación. No tiene cargo adicional, así que los cientos de GB diarios
+            no suman costo de conectividad.
+          references:
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-s3.html
+        - service: vpc-interface-endpoint
+          grade: acceptable
+          objectives: [low-cost]
+          rationale: >
+            También mantiene el tráfico privado, con IP de tus subredes, pero se cobra por hora en
+            cada zona y por GB procesado: con cientos de GB por día pagás un costo que el acceso
+            por ruta no tiene. Conviene cuando hay que llegar desde otra red (on-premises u otra
+            región), que no es el caso.
+          references:
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/privatelink-interface-endpoints.html
+            - https://aws.amazon.com/privatelink/pricing/
+      incorrect:
+        - service: nat-gateway
+          violates: [no-internet]
+          rationale: "Da salida hacia afuera de la VPC: un NAT público vive en una subred pública y enruta hacia la salida a internet, justo lo que la restricción prohíbe. Además cobra por hora y por GB procesado."
+        - service: internet-gateway
+          violates: [no-internet]
+          rationale: "Es la salida a internet de la VPC. Una subred con ruta hacia él deja de ser privada y rompe la restricción de seguridad."
+        - service: transit-gateway
+          rationale: "Interconecta VPCs y redes propias como un hub; por sí solo no da acceso privado a los servicios de AWS."
+      hints:
+        - "Hay una forma de llegar a este servicio agregando solo una ruta, sin crear interfaces de red."
+        - "Esa opción existe únicamente para S3 y DynamoDB, y no tiene cargo adicional."
+
+    - id: results-access
+      type: slot
+      role: "Acceso privado desde ambas subredes a la base NoSQL donde se guardan los resultados."
+      position: { x: 560, y: 260 }
+      group: vpc
+      answers:
+        - service: vpc-gateway-endpoint
+          grade: optimal
+          objectives: [no-internet, low-cost, simple-ops]
+          rationale: >
+            Igual que para el almacenamiento de objetos: una ruta en las tablas de las subredes
+            hacia la lista de prefijos del servicio, sin cargo adicional y sin cambiar la
+            aplicación, que sigue usando el nombre regional habitual.
+          references:
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/vpc-endpoints-ddb.html
+        - service: vpc-interface-endpoint
+          grade: acceptable
+          objectives: [low-cost, simple-ops]
+          rationale: >
+            Funciona y el tráfico queda privado, pero se cobra por hora en cada zona y por GB, y
+            los clientes tienen que configurarse con la URL específica del endpoint en lugar
+            del nombre habitual del servicio: más costo y más configuración que el acceso por ruta.
+          references:
+            - https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/privatelink-interface-endpoints.html
+            - https://aws.amazon.com/privatelink/pricing/
+      incorrect:
+        - service: nat-gateway
+          violates: [no-internet]
+          rationale: "Requiere salida a internet (un NAT público en subred pública con ruta a la salida de la VPC), que la restricción prohíbe; y cobra por cada GB que procesa."
+        - service: direct-connect
+          rationale: "Es un enlace dedicado entre un centro de datos propio y AWS; no resuelve cómo llegan las instancias de la VPC a la base."
+      hints:
+        - "Mirá qué opción usaste para el almacenamiento de objetos: este servicio tiene la misma."
+
+    - id: secrets-access
+      type: slot
+      role: "Acceso privado desde ambas subredes al almacén de secretos, que la aplicación consulta al arrancar."
+      position: { x: 560, y: 400 }
+      group: vpc
+      answers:
+        - service: vpc-interface-endpoint
+          grade: optimal
+          objectives: [no-internet, multi-az, simple-ops]
+          rationale: >
+            Es la única forma privada de llegar a este servicio: crea una interfaz de red con IP
+            privada en cada subred que elijas. Con una en cada zona, si una zona falla la otra
+            sigue teniendo acceso. Con DNS privado habilitado, el SDK sigue usando el nombre
+            habitual del servicio.
+          references:
+            - https://docs.aws.amazon.com/secretsmanager/latest/userguide/vpc-endpoint-overview.html
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-access-aws-services.html
+      incorrect:
+        - service: vpc-gateway-endpoint
+          rationale: "Ese tipo de acceso por ruta solo existe para S3 y DynamoDB; este servicio no lo ofrece."
+        - service: nat-gateway
+          violates: [no-internet]
+          rationale: "Llegaría al servicio por su punto de acceso público a través de la salida a internet de la VPC, que la restricción prohíbe."
+      hints:
+        - "La única opción privada para este servicio pone interfaces de red dentro de tus subredes."
+        - "Para sobrevivir a la caída de una zona, necesitás presencia en las dos."
+
+    - id: jobs-queue
+      type: slot
+      role: "Cola administrada donde otro sistema deja trabajos pendientes; el servicio los toma a su ritmo y los borra al terminarlos."
+      position: { x: 1000, y: 540 }
+      group: region
+      answers:
+        - service: sqs
+          grade: optimal
+          objectives: [simple-ops, low-cost]
+          rationale: >
+            Cola totalmente administrada: no hay broker que dimensionar ni parchear, retiene los
+            mensajes hasta que el consumidor los procesa y cobra por pedido, sin mínimo.
+          references:
+            - https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html
+            - https://aws.amazon.com/sqs/pricing/
+        - service: mq
+          grade: acceptable
+          objectives: [simple-ops, low-cost]
+          rationale: >
+            Un broker administrado sirve si ya usás protocolos como AMQP o JMS, pero se paga por
+            hora de instancia aunque no haya mensajes, y tenés que elegir tamaño y modo de
+            despliegue y convivir con ventanas de mantenimiento.
+          references:
+            - https://docs.aws.amazon.com/amazon-mq/latest/developer-guide/amazon-mq-basic-elements.html
+            - https://aws.amazon.com/amazon-mq/pricing/
+        - service: kinesis-data-streams
+          grade: acceptable
+          objectives: [simple-ops, low-cost]
+          rationale: >
+            Un stream retiene los registros para varios consumidores, pero está pensado para
+            ingesta y procesamiento continuo en tiempo real, no para una lista de trabajos que
+            se toman y se borran; y en los modos habituales hay un cargo por hora (por stream o
+            por shard) aunque no lleguen datos.
+          references:
+            - https://docs.aws.amazon.com/streams/latest/dev/introduction.html
+            - https://aws.amazon.com/kinesis/data-streams/pricing/
+      incorrect:
+        - service: sns
+          rationale: "Empuja cada mensaje a sus suscriptores en el momento; no retiene trabajos para que el servicio los tome a su ritmo."
+      hints:
+        - "Buscá un servicio de colas totalmente administrado, sin broker."
+
+    - id: jobs-access
+      type: slot
+      role: "Acceso privado desde ambas subredes a la API de la cola de trabajos pendientes."
+      position: { x: 560, y: 540 }
+      group: vpc
+      answers:
+        - service: vpc-interface-endpoint
+          grade: optimal
+          objectives: [no-internet, multi-az, simple-ops]
+          rationale: >
+            Interfaces de red con IP privada en las subredes de ambas zonas; con DNS privado, la
+            aplicación sigue usando el nombre habitual del servicio y el tráfico no necesita
+            ninguna salida a internet.
+          references:
+            - https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-internetwork-traffic-privacy.html
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-access-aws-services.html
+      incorrect:
+        - service: vpc-gateway-endpoint
+          rationale: "El acceso por ruta solo existe para S3 y DynamoDB; la cola no lo ofrece."
+        - service: nat-gateway
+          violates: [no-internet]
+          rationale: "Llegaría a la cola por su punto de acceso público a través de la salida a internet de la VPC, que la restricción prohíbe."
+        - service: internet-gateway
+          violates: [no-internet]
+          rationale: "Es la salida a internet de la VPC; además, las instancias en subredes privadas no tienen ruta hacia él."
+      hints:
+        - "Es el mismo tipo de acceso que usaste para los secretos."
+
+    - id: logs-access
+      type: slot
+      role: "Acceso privado desde ambas subredes para enviar los logs de la aplicación al servicio de monitoreo."
+      position: { x: 560, y: 680 }
+      group: vpc
+      answers:
+        - service: vpc-interface-endpoint
+          grade: optimal
+          objectives: [no-internet, multi-az, simple-ops]
+          rationale: >
+            El servicio de logs también se alcanza con interfaces de red privadas en cada zona.
+            Casi todos los servicios de AWS se acceden así; el acceso por ruta es la excepción.
+          references:
+            - https://docs.aws.amazon.com/AmazonCloudWatch/latest/logs/cloudwatch-logs-and-interface-VPC.html
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/aws-services-privatelink-support.html
+      incorrect:
+        - service: vpc-gateway-endpoint
+          rationale: "El acceso por ruta solo existe para S3 y DynamoDB; el servicio de logs no lo ofrece."
+        - service: nat-gateway
+          violates: [no-internet]
+          rationale: "Enviaría los logs por la salida a internet de la VPC, que la restricción prohíbe."
+      hints:
+        - "¿Qué tienen en común este servicio, los secretos y la cola, y en qué se diferencian de S3 y DynamoDB?"
+
+  edges:
+    - { id: e1,  from: app-a,          to: secrets-access, step: 1, style: sync, label: "Pide sus secretos al arrancar" }
+    - { id: e2,  from: app-b,          to: secrets-access, step: 1, style: sync, label: "Pide sus secretos al arrancar" }
+    - { id: e3,  from: secrets-access, to: secrets,        step: 2, style: sync, label: "Llega por la red privada" }
+    - { id: e4,  from: app-a,          to: jobs-access,    step: 3, style: async, label: "Toma trabajos pendientes" }
+    - { id: e5,  from: app-b,          to: jobs-access,    step: 3, style: async, label: "Toma trabajos pendientes" }
+    - { id: e6,  from: jobs-access,    to: jobs-queue,     step: 4, style: async, label: "Recibe y borra mensajes" }
+    - { id: e7,  from: app-a,          to: objects-access, step: 5, style: data, label: "Lee el archivo de movimientos" }
+    - { id: e8,  from: app-b,          to: objects-access, step: 5, style: data, label: "Lee el archivo de movimientos" }
+    - { id: e9,  from: objects-access, to: objects,        step: 6, style: data, label: "Ruta privada al servicio",
+        description: "Es el tramo de mayor volumen: cientos de GB por día." }
+    - { id: e10, from: app-a,          to: results-access, step: 7, style: data, label: "Guarda la conciliación" }
+    - { id: e11, from: app-b,          to: results-access, step: 7, style: data, label: "Guarda la conciliación" }
+    - { id: e12, from: results-access, to: results,        step: 8, style: data, label: "Ruta privada al servicio" }
+    - { id: e13, from: app-a,          to: logs-access,    step: 9, style: control, label: "Envía logs" }
+    - { id: e14, from: app-b,          to: logs-access,    step: 9, style: control, label: "Envía logs" }
+    - { id: e15, from: logs-access,    to: logs,           step: 10, style: control, label: "Llega por la red privada" }
+
+palette:
+  mode: auto
+
+references:
+  - title: "Acceso a servicios de AWS con AWS PrivateLink"
+    url: https://docs.aws.amazon.com/vpc/latest/privatelink/privatelink-access-aws-services.html
+  - title: "Gateway endpoints"
+    url: https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html
