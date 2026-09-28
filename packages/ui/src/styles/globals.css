@@ -92,12 +92,39 @@
   --slot-border: oklch(0.64 0.03 250); /* AJUSTE: nuevo */
 }
 
+/* Base de Lovable (src/styles.css, @layer base), traducida. */
 @layer base {
   * {
-    @apply border-border outline-ring/50;
+    @apply border-border;
   }
 
   body {
-    @apply bg-background text-foreground font-sans antialiased;
+    @apply bg-background text-foreground min-w-[320px] font-sans tracking-normal;
   }
+
+  /*
+   * Foco visible de Lovable: 3px de --ring al 55 % con 2px de separación. En Lovable lo anulaba el
+   * focus-visible:outline-none de cada componente; acá los componentes no lo anulan, así el foco
+   * se ve también con teclado sobre los controles de Radix (botones, radios, toggles, select).
+   */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--ring) 55%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * .section-kicker de Lovable: rótulo sobre los títulos. Lovable escribía el texto en mayúsculas;
+ * acá se escribe normal y se pasa a mayúsculas por CSS, para que los lectores de pantalla no lo
+ * deletreen.
+ */
+@utility section-kicker {
+  color: var(--primary);
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
 }

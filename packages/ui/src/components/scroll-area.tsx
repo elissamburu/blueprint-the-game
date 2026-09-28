@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Lovable: src/components/ui/scroll-area.tsx (mismas clases). Diferencia de accesibilidad: el
+// viewport es enfocable (WCAG 2.1.1, axe scrollable-region-focusable) y muestra el foco de la capa base.
 import * as React from "react";
 import { cn } from "@blueprint/ui/lib/utils";
 import { ScrollArea as ScrollAreaPrimitive } from "radix-ui";
@@ -11,14 +13,13 @@ function ScrollArea({
   return (
     <ScrollAreaPrimitive.Root
       data-slot="scroll-area"
-      className={cn("relative", className)}
+      className={cn("relative overflow-hidden", className)}
       {...props}
     >
-      {/* Focusable so keyboard users can scroll it (WCAG 2.1.1, axe scrollable-region-focusable). */}
       <ScrollAreaPrimitive.Viewport
         data-slot="scroll-area-viewport"
         tabIndex={0}
-        className="size-full rounded-[inherit] transition-[color,box-shadow] outline-none focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-1"
+        className="h-full w-full rounded-[inherit] focus-visible:outline-3 focus-visible:outline-offset-2 focus-visible:outline-ring/55"
       >
         {children}
       </ScrollAreaPrimitive.Viewport>

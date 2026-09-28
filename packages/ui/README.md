@@ -27,6 +27,7 @@ pnpm dlx shadcn@4.21.0 add <componente>
 
 Después, a mano:
 1. Encabezado `// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0` en la primera línea.
-2. Si el import de `cn` quedó como `from "cn"` (bug del registro de shadcn), cambiarlo por `from "@blueprint/ui/lib/utils"` y sacar el paquete `cn` si la CLI lo instaló.
-3. Quitar `"use client"` (no usamos RSC) y textos en inglés visibles o para lectores de pantalla.
-4. `pnpm format`, `pnpm lint` y `pnpm typecheck`.
+2. El registro de shadcn importa `cn` desde `"cn"`, un paquete oficial de shadcn que por ahora no adoptamos: cambiá el import por `from "@blueprint/ui/lib/utils"` y sacá el paquete `cn` si la CLI lo instaló (`pnpm remove cn` en el workspace donde aparezca, también `apps/web` si corriste la CLI desde ahí).
+3. Quitar `"use client"` (no usamos RSC) y traducir los textos en inglés, visibles o para lectores de pantalla.
+4. Reemplazar las clases por las del componente equivalente del prototipo de Lovable (`src/components/ui/*.tsx`), salvo donde empeoren la accesibilidad: ver el comentario `Lovable:` al principio de cada componente.
+5. `pnpm format`, `pnpm lint` y `pnpm typecheck`.

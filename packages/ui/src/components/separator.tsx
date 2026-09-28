@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Lovable: src/components/ui/separator.tsx (mismas clases: bg-border, 1px).
 import * as React from "react";
 import { cn } from "@blueprint/ui/lib/utils";
 import { Separator as SeparatorPrimitive } from "radix-ui";

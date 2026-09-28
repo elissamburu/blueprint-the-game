@@ -37,6 +37,7 @@ describe("ComponentCatalog", () => {
       "dialog-trigger",
       "progress",
       "radio-group",
+      "radio-card",
       "toggle",
       "separator",
       "scroll-area",

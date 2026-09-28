@@ -26,7 +26,7 @@ describe("LevelBadge", () => {
   });
 
   it("is outlined by default and solid on request", () => {
-    expect(renderBadge(200).classList).toContain("bg-card");
-    expect(renderBadge(200, "solid").classList).toContain("bg-primary");
+    expect(renderBadge(200).dataset.variant).toBe("outline");
+    expect(renderBadge(200, "solid").dataset.variant).toBe("default");
   });
 });

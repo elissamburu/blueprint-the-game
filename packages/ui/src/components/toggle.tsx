@@ -1,17 +1,22 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Lovable: src/components/ui/toggle.tsx (clases tal cual, sin focus-visible:outline-none: ver la
+// capa base de globals.css). La variante `chip` traduce los chips de áreas del onboarding de
+// Lovable (Button `outline` sin elegir, Button `default` elegido); con Toggle el estado queda en
+// aria-pressed.
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@blueprint/ui/lib/utils";
 import { Toggle as TogglePrimitive } from "radix-ui";
 
 const toggleVariants = cva(
-  "inline-flex items-center justify-center gap-2 rounded-md text-sm font-medium whitespace-nowrap transition-[color,box-shadow] outline-none hover:bg-muted hover:text-muted-foreground focus-visible:border-ring focus-visible:ring-[3px] focus-visible:ring-ring/50 disabled:pointer-events-none disabled:opacity-50 aria-invalid:border-destructive aria-invalid:ring-destructive/20 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground dark:aria-invalid:ring-destructive/40 [&_svg]:pointer-events-none [&_svg]:shrink-0 [&_svg:not([class*='size-'])]:size-4",
+  "inline-flex cursor-pointer items-center justify-center gap-2 rounded-md text-sm font-medium transition-colors hover:bg-muted hover:text-muted-foreground focus-visible:ring-1 focus-visible:ring-ring disabled:pointer-events-none disabled:cursor-not-allowed disabled:opacity-50 data-[state=on]:bg-accent data-[state=on]:text-accent-foreground [&_svg]:pointer-events-none [&_svg]:size-4 [&_svg]:shrink-0",
   {
     variants: {
       variant: {
         default: "bg-transparent",
         outline:
-          "border border-input bg-transparent shadow-xs hover:bg-accent hover:text-accent-foreground",
+          "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
+        chip: "border border-input bg-background whitespace-nowrap shadow-sm hover:bg-accent hover:text-accent-foreground data-[state=on]:border-transparent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow data-[state=on]:hover:bg-primary/90 data-[state=on]:hover:text-primary-foreground",
       },
       size: {
         default: "h-9 min-w-9 px-2",
@@ -19,6 +24,7 @@ const toggleVariants = cva(
         lg: "h-10 min-w-10 px-2.5",
       },
     },
+    compoundVariants: [{ variant: "chip", size: "default", class: "px-4 py-2" }],
     defaultVariants: {
       variant: "default",
       size: "default",

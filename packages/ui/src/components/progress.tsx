@@ -1,4 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Lovable: src/components/ui/progress.tsx (mismas clases).
 import * as React from "react";
 import { cn } from "@blueprint/ui/lib/utils";
 import { Progress as ProgressPrimitive } from "radix-ui";
