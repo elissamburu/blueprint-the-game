@@ -6,10 +6,17 @@
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {
+    "content": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
     "clean": "rimraf .turbo"
+  },
+  "dependencies": {
+    "@blueprint/content-lint": "workspace:*",
+    "@blueprint/scenario-schema": "workspace:*",
+    "tsx": "catalog:",
+    "yaml": "catalog:"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",
