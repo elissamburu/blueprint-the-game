@@ -1,0 +1,44 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: private-vpc-service-access v1
+flowchart LR
+  subgraph g_region["Región"]
+    subgraph g_vpc["Red privada de la aplicación"]
+      subgraph g_az_a["Zona de disponibilidad A"]
+        subgraph g_subnet_a["Subred privada A"]
+          n_app_a["Amazon EC2"]
+        end
+      end
+      subgraph g_az_b["Zona de disponibilidad B"]
+        subgraph g_subnet_b["Subred privada B"]
+          n_app_b["Amazon EC2"]
+        end
+      end
+      n_objects_access["Gateway VPC endpoint"]
+      n_results_access["Gateway VPC endpoint"]
+      n_secrets_access["Interface VPC endpoint (AWS PrivateLink)"]
+      n_jobs_access["Interface VPC endpoint (AWS PrivateLink)"]
+      n_logs_access["Interface VPC endpoint (AWS PrivateLink)"]
+    end
+    n_objects["Amazon S3"]
+    n_results["Amazon DynamoDB"]
+    n_secrets["AWS Secrets Manager"]
+    n_logs["Amazon CloudWatch"]
+    n_jobs_queue["Amazon SQS"]
+  end
+  n_app_a -->|"1. Pide sus secretos al arrancar"| n_secrets_access
+  n_app_b -->|"1. Pide sus secretos al arrancar"| n_secrets_access
+  n_secrets_access -->|"2. Llega por la red privada"| n_secrets
+  n_app_a -.->|"3. Toma trabajos pendientes"| n_jobs_access
+  n_app_b -.->|"3. Toma trabajos pendientes"| n_jobs_access
+  n_jobs_access -.->|"4. Recibe y borra mensajes"| n_jobs_queue
+  n_app_a ==>|"5. Lee el archivo de movimientos"| n_objects_access
+  n_app_b ==>|"5. Lee el archivo de movimientos"| n_objects_access
+  n_objects_access ==>|"6. Ruta privada al servicio"| n_objects
+  n_app_a ==>|"7. Guarda la conciliación"| n_results_access
+  n_app_b ==>|"7. Guarda la conciliación"| n_results_access
+  n_results_access ==>|"8. Ruta privada al servicio"| n_results
+  n_app_a --o|"9. Envía logs"| n_logs_access
+  n_app_b --o|"9. Envía logs"| n_logs_access
+  n_logs_access --o|"10. Llega por la red privada"| n_logs
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_objects_access,n_results_access,n_secrets_access,n_jobs_queue,n_jobs_access,n_logs_access slot
