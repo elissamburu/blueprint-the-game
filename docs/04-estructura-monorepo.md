@@ -163,7 +163,7 @@ blueprint/
 
 Reglas (enforced con `eslint-plugin-boundaries` o `dependency-cruiser`):
 - `packages/*` **no** importan de `apps/*` ni de `services/*`.
-- `game-engine`, `scenario-schema`, `content-lint`, `catalog` **no tienen IO** (ni `fs`, ni `fetch`, ni SDKs de AWS). Reciben datos y devuelven datos.
+- `game-engine`, `scenario-schema`, `content-lint`, `catalog` **no tienen IO** (ni `fs`, ni `fetch`, ni SDKs de AWS) en su `src/`, tests incluidos. Reciben datos y devuelven datos. Sus scripts de build (`scripts/`) pueden usar Node, pero `src/` no puede importarlos.
 - `services/api` no importa `diagram` ni `ui`.
 - `ai-generator` define la interfaz `LlmProvider`; solo `providers/*` importan SDKs de IA.
 - Nada fuera de `apps/studio/server` puede escribir en `content/`.
