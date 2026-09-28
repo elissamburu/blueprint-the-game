@@ -30,8 +30,8 @@ Este escenario agregó al catálogo `vpc-gateway-endpoint`, `vpc-interface-endpo
 - Amazon MQ: cobro por hora de broker, ventanas de mantenimiento: https://aws.amazon.com/amazon-mq/pricing/ · https://docs.aws.amazon.com/amazon-mq/latest/developer-guide/amazon-mq-basic-elements.html
 - Kinesis Data Streams: cargo por hora por stream (on-demand standard) o por shard (provisioned): https://aws.amazon.com/kinesis/data-streams/pricing/
 
-## TODO(verificar)
-- Íconos de los cuatro servicios nuevos (`Res_Amazon-VPC_Endpoints_48`, `Arch_AWS-PrivateLink_48`, `Res_Amazon-VPC_NAT-Gateway_48`, `Res_Amazon-VPC_Internet-Gateway_48`): verificados contra el paquete oficial de íconos **06/07/2024**. El catálogo declara el release **07/31/2026**, que no estaba disponible localmente: confirmar que los nombres no cambiaron.
+## Íconos
+- Los íconos de los cuatro servicios nuevos (`Res_Amazon-VPC_Endpoints_48`, `Arch_AWS-PrivateLink_48`, `Res_Amazon-VPC_NAT-Gateway_48`, `Res_Amazon-VPC_Internet-Gateway_48`) se verificaron el 2026-09-28 contra el Icon package oficial **07/31/2026** descargado de https://aws.amazon.com/architecture/icons/.
 
 ## Pendiente
 - [ ] Jugarlo en preview y medir el tiempo real (`estimatedMinutes`).

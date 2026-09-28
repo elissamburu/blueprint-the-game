@@ -26,8 +26,5 @@ Calculada con `buildCuratedPalette` (maxSize 12 por defecto):
 - Destinos de Global Accelerator (NLB, ALB, EC2, IP elásticas): https://docs.aws.amazon.com/global-accelerator/latest/dg/about-endpoints.html
 - Tipos de destino de ALB (instance, ip, lambda): https://docs.aws.amazon.com/elasticloadbalancing/latest/application/load-balancer-target-groups.html
 
-## TODO(verificar)
-- Ninguno propio del escenario.
-
 ## Pendiente
 - [ ] Jugarlo en preview y medir el tiempo real (`estimatedMinutes`).
