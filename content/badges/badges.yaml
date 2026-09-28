@@ -1,0 +1,37 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Insignias declarativas (ADR-0018, docs/03 §6). Tipos de regla: complete_count,
+# perfect_scenario, no_hints, streak, area_mastery, level_complete.
+
+- id: primer-verde
+  name: "Primer verde"
+  description: "Completaste tu primer escenario."
+  rule: { type: complete_count, count: 1 }
+- id: diez-escenarios
+  name: "Diez diagramas"
+  description: "Completaste 10 escenarios."
+  rule: { type: complete_count, count: 10 }
+- id: serverless-300
+  name: "Serverless 300"
+  description: "Completaste 5 escenarios de nivel 300 del área serverless."
+  rule: { type: complete_count, count: 5, level: 300, area: serverless }
+- id: impecable
+  name: "Impecable"
+  description: "Completaste un escenario con todo verde al primer intento."
+  rule: { type: perfect_scenario }
+- id: sin-red
+  name: "Sin red"
+  description: "Completaste un escenario de nivel 300 o más sin usar pistas."
+  rule: { type: no_hints, minLevel: 300 }
+- id: constancia-7
+  name: "Constancia"
+  description: "Jugaste 7 días seguidos."
+  rule: { type: streak, days: 7 }
+- id: maestro-redes
+  name: "Maestro de redes"
+  description: "Completaste en verde el 80 % de los escenarios de redes."
+  secret: true
+  rule: { type: area_mastery, area: networking, percent: 80 }
+- id: nivel-200
+  name: "Nivel 200 completo"
+  description: "Completaste todos los escenarios publicados de nivel 200."
+  rule: { type: level_complete, level: 200 }

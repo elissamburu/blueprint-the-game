@@ -1,0 +1,40 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Áreas de interés (RF-ONB-01, docs/03 §6). Los escenarios las referencian en `areas` y el
+# jugador las elige en el onboarding.
+
+- id: serverless
+  name: Serverless
+  description: "Arquitecturas sin servidores que administrar, que escalan y cobran por uso."
+- id: containers
+  name: Contenedores
+  description: "Empaquetar, orquestar y operar aplicaciones en contenedores."
+- id: compute
+  name: Cómputo
+  description: "Máquinas virtuales, escalado y modelos de ejecución."
+- id: storage
+  name: Almacenamiento
+  description: "Objetos, bloques, archivos y copias de seguridad."
+- id: databases
+  name: Bases de datos
+  description: "Elegir el modelo de datos y el motor adecuado para cada acceso."
+- id: networking
+  name: Redes
+  description: "Redes privadas, conectividad, DNS, balanceo y entrega de contenido."
+- id: integration
+  name: Integración
+  description: "Colas, eventos, pub/sub y orquestación entre componentes."
+- id: security
+  name: Seguridad
+  description: "Identidad, permisos, cifrado, secretos y protección perimetral."
+- id: data
+  name: Datos y analítica
+  description: "Ingesta, procesamiento y consulta de grandes volúmenes de datos."
+- id: ml
+  name: Inteligencia artificial
+  description: "Servicios de IA ya entrenados, IA generativa y aprendizaje automático."
+- id: observability
+  name: Observabilidad
+  description: "Métricas, logs, trazas y auditoría."
+- id: devops
+  name: DevOps
+  description: "Infraestructura como código, integración y entrega continuas."
