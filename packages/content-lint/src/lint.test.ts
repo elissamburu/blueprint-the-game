@@ -1,10 +1,26 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-import { formatIssues, parseScenario } from "@blueprint/scenario-schema";
+import {
+  formatIssues,
+  parseAreas,
+  parseBadges,
+  parseCategories,
+  parseConfusionGroups,
+  parseGameRules,
+  parseScenario,
+  parseServices,
+  type ParseResult,
+} from "@blueprint/scenario-schema";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
+import areasRaw from "../../../content/areas.yaml?raw";
+import badgesRaw from "../../../content/badges/badges.yaml?raw";
+import categoriesRaw from "../../../content/catalog/categories.yaml?raw";
+import confusionGroupsRaw from "../../../content/catalog/confusion-groups.yaml?raw";
+import servicesRaw from "../../../content/catalog/services.yaml?raw";
+import gameRulesRaw from "../../../content/game-rules.yaml?raw";
 import pdfRaw from "../../../content/scenarios/serverless-pdf-processing/scenario.yaml?raw";
-import { hasErrors, lintScenario, rules } from "./index.js";
-import { baseInput, gameRules } from "./testing/fixtures.js";
+import { hasErrors, lintScenario, lintSharedContent, rules, sharedRules } from "./index.js";
+import { baseInput, baseSharedInput, gameRules } from "./testing/fixtures.js";
 import { pdfCatalog, pdfConfusionGroups } from "./testing/pdf-catalog.js";
 import type { Issue } from "./types.js";
 
@@ -31,6 +47,7 @@ describe("lintScenario", () => {
       "L015",
       "L016",
       "L018",
+      "L019",
     ]);
     for (const rule of rules) expect(rule.description).not.toBe("");
   });
@@ -56,16 +73,65 @@ describe("lintScenario", () => {
   });
 });
 
-describe("lintScenario: real content", () => {
+describe("lintSharedContent", () => {
+  it("returns no issues for the base fixture", () => {
+    expect(lintSharedContent(baseSharedInput())).toEqual([]);
+  });
+
+  it("registers each rule once, in code order", () => {
+    const codes = sharedRules.map((rule) => rule.code);
+    expect(codes).toEqual(["C001", "C002", "C003", "C004", "C005", "C006", "C007"]);
+    for (const rule of sharedRules) expect(rule.description).not.toBe("");
+  });
+
+  it("collects the issues of every rule", () => {
+    const input = baseSharedInput();
+    input.catalog[0]!.category = "storage";
+    input.areas.pop();
+    const issues = lintSharedContent(input);
+    expect(issues.map((issue) => `${issue.code} ${issue.path.join(".")}`)).toEqual([
+      "C001 catalog.0.category",
+      "C006 badges.2.rule.area",
+    ]);
+  });
+
+  it("accepts a custom rule list", () => {
+    const always: Issue = { code: "X001", severity: "warning", message: "x", path: [] };
+    expect(
+      lintSharedContent(baseSharedInput(), [
+        { code: "X001", description: "x", check: () => [always] },
+      ]),
+    ).toEqual([always]);
+  });
+});
+
+const parseRaw = <T>(raw: string, parse: (input: unknown) => ParseResult<T>): T => {
+  const parsed = parse(parseYaml(raw));
+  if (!parsed.success) throw new Error(formatIssues(parsed.issues));
+  return parsed.data;
+};
+
+describe("real content", () => {
+  it("finds no integrity issues between the shared files", () => {
+    const issues = lintSharedContent({
+      catalog: parseRaw(servicesRaw, parseServices),
+      categories: parseRaw(categoriesRaw, parseCategories),
+      confusionGroups: parseRaw(confusionGroupsRaw, parseConfusionGroups),
+      areas: parseRaw(areasRaw, parseAreas),
+      gameRules: parseRaw(gameRulesRaw, parseGameRules),
+      badges: parseRaw(badgesRaw, parseBadges),
+    });
+    expect(issues).toEqual([]);
+  });
+
   it("finds no issues in serverless-pdf-processing", () => {
-    const parsed = parseScenario(parseYaml(pdfRaw));
-    if (!parsed.success) throw new Error(formatIssues(parsed.issues));
     const issues = lintScenario({
-      scenario: parsed.data,
+      scenario: parseRaw(pdfRaw, parseScenario),
       folderName: "serverless-pdf-processing",
       catalog: pdfCatalog,
       confusionGroups: pdfConfusionGroups,
       gameRules,
+      areas: parseRaw(areasRaw, parseAreas),
     });
     expect(issues).toEqual([]);
   });

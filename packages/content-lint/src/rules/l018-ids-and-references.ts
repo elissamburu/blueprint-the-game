@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import type { Group } from "@blueprint/scenario-schema";
+import { repeatedIdIndexes } from "../ids.js";
 import { groupPath, nodePath } from "../scenario-helpers.js";
 import type { Issue, IssuePath, Rule } from "../types.js";
 
@@ -7,23 +8,13 @@ const duplicateIds = (
   items: readonly { id: string }[],
   collection: string,
   basePath: IssuePath,
-): Issue[] => {
-  const seen = new Set<string>();
-  return items.flatMap((item, i): Issue[] => {
-    const duplicated = seen.has(item.id);
-    seen.add(item.id);
-    return duplicated
-      ? [
-          {
-            code: "L018",
-            severity: "error",
-            message: `El id "${item.id}" está repetido en ${collection}: cada id tiene que ser único.`,
-            path: [...basePath, i, "id"],
-          },
-        ]
-      : [];
-  });
-};
+): Issue[] =>
+  repeatedIdIndexes(items).map((i) => ({
+    code: "L018",
+    severity: "error",
+    message: `El id "${items[i]?.id}" está repetido en ${collection}: cada id tiene que ser único.`,
+    path: [...basePath, i, "id"],
+  }));
 
 /** Chains of `parent` that loop back, each reported once (from its smallest id). */
 const nestingCycles = (groups: readonly Group[]): Issue[] => {

@@ -180,7 +180,7 @@ Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con 
 
 ## 3. Reglas de lint semántico (`packages/content-lint`)
 
-`lintScenario` recibe el escenario, el catálogo, los grupos de confusión y game-rules **ya parseados** por `@blueprint/scenario-schema`, más el nombre de la carpeta del escenario, y devuelve `Issue[]` (`code`, `severity`, `message`, `path`). No hace IO: la lectura de archivos y de git (L012, L014) la hace el CLI.
+`lintScenario` recibe el escenario, el catálogo, los grupos de confusión, game-rules y las áreas **ya parseados** por `@blueprint/scenario-schema`, más el nombre de la carpeta del escenario, y devuelve `Issue[]` (`code`, `severity`, `message`, `path`). No hace IO: la lectura de archivos y de git (L012, L014) la hace el CLI.
 
 | Código | Severidad | Regla |
 |---|---|---|
@@ -202,6 +202,21 @@ Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con 
 | L016 | error / warning | Si el modo de paleta **resuelto** es `curated` (sea cual sea el nivel; ver "Paleta curated" en §2): **error** si las respuestas solas superan `maxSize` (la paleta no puede contenerlas); **warning** si la paleta armada tiene < 3 distractores. Se cuentan los distractores que efectivamente entran, después del recorte por `maxSize`. |
 | L017 | warning | Enlaces en `references` responden 200 (job de CI semanal, no bloqueante en PR). |
 | L018 | error | Ids únicos dentro de cada colección (`objectives`, `diagram.groups`, `diagram.nodes`, `diagram.edges`); `node.group` y `group.parent` apuntan a grupos existentes, sin ciclos de anidamiento. Las demás referencias viven en una sola regla: `answers[].objectives` en L004, `incorrect[].violates` en L015 y `from`/`to` de aristas en L006. |
+| L019 | error | Cada id de `areas` existe en `content/areas.yaml`. |
+
+### Integridad entre archivos compartidos (C0xx)
+
+`lintSharedContent` recibe `catalog`, `categories`, `confusionGroups`, `areas`, `gameRules` y `badges` **ya parseados** y devuelve `Issue[]`; el primer segmento de cada `path` es la clave del archivo (p. ej. `["catalog", 3, "category"]`). `content:validate` la ejecuta una sola vez, antes de los escenarios, y muestra sus issues en un bloque propio ("Integridad entre archivos compartidos"). Si falta alguno de los seis archivos o no pasa el schema, se informa como omitida.
+
+| Código | Severidad | Regla |
+|---|---|---|
+| C001 | error | La `category` de cada servicio de `services.yaml` existe en `categories.yaml`. |
+| C002 | error | Cada id de `adjacent` en `categories.yaml` existe y no es la propia categoría. |
+| C003 | error | Cada servicio de un grupo de `confusion-groups.yaml` existe en `services.yaml`. |
+| C004 | error | Un grupo de confusión no repite servicios y tiene ≥ 2 servicios **distintos**. Que tenga ≥ 2 entradas lo valida el schema. |
+| C005 | error | Ids únicos en cada archivo: servicios, categorías, grupos de confusión, áreas, insignias y rangos de `game-rules.yaml`. |
+| C006 | error | El `area` de las reglas de insignias (`complete_count`, `area_mastery`) existe en `areas.yaml`. Que `level` y `minLevel` sean niveles válidos (100, 200, 300, 400) lo valida el schema. |
+| C007 | error | Los `ranks` de `game-rules.yaml` empiezan en `minXp: 0` y siguen ordenados por `minXp` estrictamente creciente (sin umbrales repetidos). |
 
 > **Nota sobre L005:** muchos nombres de servicios son palabras comunes (*Config*, *Glue*, *Batch*, *Shield*, *Connect*). Por eso el catálogo define `leakPatterns` explícitos por servicio (p. ej. `["AWS Config", "Config rules"]`) en vez de usar el nombre a secas. Los falsos positivos se resuelven ajustando patrones en el catálogo, no silenciando la regla en el escenario.
 
@@ -305,7 +320,7 @@ Tipos de regla (conjunto cerrado, [ADR-0018](adr/0018-gamificacion-declarativa.m
 | `no_hints` | `minLevel?` | Completar un escenario (de nivel ≥ `minLevel`) sin usar pistas. |
 | `streak` | `days` | Jugar `days` días seguidos. |
 | `area_mastery` | `area`, `percent` | Tener en verde el `percent` % de los escenarios de un área. |
-| `level_complete` | `level` | Completar todos los escenarios `published` de ese nivel existentes al momento de evaluar. |
+| `level_complete` | `level` | Completar todos los escenarios `published` de ese nivel existentes al momento de evaluar. Solo se otorga si existe **al menos un** escenario `published` de ese nivel: con cero, la regla no se cumple. |
 
 ## 7. Ciclo de vida de un escenario
 

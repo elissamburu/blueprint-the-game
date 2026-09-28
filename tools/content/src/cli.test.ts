@@ -40,6 +40,53 @@ describe("content validate", () => {
     expect(stdout).toContain("✔ photo-queue");
     expect(stdout).not.toContain("_templates");
     expect(stdout).toContain("OK: 0 errores, 0 warnings en 2 escenarios.");
+    expect(stdout).toContain("✔ Integridad entre archivos compartidos");
+    expect(stdout.indexOf("Integridad")).toBeLessThan(stdout.indexOf("club-photos"));
+  });
+
+  it("reports integrity errors between shared files in their own block", async () => {
+    await ws.edit(["catalog", "categories.yaml"], "adjacent: [database]", "adjacent: [databases]");
+    await ws.edit(
+      ["catalog", "confusion-groups.yaml"],
+      "services: [lambda, ec2, fargate]",
+      "services: [lambda, ec2, ecs]",
+    );
+    const { code, stdout } = await ws.cli("validate");
+    expect(code).toBe(1);
+    expect(stdout).toContain("✖ Integridad entre archivos compartidos");
+    expect(stdout).toContain(
+      "error   C002   content/catalog/categories.yaml › [0] (storage).adjacent[0]: ",
+    );
+    expect(stdout).toContain("error   C003   content/catalog/confusion-groups.yaml › ");
+    expect(stdout).toContain("✔ club-photos");
+    expect(stdout).toContain("FALLÓ: 2 errores, 0 warnings en 2 escenarios.");
+
+    const report = await validateJson();
+    expect(report.integrity).toEqual([
+      {
+        code: "C002",
+        severity: "error",
+        message:
+          'La categoría "storage" tiene como adyacente a "databases", que no existe en catalog/categories.yaml.',
+        file: "content/catalog/categories.yaml",
+        where: "[0] (storage).adjacent[0]",
+      },
+      {
+        code: "C003",
+        severity: "error",
+        message:
+          'El grupo de confusión "compute" incluye "ecs", que no existe en catalog/services.yaml.',
+        file: "content/catalog/confusion-groups.yaml",
+        where: "[0] (compute).services[2]",
+      },
+    ]);
+  });
+
+  it("reports scenario areas missing from areas.yaml as L019", async () => {
+    await ws.edit(CLUB, "areas: [serverless, storage]", "areas: [serverless, networking]");
+    const report = await validateJson();
+    const l019 = report.scenarios[0]?.findings.find((f) => f.code === "L019");
+    expect(l019).toMatchObject({ severity: "error", where: "areas[1]" });
   });
 
   it("reports L014 as skipped when --base is not given", async () => {
@@ -67,7 +114,9 @@ describe("content validate", () => {
     expect(stdout).toContain("FILE");
     expect(stdout).toContain("Falta el archivo obligatorio content/catalog/services.yaml");
     expect(stdout).toContain("catálogo curado de servicios");
-    expect(stdout).toContain("Omitida L001-L018");
+    expect(stdout).toContain("Omitida C001-C007");
+    expect(stdout).toContain("Omitida L001-L019");
+    expect(stdout).not.toContain("Integridad entre archivos compartidos");
     noStackTrace(stdout + stderr);
   });
 

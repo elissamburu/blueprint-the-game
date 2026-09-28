@@ -1,6 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Minimal typed fixtures for rule tests. The base scenario passes every rule.
 import type {
+  Area,
+  Badge,
+  Category,
   ConfusionGroup,
   GameRules,
   Scenario,
@@ -8,7 +11,7 @@ import type {
   SlotNode,
 } from "@blueprint/scenario-schema";
 import { createContext } from "../lint.js";
-import type { Issue, LintInput, Rule } from "../types.js";
+import type { Issue, LintInput, Rule, SharedContentInput, SharedRule } from "../types.js";
 
 export const service = (
   id: string,
@@ -45,6 +48,47 @@ export const confusionGroups: ConfusionGroup[] = [
   { id: "compute", services: ["lambda", "ec2", "fargate"] },
 ];
 
+export const categories: Category[] = [
+  { id: "test", name: "Prueba", adjacent: ["other"] },
+  { id: "other", name: "Otra", adjacent: [] },
+];
+
+export const areas: Area[] = [
+  { id: "serverless", name: "Serverless" },
+  { id: "data", name: "Datos" },
+];
+
+export const badges: Badge[] = [
+  {
+    id: "primer-verde",
+    name: "Primer verde",
+    description: "Completaste tu primer escenario.",
+    secret: false,
+    rule: { type: "complete_count", count: 1 },
+  },
+  {
+    id: "serverless-300",
+    name: "Serverless 300",
+    description: "Completaste 5 escenarios serverless de nivel 300.",
+    secret: false,
+    rule: { type: "complete_count", count: 5, level: 300, area: "serverless" },
+  },
+  {
+    id: "maestro-datos",
+    name: "Maestro de datos",
+    description: "Completaste en verde el 80 % de los escenarios de datos.",
+    secret: true,
+    rule: { type: "area_mastery", area: "data", percent: 80 },
+  },
+  {
+    id: "nivel-200",
+    name: "Nivel 200 completo",
+    description: "Completaste todos los escenarios publicados de nivel 200.",
+    secret: false,
+    rule: { type: "level_complete", level: 200 },
+  },
+];
+
 export const gameRules: GameRules = {
   scoring: {
     firstTryGreen: 100,
@@ -53,7 +97,10 @@ export const gameRules: GameRules = {
     hintCost: 15,
   },
   levelMultipliers: { "100": 1, "200": 1.5, "300": 2, "400": 3 },
-  ranks: [{ id: "aprendiz", name: "Aprendiz", minXp: 0 }],
+  ranks: [
+    { id: "aprendiz", name: "Aprendiz", minXp: 0 },
+    { id: "constructor", name: "Constructor", minXp: 1000 },
+  ],
   unlock: {
     scenariosRequired: 3,
     byExperience: {
@@ -194,6 +241,7 @@ export const baseInput = (scenario: Scenario = baseScenario()): LintInput => ({
   catalog,
   confusionGroups,
   gameRules,
+  areas,
 });
 
 /** Runs one rule on the base scenario after applying `mutate` to a fresh copy. */
@@ -216,4 +264,21 @@ export const nodeById = (scenario: Scenario, id: string): Scenario["diagram"]["n
   const node = scenario.diagram.nodes.find((n) => n.id === id);
   if (node === undefined) throw new Error(`fixture without node ${id}`);
   return node;
+};
+
+/** Shared files that pass every C0xx rule, as fresh mutable copies. */
+export const baseSharedInput = (): {
+  [K in keyof SharedContentInput]: SharedContentInput[K] extends readonly (infer T)[]
+    ? T[]
+    : SharedContentInput[K];
+} => structuredClone({ catalog, categories, confusionGroups, areas, gameRules, badges });
+
+/** Runs one shared rule on the base shared files after applying `mutate` to a fresh copy. */
+export const runSharedRule = (
+  rule: SharedRule,
+  mutate: (input: ReturnType<typeof baseSharedInput>) => void = () => undefined,
+): Issue[] => {
+  const input = baseSharedInput();
+  mutate(input);
+  return rule.check(input);
 };

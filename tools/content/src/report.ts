@@ -31,6 +31,15 @@ export const formatValidationText = (report: ValidationReport): string => {
     for (const finding of report.shared) lines.push(formatFinding(finding));
     lines.push("");
   }
+  if (report.integrity !== null) {
+    if (report.integrity.length === 0) {
+      lines.push("✔ Integridad entre archivos compartidos");
+    } else {
+      lines.push("✖ Integridad entre archivos compartidos");
+      for (const finding of report.integrity) lines.push(formatFinding(finding));
+      lines.push("");
+    }
+  }
   for (const scenario of report.scenarios) {
     if (scenario.findings.length === 0) {
       lines.push(`✔ ${scenario.id}  (${scenario.file})`);
