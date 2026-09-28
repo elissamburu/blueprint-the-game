@@ -19,10 +19,11 @@ Formato: [MADR](https://adr.github.io/madr/) simplificado (Contexto · Decisión
 | [0013](0013-scenario-studio-local-con-ia.md) | Scenario Studio local-first con IA enchufable | Aceptado |
 | [0014](0014-infra-terraform-oidc.md) | Terraform con bootstrap separado y OIDC de GitHub | Aceptado |
 | [0015](0015-ci-para-prs-de-forks.md) | CI de PRs de forks sin credenciales | Aceptado |
-| [0016](0016-licenciamiento.md) | Licencias no comerciales para código y contenido + DCO | Propuesto |
+| [0016](0016-licenciamiento.md) | Licencias no comerciales para código y contenido + DCO | Aceptado |
 | [0017](0017-i18n.md) | i18n de UI desde el día 1; contenido en español en v1 | Aceptado |
 | [0018](0018-gamificacion-declarativa.md) | Gamificación con reglas declarativas | Aceptado |
 | [0019](0019-nombre-y-marcas.md) | Nombre del proyecto y uso de marcas de AWS | Pendiente |
+| [0020](0020-modelo-de-branching.md) | Modelo de branching: GitHub Flow con squash merge | Aceptado |
 
 ## Plantilla
 
