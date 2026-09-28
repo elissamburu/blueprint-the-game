@@ -137,7 +137,7 @@
 | ID | Requisito | P | Fase |
 |---|---|---|---|
 | RF-EVAL-01 | Al colocar un servicio, el casillero toma **color inmediato**: verde/naranja/rojo. | M | F1 |
-| RF-EVAL-02 | Cada resultado muestra una **explicación**: para `optimal` y `acceptable`, la `rationale` del escenario **vinculada a los objetivos** que la justifican; para `incorrect`, la rationale específica si existe o, si no, una explicación genérica (descripción del servicio desde el catálogo + "no cumple el rol: …"). | M | F1 |
+| RF-EVAL-02 | Cada resultado muestra una **explicación**: para `optimal` y `acceptable`, la `rationale` del escenario **vinculada a los objetivos** que la justifican; para un servicio declarado en `incorrect`, su rationale específica (obligatoria); para un servicio no declarado en `answers` ni en `incorrect` (p. ej. un distractor de `palette.extra`), una explicación genérica (descripción del servicio desde el catálogo + "no cumple el rol: …"). | M | F1 |
 | RF-EVAL-03 | Un servicio que viola un objetivo `hard` es **siempre rojo**, aunque técnicamente funcione. La explicación nombra la restricción violada. | M | F1 |
 | RF-EVAL-04 | Una vez verde, el casillero **revela el servicio** (nombre + ícono) y queda bloqueado. | M | F1 |
 | RF-EVAL-05 | El puntaje se calcula con el **motor de reglas** (`packages/game-engine`) según `content/game-rules.yaml`. | M | F1 |
@@ -161,7 +161,7 @@
 |---|---|---|---|
 | RF-GAM-01 | **XP acumulada** y **rango del jugador** por umbrales (Aprendiz → Constructor → Arquitecto → Arquitecto Senior → Principal; nombres y umbrales en `game-rules.yaml`). | M | F1 (local) / F4 |
 | RF-GAM-02 | **Insignias** definidas de forma declarativa en `content/badges/badges.yaml` ([ADR-0018](adr/0018-gamificacion-declarativa.md)). | M | F4 |
-| RF-GAM-03 | Tipos de regla de insignia mínimos: `complete_count` (N escenarios, filtrable por nivel/área), `perfect_scenario` (todo verde al primer intento), `no_hints` (completar sin pistas), `streak` (N días), `area_mastery` (% de escenarios de un área en verde), `level_complete`, `first_of_kind`. | M | F4 |
+| RF-GAM-03 | Tipos de regla de insignia mínimos: `complete_count` (N escenarios, filtrable por nivel/área), `perfect_scenario` (todo verde al primer intento), `no_hints` (completar sin pistas), `streak` (N días), `area_mastery` (% de escenarios de un área en verde), `level_complete` (todos los escenarios `published` de un nivel existentes al evaluar). ~~`first_of_kind`~~: descartado, sin semántica definida ([ADR-0018, revisión 2026-09-28](adr/0018-gamificacion-declarativa.md#revisión-2026-09-28)). | M | F4 |
 | RF-GAM-04 | **Maestría por área**: barra de progreso por área de interés. | S | F4 |
 | RF-GAM-05 | **Rachas** diarias con un "comodín" semanal que evita perder la racha por un día (sin castigo). | S | F4 |
 | RF-GAM-06 | **Álbum de servicios**: cada servicio acertado en verde se "desbloquea" como ficha (qué es, cuándo conviene, cuándo no, enlaces). | S | F4 |

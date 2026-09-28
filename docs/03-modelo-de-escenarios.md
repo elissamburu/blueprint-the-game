@@ -102,10 +102,11 @@ diagram:
           rationale: "…"                          # markdown corto, sin nombrar OTROS servicios ocultos
           references:
             - https://docs.aws.amazon.com/...
-      incorrect:                 # confusiones típicas con explicación específica (también son distractores)
+      incorrect:                 # confusiones típicas con explicación específica (también son distractores);
+                                 # la rationale es obligatoria: sin explicación específica ⇒ palette.extra
         - service: ebs
           violates: []           # opcional: ids de objetivos (hard o soft) que viola; solo permitido en incorrect
-          rationale: "…"
+          rationale: "…"         # obligatoria, ≤ 600 caracteres
       hints:                     # 0–3, de más general a más específica
         - "…"
   edges:
@@ -118,7 +119,8 @@ diagram:
       style: sync                # sync | async | data | control
 palette:                         # opcional
   mode: auto                     # auto | curated | categories | categories-plus | full
-  maxSize: 12                    # solo curated
+  maxSize: 12                    # solo con mode curated o auto; con auto aplica solo si el nivel
+                                 # resuelve a curated (game-rules). Default: palette.defaultMaxSize
   extra: [efs]                   # distractores extra sin explicación específica
 references:                      # opcional: lecturas generales del escenario
   - title: "…"
@@ -130,8 +132,8 @@ references:                      # opcional: lecturas generales del escenario
 Para un casillero y un servicio colocado `s`:
 
 1. Si `s` está en `answers` → el grado es el declarado.
-2. Si no, si `s` está en `incorrect` → rojo con la `rationale` específica.
-3. Si no → rojo con **explicación genérica**: `"<descripción corta del catálogo>. No cumple el rol: <role>"`.
+2. Si no, si `s` está en `incorrect` → rojo con la `rationale` específica (siempre existe: es obligatoria).
+3. Si no (el servicio no está declarado en `answers` ni en `incorrect`, por ejemplo uno de `palette.extra`) → rojo con **explicación genérica**: `"<descripción corta del catálogo>. No cumple el rol: <role>"`.
 
 Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con `violates: [<id>]`; la UI usa ese vínculo para decir qué restricción se violó (RF-EVAL-03).
 
@@ -156,7 +158,7 @@ Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con 
 | L010 | error / warning | Servicio `deprecated`: error si es `optimal`; warning en otros usos. |
 | L011 | warning | Cada `optimal` tiene ≥ 1 `reference` a documentación oficial (dominios permitidos: `docs.aws.amazon.com`, `aws.amazon.com`). |
 | L012 | error | `diagram.mmd` y `README.md` sincronizados (`content:gen --check`). |
-| L013 | error | Límites de longitud (title 80, summary 200, role 140, label 40, rationale 600). |
+| L013 | error | Límites de longitud (title 80, summary 200, role 140, label 40, rationale 600). `label` aplica a todos los `label` (grupos, actores/externos y aristas) y `rationale` a `answers` e `incorrect`. Lo valida el schema. |
 | L014 | error (CI) | Si cambiaron `answers`/`incorrect`/grados respecto de `main` en un escenario `published`, `version` debe incrementarse. |
 | L015 | error | `violates` solo se permite en `incorrect` y referencia objetivos existentes. Si la rationale de un `acceptable` menciona que viola una restricción `hard`, el servicio debe moverse a `incorrect` (la revisión crítica de IA y el reviewer lo verifican; el lint valida la estructura). |
 | L016 | warning | Nivel 100 con paleta `curated` debe tener ≥ 3 distractores (`incorrect` + grupos de confusión + `extra`). |
@@ -197,7 +199,76 @@ Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con 
   services: [rds, aurora, aurora-dsql, redshift]
 ```
 
-## 6. Ciclo de vida de un escenario
+## 6. Áreas, categorías, reglas de juego e insignias
+
+Formatos validados por `packages/scenario-schema`. Los valores de ejemplo son los iniciales de [01](01-requerimientos-funcionales.md).
+
+### `areas.yaml`
+
+```yaml
+- id: serverless                  # kebab-case; lo que usan los escenarios en `areas`
+  name: Serverless
+  description: "…"                # opcional
+```
+
+### `catalog/categories.yaml`
+
+```yaml
+- id: storage                     # kebab-case; lo que usa `category` en services.yaml
+  name: Almacenamiento
+  adjacent: [database]            # opcional: categorías adyacentes para el modo categories-plus
+```
+
+### `game-rules.yaml`
+
+```yaml
+scoring:
+  firstTryGreen: 100              # verde al primer intento
+  greenAfterErrors:               # verde tras N errores: max(min, firstTryGreen − penaltyPerError·N)
+    penaltyPerError: 25
+    min: 25
+  acceptedAcceptable: 50          # naranja aceptado por el jugador
+  hintCost: 15                    # por pista usada (el puntaje del casillero no baja de 0)
+levelMultipliers: { 100: 1, 200: 1.5, 300: 2, 400: 3 }   # los cuatro niveles son obligatorios
+ranks:                            # ≥ 1, umbral de XP acumulada
+  - { id: aprendiz, name: Aprendiz, minXp: 0 }
+  - { id: constructor, name: Constructor, minXp: 1000 }
+unlock:
+  scenariosRequired: 3            # escenarios del nivel N para desbloquear N+1
+  byExperience:                   # niveles desbloqueados al inicio según el onboarding (las 4 claves)
+    beginner: [100]
+    aws-user: [100, 200]
+    architect: [100, 200, 300]
+    expert: [100, 200, 300, 400]
+palette:
+  modeByLevel: { 100: curated, 200: categories, 300: categories-plus, 400: full }  # a qué resuelve `auto`
+  defaultMaxSize: 12              # maxSize de curated si el escenario no lo define
+```
+
+`modeByLevel` acepta `curated`, `categories`, `categories-plus` y `full` (no `auto`, que es justamente lo que se resuelve con esta tabla).
+
+### `badges/badges.yaml`
+
+```yaml
+- id: primer-verde
+  name: "Primer verde"
+  description: "Completaste tu primer escenario."   # obligatoria
+  secret: false                                    # opcional (default false): oculta hasta obtenerla
+  rule: { type: complete_count, count: 1 }
+```
+
+Tipos de regla (conjunto cerrado, [ADR-0018](adr/0018-gamificacion-declarativa.md)):
+
+| `type` | Parámetros | Significado |
+|---|---|---|
+| `complete_count` | `count`, `level?`, `area?` | Completar `count` escenarios, opcionalmente de un nivel y/o un área. |
+| `perfect_scenario` | — | Completar un escenario con todo verde al primer intento. |
+| `no_hints` | `minLevel?` | Completar un escenario (de nivel ≥ `minLevel`) sin usar pistas. |
+| `streak` | `days` | Jugar `days` días seguidos. |
+| `area_mastery` | `area`, `percent` | Tener en verde el `percent` % de los escenarios de un área. |
+| `level_complete` | `level` | Completar todos los escenarios `published` de ese nivel existentes al momento de evaluar. |
+
+## 7. Ciclo de vida de un escenario
 
 ```
 draft ──(PR revisado)──▶ beta ──(métricas OK / revisión)──▶ published ──▶ retired
@@ -208,6 +279,6 @@ draft ──(PR revisado)──▶ beta ──(métricas OK / revisión)──�
 - `published`: estable. Cambios de respuestas ⇒ `version++`.
 - `retired`: no se lista; el progreso histórico de los jugadores se conserva.
 
-## 7. Ejemplo completo
+## 8. Ejemplo completo
 
 Ver [`content/scenarios/serverless-pdf-processing/scenario.yaml`](../content/scenarios/serverless-pdf-processing/scenario.yaml).

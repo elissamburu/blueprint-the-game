@@ -2,9 +2,12 @@
 // Package boundaries from docs/04-estructura-monorepo.md §2. Run with `pnpm deps:check`.
 // Rules target paths, so they already cover packages that do not exist yet.
 
-/** Packages that must stay pure: data in, data out, no IO (CLAUDE.md). */
+/**
+ * Packages that must stay pure: data in, data out, no IO (CLAUDE.md). Purity applies to
+ * their src/ (tests included); build scripts in scripts/ may use Node.
+ */
 const PURE_PACKAGES = ["scenario-schema", "content-lint", "catalog", "game-engine"];
-const PURE_PATH = `^packages/(${PURE_PACKAGES.join("|")})/`;
+const PURE_PATH = `^packages/(${PURE_PACKAGES.join("|")})/src/`;
 
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
@@ -34,6 +37,15 @@ module.exports = {
       from: { path: PURE_PATH },
       // Matches both installed (node_modules/@aws-sdk/...) and unresolved (@aws-sdk/...) imports.
       to: { path: "(^|/)(@aws-sdk|@anthropic-ai)/" },
+    },
+    {
+      name: "src-not-to-scripts",
+      severity: "error",
+      comment:
+        "Library code must not import the package's own build scripts (packages/<name>/scripts/), " +
+        "which may use Node and IO.",
+      from: { path: "^packages/([^/]+)/src/" },
+      to: { path: "^packages/$1/scripts/" },
     },
     {
       name: "no-circular",

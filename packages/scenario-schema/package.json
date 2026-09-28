@@ -15,17 +15,22 @@
     "dist"
   ],
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && node scripts/build-schema.js",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "clean": "rimraf dist .turbo"
+    "clean": "rimraf dist .turbo",
+    "build:schema": "node scripts/build-schema.js"
+  },
+  "dependencies": {
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",
     "eslint": "catalog:",
     "rimraf": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "yaml": "catalog:"
   }
 }
