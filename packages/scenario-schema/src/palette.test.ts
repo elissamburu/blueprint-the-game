@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 import exampleRaw from "../../../content/scenarios/serverless-pdf-processing/scenario.yaml?raw";
 import {
+  adjacentCategories,
   buildCuratedPalette,
   formatIssues,
   parseScenario,
@@ -24,7 +25,7 @@ const example = (): Scenario => {
   return result.data;
 };
 
-const catalogOf = (...ids: string[]) => ids.map((id) => ({ id }));
+const catalogOf = (...ids: string[]) => ids.map((id) => ({ id, status: "active" as const }));
 
 /** Every service the example uses, plus confusion-group mates. */
 const catalog = catalogOf(
@@ -153,5 +154,56 @@ describe("buildCuratedPalette", () => {
       distractors: ["efs"],
       dropped: [],
     });
+  });
+
+  it("leaves deprecated services out of the distractors, but keeps them as answers", () => {
+    const scenario = example();
+    scenario.palette = { mode: "curated", maxSize: 40, extra: ["mq"] };
+    const deprecated = new Set(["aurora", "efs", "mq", "sns"]);
+    const palette = buildCuratedPalette(
+      scenario,
+      catalog.map((service) =>
+        deprecated.has(service.id) ? { ...service, status: "deprecated" as const } : service,
+      ),
+      [{ services: ["sqs", "sns", "redshift"] }],
+      gameRules,
+    );
+    // aurora is an acceptable answer; efs and sns are incorrect, mq is extra.
+    expect(palette.answers).toContain("aurora");
+    expect(palette.services).toContain("aurora");
+    expect(palette.distractors).not.toContain("efs");
+    expect(palette.distractors).not.toContain("sns");
+    expect(palette.distractors).not.toContain("mq");
+    expect(palette.distractors).toEqual([
+      "route53",
+      "ec2",
+      "ebs",
+      "rekognition",
+      "sagemaker-ai",
+      "redshift",
+      "elasticache",
+    ]);
+  });
+});
+
+describe("adjacentCategories", () => {
+  const categories = [
+    { id: "storage", adjacent: ["database"] },
+    { id: "database", adjacent: [] },
+    { id: "compute", adjacent: ["storage", "containers"] },
+    { id: "containers", adjacent: ["compute"] },
+  ];
+
+  it("resolves adjacency in both directions, in file order", () => {
+    expect(adjacentCategories(categories, "storage")).toEqual(["database", "compute"]);
+    expect(adjacentCategories(categories, "database")).toEqual(["storage"]);
+    expect(adjacentCategories(categories, "compute")).toEqual(["storage", "containers"]);
+  });
+
+  it("ignores the category itself and categories missing from the file", () => {
+    expect(
+      adjacentCategories([{ id: "storage", adjacent: ["storage", "unknown"] }], "storage"),
+    ).toEqual([]);
+    expect(adjacentCategories(categories, "unknown")).toEqual([]);
   });
 });
