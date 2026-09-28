@@ -1,0 +1,44 @@
+{
+  "name": "@blueprint/config",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Configuración compartida: tsconfig, ESLint, Prettier y Vitest.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module",
+  "exports": {
+    "./tsconfig.base.json": "./tsconfig.base.json",
+    "./tsconfig.node.json": "./tsconfig.node.json",
+    "./eslint": "./eslint.js",
+    "./prettier": "./prettier.js",
+    "./vitest": {
+      "types": "./vitest.d.ts",
+      "default": "./vitest.js"
+    }
+  },
+  "files": [
+    "tsconfig.base.json",
+    "tsconfig.node.json",
+    "eslint.js",
+    "prettier.js",
+    "vitest.js",
+    "vitest.d.ts"
+  ],
+  "dependencies": {
+    "@eslint/js": "catalog:",
+    "eslint-config-prettier": "catalog:",
+    "globals": "catalog:",
+    "typescript-eslint": "catalog:"
+  },
+  "devDependencies": {
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  },
+  "peerDependencies": {
+    "eslint": "catalog:",
+    "prettier": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}
