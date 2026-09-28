@@ -1,8 +1,16 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// content:validate (RF-CNT-02): schema + semantic lint of every scenario, plus the rules that
-// need IO: L012 (generated files) and L014 (version bump against a base ref).
+// content:validate (RF-CNT-02): schema of every file, integrity between shared files (C0xx),
+// semantic lint of every scenario, plus the rules that need IO: L012 (generated files) and
+// L014 (version bump against a base ref).
 import path from "node:path";
-import { checkGeneratedFiles, checkVersionBump, lintScenario } from "@blueprint/content-lint";
+import {
+  checkGeneratedFiles,
+  checkVersionBump,
+  lintScenario,
+  lintSharedContent,
+  sharedRules,
+  type SharedContentKey,
+} from "@blueprint/content-lint";
 import { parseScenario, type Scenario, type Service } from "@blueprint/scenario-schema";
 import {
   SCENARIO_FILE,
@@ -15,10 +23,13 @@ import {
   parseContentFile,
   readTextIfExists,
   scenarioDir,
+  sharedFileDisplay,
   type LoadedScenario,
   type SharedContent,
+  type SharedFileKey,
+  type SharedRaw,
 } from "./content.js";
-import { countBySeverity, fromLintIssue, type Finding } from "./findings.js";
+import { countBySeverity, describePath, fromLintIssue, type Finding } from "./findings.js";
 import { GENERATED_FILES, renderGeneratedFiles } from "./generate.js";
 import { GitUnavailableError, assertWorkTree, readFileAtRef, refExists } from "./git.js";
 
@@ -48,6 +59,11 @@ export interface ValidationReport {
   skipped: SkippedCheck[];
   /** Findings of shared files (catalog, game-rules, …) and of the run itself. */
   shared: Finding[];
+  /**
+   * Integrity between shared files (C0xx), checked once before the scenarios. `null` when it
+   * did not run (see `skipped`).
+   */
+  integrity: Finding[] | null;
   scenarios: ScenarioReport[];
 }
 
@@ -59,6 +75,58 @@ export interface InspectedContent {
 
 const catalogById = (services: readonly Service[]): ReadonlyMap<string, Service> =>
   new Map(services.map((service) => [service.id, service]));
+
+const SHARED_RULE_CODES = `${sharedRules[0]?.code}-${sharedRules.at(-1)?.code}`;
+
+/** File of each lintSharedContent input key (the first segment of a C0xx issue path). */
+const SHARED_FILE_OF = new Map<string | number, SharedFileKey>(
+  Object.entries({
+    catalog: "services",
+    categories: "categories",
+    confusionGroups: "confusionGroups",
+    areas: "areas",
+    gameRules: "gameRules",
+    badges: "badges",
+  } satisfies Record<SharedContentKey, SharedFileKey>),
+);
+
+/** C0xx rules; `null` when a shared file is missing or invalid. */
+const checkIntegrity = (
+  contentDir: string,
+  shared: SharedContent,
+  raw: SharedRaw,
+): Finding[] | null => {
+  const { services, categories, confusionGroups, areas, gameRules, badges } = shared;
+  if (
+    services === undefined ||
+    categories === undefined ||
+    confusionGroups === undefined ||
+    areas === undefined ||
+    gameRules === undefined ||
+    badges === undefined
+  ) {
+    return null;
+  }
+  const issues = lintSharedContent({
+    catalog: services,
+    categories,
+    confusionGroups,
+    areas,
+    gameRules,
+    badges,
+  });
+  return issues.map((issue) => {
+    const key = SHARED_FILE_OF.get(issue.path[0] ?? "");
+    const finding: Finding = { code: issue.code, severity: issue.severity, message: issue.message, file: displayPath(contentDir, contentDir) };
+    return key === undefined
+      ? { ...finding, where: describePath(undefined, issue.path) }
+      : {
+          ...finding,
+          file: sharedFileDisplay(contentDir, key),
+          where: describePath(raw[key], issue.path.slice(1)),
+        };
+  });
+};
 
 const checkGenerated = async (
   contentDir: string,
@@ -151,6 +219,7 @@ export const inspectContent = async (options: ValidateOptions): Promise<Inspecte
   const contentDir = path.resolve(options.contentDir);
   const display = displayPath(contentDir, contentDir);
   const sharedFindings: Finding[] = [];
+  let integrity: Finding[] | null = null;
   const skipped: SkippedCheck[] = [];
   const reports: ScenarioReport[] = [];
   const scenarios: LoadedScenario[] = [];
@@ -167,6 +236,15 @@ export const inspectContent = async (options: ValidateOptions): Promise<Inspecte
     const loadedShared = await loadSharedContent(contentDir);
     shared = loadedShared.shared;
     sharedFindings.push(...loadedShared.findings);
+
+    integrity = checkIntegrity(contentDir, shared, loadedShared.raw);
+    if (integrity === null) {
+      skipped.push({
+        code: SHARED_RULE_CODES,
+        reason:
+          "falta algún archivo compartido o tiene errores, así que no se validó la integridad entre ellos",
+      });
+    }
 
     let ids = await listScenarioIds(contentDir);
     if (ids === undefined) {
@@ -191,13 +269,18 @@ export const inspectContent = async (options: ValidateOptions): Promise<Inspecte
       ids = ids.filter((id) => id === wanted);
     }
 
-    const { services, confusionGroups, gameRules } = shared;
+    const { services, confusionGroups, gameRules, areas } = shared;
     const catalog = services === undefined ? undefined : catalogById(services);
-    if (ids.length > 0 && (services === undefined || confusionGroups === undefined || gameRules === undefined)) {
+    const canLint =
+      services !== undefined &&
+      confusionGroups !== undefined &&
+      gameRules !== undefined &&
+      areas !== undefined;
+    if (ids.length > 0 && !canLint) {
       skipped.push({
-        code: "L001-L018",
+        code: "L001-L019",
         reason:
-          "el catálogo, los grupos de confusión o game-rules faltan o tienen errores, así que el lint semántico de los escenarios no se ejecutó",
+          "el catálogo, los grupos de confusión, game-rules o las áreas faltan o tienen errores, así que el lint semántico de los escenarios no se ejecutó",
       });
     }
     if (ids.length > 0 && catalog === undefined) {
@@ -216,13 +299,14 @@ export const inspectContent = async (options: ValidateOptions): Promise<Inspecte
       const findings = [...loaded.findings];
       const scenario = loaded.scenario;
       if (scenario !== undefined) {
-        if (services !== undefined && confusionGroups !== undefined && gameRules !== undefined) {
+        if (canLint) {
           const issues = lintScenario({
             scenario,
             folderName: id,
             catalog: services,
             confusionGroups,
             gameRules,
+            areas,
           });
           findings.push(...issues.map((issue) => fromLintIssue(loaded.file, loaded.raw, issue)));
         }
@@ -238,13 +322,18 @@ export const inspectContent = async (options: ValidateOptions): Promise<Inspecte
     }
   }
 
-  const counts = countBySeverity([...sharedFindings, ...reports.flatMap((r) => r.findings)]);
+  const counts = countBySeverity([
+    ...sharedFindings,
+    ...(integrity ?? []),
+    ...reports.flatMap((r) => r.findings),
+  ]);
   return {
     report: {
       ok: counts.errors === 0,
       summary: { scenarios: reports.length, ...counts },
       skipped,
       shared: sharedFindings,
+      integrity,
       scenarios: reports,
     },
     shared,

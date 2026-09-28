@@ -3,7 +3,7 @@ import type { Issue, IssuePath, Severity } from "@blueprint/content-lint";
 import type { SchemaIssue } from "@blueprint/scenario-schema";
 
 /**
- * A problem found in a content file. Lint rules keep their code (L001…L018); problems found
+ * A problem found in a content file. Lint rules keep their code (L001…L019, C001…C007); problems found
  * by the CLI itself use FILE (missing file), YAML (syntax), SCHEMA (structure) and GIT.
  */
 export interface Finding {

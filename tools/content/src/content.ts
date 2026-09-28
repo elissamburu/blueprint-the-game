@@ -130,14 +130,20 @@ const SHARED_FILES = {
   },
 } as const satisfies Record<string, SharedFileSpec<unknown>>;
 
+export type SharedFileKey = keyof typeof SHARED_FILES;
+
 export const SHARED_FILE_PATHS: readonly string[] = Object.values(SHARED_FILES).map((spec) =>
   spec.segments.join("/"),
 );
 
+/** Display path of a shared file (`content/catalog/services.yaml`). */
+export const sharedFileDisplay = (contentDir: string, key: SharedFileKey): string =>
+  displayPath(contentDir, path.join(contentDir, ...SHARED_FILES[key].segments));
+
 const loadShared = async <T>(
   contentDir: string,
   spec: SharedFileSpec<T>,
-): Promise<{ data?: T; findings: Finding[] }> => {
+): Promise<{ data?: T; raw?: unknown; findings: Finding[] }> => {
   const file = path.join(contentDir, ...spec.segments);
   const display = displayPath(contentDir, file);
   const text = await readTextIfExists(file);
@@ -153,8 +159,8 @@ const loadShared = async <T>(
       ],
     };
   }
-  const { data, findings } = parseContentFile(text, display, spec.parse);
-  return data === undefined ? { findings } : { data, findings };
+  const { data, raw, findings } = parseContentFile(text, display, spec.parse);
+  return data === undefined ? { findings } : { data, raw, findings };
 };
 
 export interface SharedContent {
@@ -166,10 +172,13 @@ export interface SharedContent {
   badges?: Badge[];
 }
 
+/** Deserialized YAML of each valid shared file, used to annotate paths with ids. */
+export type SharedRaw = Partial<Record<SharedFileKey, unknown>>;
+
 /** Loads the files every scenario depends on. Missing or invalid files yield findings. */
 export const loadSharedContent = async (
   contentDir: string,
-): Promise<{ shared: SharedContent; findings: Finding[] }> => {
+): Promise<{ shared: SharedContent; raw: SharedRaw; findings: Finding[] }> => {
   const [services, categories, confusionGroups, areas, gameRules, badges] = await Promise.all([
     loadShared(contentDir, SHARED_FILES.services),
     loadShared(contentDir, SHARED_FILES.categories),
@@ -185,10 +194,18 @@ export const loadSharedContent = async (
   if (areas.data !== undefined) shared.areas = areas.data;
   if (gameRules.data !== undefined) shared.gameRules = gameRules.data;
   if (badges.data !== undefined) shared.badges = badges.data;
+  const raw: SharedRaw = {
+    services: services.raw,
+    categories: categories.raw,
+    confusionGroups: confusionGroups.raw,
+    areas: areas.raw,
+    gameRules: gameRules.raw,
+    badges: badges.raw,
+  };
   const findings = [services, categories, confusionGroups, areas, gameRules, badges].flatMap(
     (result) => result.findings,
   );
-  return { shared, findings };
+  return { shared, raw, findings };
 };
 
 /**
