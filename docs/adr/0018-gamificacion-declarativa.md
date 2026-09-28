@@ -58,7 +58,7 @@ Las insignias, los rangos y los puntajes son el incentivo para seguir jugando y 
 Al implementar el schema de insignias en `packages/scenario-schema` se precisaron puntos que la versión original dejaba abiertos. La decisión de fondo (insignias declarativas con un conjunto cerrado de tipos) no cambia.
 
 - **Se elimina `first_of_kind`**: no tenía semántica ni parámetros definidos. Si hace falta, se propone de nuevo como tipo nuevo (PR de código + tests), con su significado explícito.
-- **`level_complete` toma `{ level }`** y significa completar todos los escenarios `published` de ese nivel existentes al momento de evaluar.
+- **`level_complete` toma `{ level }`** y significa completar todos los escenarios `published` de ese nivel existentes al momento de evaluar. Se otorga solo si existe **al menos un** escenario `published` de ese nivel: con cero escenarios la regla no se cumple (evita que una insignia se otorgue "gratis" para un nivel todavía vacío). La implementación va en `game-engine` (F1).
 - **`description` es obligatoria** en todas las insignias; se completaron los ejemplos que no la tenían y se agregó uno de `level_complete`.
 - **`secret` es opcional**, con valor por defecto `false`.
 
