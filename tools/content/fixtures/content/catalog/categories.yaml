@@ -1,0 +1,12 @@
+- id: storage
+  name: Almacenamiento
+  adjacent: [database]
+- id: compute
+  name: Cómputo
+- id: database
+  name: Bases de datos
+  adjacent: [storage]
+- id: management
+  name: Gestión
+- id: integration
+  name: Integración

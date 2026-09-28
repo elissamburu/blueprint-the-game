@@ -17,7 +17,11 @@
     "format": "prettier --write .",
     "format:check": "prettier --check .",
     "clean": "turbo run clean",
-    "deps:check": "depcruise . --config .dependency-cruiser.cjs --output-type err-long"
+    "deps:check": "depcruise . --config .dependency-cruiser.cjs --output-type err-long",
+    "content:prepare": "turbo run build --filter=@blueprint/tools-content... --output-logs=errors-only 1>&2",
+    "content:validate": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts validate",
+    "content:gen": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts gen",
+    "content:build": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts build"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",

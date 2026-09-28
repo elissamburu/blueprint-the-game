@@ -1,0 +1,12 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: photo-queue v1
+flowchart LR
+  n_shop{{"Tienda online"}}
+  subgraph g_cloud["Nube"]
+    n_buffer["Amazon SQS"]
+    n_worker["AWS Lambda"]
+  end
+  n_shop -.->|"1. Envía el pedido"| n_buffer
+  n_buffer -->|"2. Entrega el pedido"| n_worker
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_buffer,n_worker slot
