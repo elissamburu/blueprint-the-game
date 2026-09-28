@@ -1,0 +1,60 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+#
+# PLANTILLA DE ESCENARIO
+# 1. Copiá esta carpeta a content/scenarios/<tu-id>/ y renombrá el archivo a scenario.yaml
+#    (o usá `pnpm studio`, que lo hace por vos).
+# 2. Regla de oro: NINGÚN texto visible antes de acertar puede nombrar un servicio oculto
+#    (title, summary, context, objectives, role, hints, labels). Lo valida el lint L005.
+# 3. "Óptimo" siempre se justifica contra `objectives`. Si no hay objetivo que lo justifique,
+#    falta un objetivo.
+# 4. Validá con: pnpm content:validate && pnpm content:gen
+schemaVersion: 1
+id: mi-escenario                  # = nombre de la carpeta, kebab-case, inmutable al publicar
+version: 1
+status: draft                     # draft | beta | published | retired
+lang: es
+level: 100                        # 100 | 200 | 300 | 400
+areas: []                         # ids de content/areas.yaml
+title: ""
+summary: ""
+estimatedMinutes: 5
+authors:
+  - github: tu-usuario
+
+context: |
+  Contá el caso de negocio: quién lo usa, qué tiene que pasar, qué volumen hay.
+
+objectives:
+  - id: ejemplo-restriccion
+    kind: hard                    # hard: violarla ⇒ rojo · soft: cumplirla peor ⇒ naranja
+    category: operations          # cost | traffic | operations | latency | security | compliance |
+                                  # durability | availability | scalability | performance | team
+    text: ""
+
+diagram:
+  canvas: { width: 1400, height: 800 }
+  groups: []
+  nodes:
+    - id: usuario
+      type: actor
+      label: "Usuario"
+      icon: user
+      position: { x: 40, y: 360 }
+    - id: casillero-1
+      type: slot
+      role: "Qué hace este componente, sin nombrar el servicio."
+      position: { x: 400, y: 360 }
+      answers:
+        - service: ""             # id de content/catalog/services.yaml
+          grade: optimal
+          objectives: [ejemplo-restriccion]
+          rationale: ""
+          references: []          # docs.aws.amazon.com
+      incorrect: []
+      hints: []
+  edges:
+    - { id: e1, from: usuario, to: casillero-1, step: 1, style: sync, label: "" }
+
+palette:
+  mode: auto

@@ -1,0 +1,316 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: serverless-pdf-processing
+version: 1
+status: draft
+lang: es
+level: 200
+areas: [serverless, storage, integration]
+title: "Comprobantes en PDF para un estudio contable"
+summary: "Los clientes suben comprobantes desde la web y el sistema extrae CUIT, fecha e importe automáticamente."
+estimatedMinutes: 10
+authors:
+  - github: TODO-usuario-github
+
+context: |
+  Un estudio contable quiere que sus clientes suban **comprobantes en PDF** desde una web.
+  De cada comprobante hay que extraer **CUIT, fecha e importe** y guardarlos para
+  consultarlos después por cliente y por fecha.
+
+  El uso es muy desparejo: en los últimos días del mes llegan miles de comprobantes
+  en pocas horas y el resto del mes hay días enteros sin actividad.
+
+  El equipo técnico son dos personas que programan bien, pero no quieren operar
+  infraestructura y no tienen experiencia en aprendizaje automático.
+
+objectives:
+  - id: no-servers
+    kind: hard
+    category: operations
+    text: "No administrar servidores, sistemas operativos ni parches."
+  - id: no-ml-team
+    kind: hard
+    category: team
+    text: "El equipo no puede entrenar ni operar modelos de aprendizaje automático propios."
+  - id: sporadic-traffic
+    kind: soft
+    category: traffic
+    text: "Picos fuertes a fin de mes y días enteros sin uso."
+  - id: low-cost
+    kind: soft
+    category: cost
+    text: "Pagar lo mínimo posible cuando no hay actividad."
+  - id: no-lost-files
+    kind: soft
+    category: durability
+    text: "Ningún comprobante se puede perder; si el procesamiento falla, debe reintentarse."
+
+diagram:
+  canvas: { width: 1400, height: 800 }
+  groups:
+    - id: cloud
+      kind: aws-cloud
+      label: "Nube"
+      rect: { x: 200, y: 60, w: 1160, h: 700 }
+      parent: null
+
+  nodes:
+    - id: client
+      type: actor
+      label: "Cliente del estudio"
+      icon: browser
+      position: { x: 40, y: 330 }
+
+    - id: logs
+      type: fixed
+      service: cloudwatch
+      position: { x: 820, y: 660 }
+      group: cloud
+
+    - id: api-entry
+      type: slot
+      role: "Punto de entrada HTTPS que recibe los pedidos del navegador, valida el token y los pasa a la lógica."
+      position: { x: 300, y: 160 }
+      group: cloud
+      answers:
+        - service: apigateway
+          grade: optimal
+          objectives: [no-servers, sporadic-traffic, low-cost]
+          rationale: >
+            Un API administrado cobra por pedido, escala solo en los picos, no cuesta nada
+            en los días sin uso y puede validar el token del usuario antes de invocar la lógica.
+          references:
+            - https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api.html
+        - service: alb
+          grade: acceptable
+          objectives: [low-cost, sporadic-traffic]
+          rationale: >
+            Un balanceador de aplicaciones puede invocar funciones como destino y no requiere
+            servidores, pero tiene un cargo por hora aunque no llegue ningún pedido: en un
+            sistema con días enteros sin uso pagás capacidad ociosa.
+          references:
+            - https://docs.aws.amazon.com/elasticloadbalancing/latest/application/lambda-functions.html
+      incorrect:
+        - service: route53
+          rationale: "Resuelve nombres DNS hacia un destino; no recibe ni procesa pedidos HTTP."
+        - service: ec2
+          violates: [no-servers]
+          rationale: "Podrías montar un servidor web, pero tendrías que administrar el sistema operativo y los parches."
+      hints:
+        - "Pensá en un servicio que cobre por pedido y no por hora."
+        - "Tiene que poder validar la identidad del usuario antes de ejecutar la lógica."
+
+    - id: url-signer
+      type: slot
+      role: "Lógica breve que verifica al usuario y genera una URL temporal para subir el archivo directo al almacenamiento."
+      position: { x: 580, y: 160 }
+      group: cloud
+      answers:
+        - service: lambda
+          grade: optimal
+          objectives: [no-servers, sporadic-traffic, low-cost]
+          rationale: >
+            Es una tarea de milisegundos que corre solo cuando hay pedidos: cómputo por evento,
+            sin servidores, que escala en el pico y no cobra cuando no se usa.
+          references:
+            - https://docs.aws.amazon.com/lambda/latest/dg/welcome.html
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html
+        - service: fargate
+          grade: acceptable
+          objectives: [low-cost, sporadic-traffic]
+          rationale: >
+            Correr contenedores sin administrar servidores cumple la restricción, pero para una
+            tarea tan corta tenés que elegir entre tareas siempre encendidas (costo ocioso) o
+            esperar el arranque de un contenedor en cada pico.
+          references:
+            - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html
+      incorrect:
+        - service: ec2
+          violates: [no-servers]
+          rationale: "Funciona, pero implica administrar instancias, sistema operativo y escalado."
+      hints:
+        - "La tarea dura milisegundos y ocurre solo cuando alguien quiere subir un archivo."
+
+    - id: upload-store
+      type: slot
+      role: "Almacenamiento durable donde el navegador sube el PDF original usando la URL temporal."
+      position: { x: 300, y: 460 }
+      group: cloud
+      answers:
+        - service: s3
+          grade: optimal
+          objectives: [no-lost-files, low-cost, no-servers]
+          rationale: >
+            Almacenamiento de objetos diseñado para alta durabilidad, pago por lo guardado,
+            con URLs prefirmadas para subir directo desde el navegador y notificaciones
+            cuando se crea un objeto.
+          references:
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/using-presigned-url.html
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/EventNotifications.html
+      incorrect:
+        - service: efs
+          rationale: "Es un sistema de archivos que se monta desde cómputo; el navegador no puede subir directo con una URL temporal."
+        - service: ebs
+          violates: [no-servers]
+          rationale: "Es un disco en bloque que se conecta a una instancia; requiere un servidor y no admite subidas desde el navegador."
+        - service: dynamodb
+          rationale: "Es una base clave-valor con ítems de hasta 400 KB; no está pensada para guardar archivos."
+      hints:
+        - "Buscá almacenamiento de objetos, no de archivos ni de bloques."
+
+    - id: event-buffer
+      type: slot
+      role: "Buffer que desacopla la llegada de archivos del procesamiento: retiene los avisos y permite reintentos."
+      position: { x: 580, y: 460 }
+      group: cloud
+      answers:
+        - service: sqs
+          grade: optimal
+          objectives: [no-lost-files, sporadic-traffic, low-cost]
+          rationale: >
+            Una cola retiene los mensajes hasta que se procesan, los vuelve a entregar si el
+            procesamiento falla, permite una cola de mensajes fallidos y deja que el consumidor
+            los tome en lotes a su ritmo. Cobra por pedido.
+          references:
+            - https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html
+        - service: eventbridge
+          grade: acceptable
+          objectives: [sporadic-traffic]
+          rationale: >
+            Un bus de eventos puede enrutar el aviso de "objeto creado" con reintentos, pero
+            entrega por push: te da menos control del ritmo de consumo y del procesamiento
+            por lotes durante un pico que una cola.
+          references:
+            - https://docs.aws.amazon.com/eventbridge/latest/userguide/eb-what-is.html
+        - service: kinesis-data-streams
+          grade: acceptable
+          objectives: [low-cost]
+          rationale: >
+            Un stream retiene y permite reprocesar, pero está pensado para flujos continuos de
+            alto volumen y tiene un costo base por capacidad aunque no lleguen datos.
+          references:
+            - https://docs.aws.amazon.com/streams/latest/dev/introduction.html
+      incorrect:
+        - service: sns
+          rationale: "Publica y empuja mensajes a suscriptores, pero no los retiene para que el consumidor los tome a su ritmo. Para tener buffer se combina con una cola."
+      hints:
+        - "Necesitás que los avisos esperen si el procesador está ocupado o falla."
+        - "El consumidor debería poder leerlos en lotes."
+
+    - id: processor
+      type: slot
+      role: "Lógica que toma cada aviso, lee el PDF, coordina la extracción de datos y guarda el resultado."
+      position: { x: 840, y: 460 }
+      group: cloud
+      answers:
+        - service: lambda
+          grade: optimal
+          objectives: [no-servers, sporadic-traffic, low-cost]
+          rationale: >
+            Se integra de forma nativa con la cola (lee en lotes, reintenta y escala con la
+            cantidad de mensajes), no cobra en los días sin uso y el tiempo máximo de
+            ejecución alcanza para procesar un comprobante.
+          references:
+            - https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html
+        - service: fargate
+          grade: acceptable
+          objectives: [low-cost, sporadic-traffic]
+          rationale: >
+            Serviría para procesamientos largos o pesados, pero acá cada comprobante se
+            procesa rápido y tendrías que gestionar el escalado de tareas según la cola.
+          references:
+            - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html
+      incorrect:
+        - service: ec2
+          violates: [no-servers]
+          rationale: "Implica administrar instancias y un grupo de autoescalado atado a la cola."
+      hints:
+        - "Es la misma familia de cómputo que ya usaste para la URL temporal."
+
+    - id: extractor
+      type: slot
+      role: "Servicio administrado que detecta texto, pares clave-valor y tablas en documentos escaneados."
+      position: { x: 1100, y: 300 }
+      group: cloud
+      answers:
+        - service: textract
+          grade: optimal
+          objectives: [no-ml-team, no-servers]
+          rationale: >
+            Extrae texto, formularios y tablas de documentos sin entrenar modelos, y tiene una
+            API específica para facturas y recibos que devuelve campos normalizados.
+          references:
+            - https://docs.aws.amazon.com/textract/latest/dg/invoices-receipts.html
+        - service: bedrock
+          grade: acceptable
+          objectives: [low-cost]
+          rationale: >
+            Un modelo fundacional multimodal puede extraer campos con un prompt y sirve si los
+            formatos varían mucho, pero el resultado es menos determinista, exige validación
+            adicional y suele costar más para una extracción estructurada y repetitiva.
+          references:
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/what-is-bedrock.html
+      incorrect:
+        - service: rekognition
+          rationale: "Analiza imágenes y video; detecta texto en imágenes, pero no está pensado para documentos con formularios ni para PDFs de varias páginas."
+        - service: sagemaker-ai
+          violates: [no-ml-team]
+          rationale: "Te permitiría entrenar y operar un modelo propio de extracción, justo lo que el equipo no puede hacer."
+      hints:
+        - "Buscá un servicio de IA ya entrenado, especializado en documentos."
+
+    - id: results-db
+      type: slot
+      role: "Base de datos para guardar los campos extraídos y consultarlos por cliente y por fecha."
+      position: { x: 1100, y: 540 }
+      group: cloud
+      answers:
+        - service: dynamodb
+          grade: optimal
+          objectives: [no-servers, sporadic-traffic, low-cost]
+          rationale: >
+            Con capacidad bajo demanda cobra por pedido y escala sola. El patrón de acceso es
+            simple (cliente como clave de partición, fecha como clave de ordenamiento) y no hay
+            conexiones que administrar desde funciones.
+          references:
+            - https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/on-demand-capacity-mode.html
+        - service: aurora
+          grade: acceptable
+          objectives: [low-cost, sporadic-traffic]
+          rationale: >
+            Una base relacional administrada conviene si hubiera reportes o consultas ad hoc
+            complejas, pero suma gestión de esquema, manejo de conexiones desde funciones y un
+            costo base mayor para un acceso tan simple.
+          references:
+            - https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/CHAP_AuroraOverview.html
+      incorrect:
+        - service: redshift
+          rationale: "Es un data warehouse para análisis sobre grandes volúmenes, no para guardar y leer registros individuales por pedido."
+        - service: elasticache
+          rationale: "Es una caché en memoria para acelerar lecturas; no es el almacén principal y durable de los datos."
+      hints:
+        - "El acceso siempre es por cliente y rango de fechas: clave y orden."
+
+  edges:
+    - { id: e1,  from: client,       to: api-entry,    step: 1, style: sync,    label: "Pide subir un comprobante" }
+    - { id: e2,  from: api-entry,    to: url-signer,   step: 2, style: sync,    label: "Reenvía el pedido autenticado" }
+    - { id: e3,  from: url-signer,   to: client,       step: 3, style: sync,    label: "Devuelve una URL temporal",
+        description: "La URL vence en pocos minutos y solo permite subir ese archivo." }
+    - { id: e4,  from: client,       to: upload-store, step: 4, style: data,    label: "Sube el PDF directo",
+        description: "El archivo no pasa por el backend: menos costo y menos puntos de falla." }
+    - { id: e5,  from: upload-store, to: event-buffer, step: 5, style: async,   label: "Aviso: objeto creado" }
+    - { id: e6,  from: event-buffer, to: processor,    step: 6, style: async,   label: "Entrega avisos en lotes",
+        description: "Si el procesamiento falla, el aviso vuelve a estar disponible y se reintenta." }
+    - { id: e7,  from: processor,    to: upload-store, step: 7, style: data,    label: "Lee el PDF" }
+    - { id: e8,  from: processor,    to: extractor,    step: 8, style: sync,    label: "Pide extraer los campos" }
+    - { id: e9,  from: processor,    to: results-db,   step: 9, style: data,    label: "Guarda CUIT, fecha e importe" }
+    - { id: e10, from: processor,    to: logs,         step: 9, style: control, label: "Registra resultado y errores" }
+
+palette:
+  mode: auto
+  maxSize: 14
+
+references:
+  - title: "Patrones de arquitecturas orientadas a eventos"
+    url: https://aws.amazon.com/event-driven-architecture/
