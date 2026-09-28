@@ -49,6 +49,14 @@ pnpm e2e                 # Playwright
 - Tests junto al código (`*.test.ts`). Cobertura ≥ 90 % en `game-engine` y `content-lint`.
 - Descripción de PR: qué RF implementa, qué ADR aplica, cómo se probó.
 
+## Flujo de trabajo con git
+Modelo de ramas: [ADR-0020](docs/adr/0020-modelo-de-branching.md). Guía para humanos: [CONTRIBUTING.md](CONTRIBUTING.md).
+- Trabajá siempre en una rama nueva creada desde `main` actualizado (`git switch main && git pull --ff-only && git switch -c <prefijo>/<tema>`), con los prefijos del ADR-0020. **Nunca** commitees en `main`.
+- Un PR por tarea, sin mezclar alcances. Si aparece algo fuera de alcance, anotalo en el PR y dejalo para otra rama.
+- Commits con Conventional Commits y sign-off (`git commit -s`). El título del PR también sigue Conventional Commits (se mergea con squash).
+- Abrí el PR con `gh pr create` contra `main` y **nunca** lo mergees (ni con `gh pr merge` ni de ninguna otra forma): el merge lo hace el mantenedor.
+- Entorno: el mantenedor usa **Windows 11 con PowerShell**. Los comandos que le sugieras tienen que ser de PowerShell; los scripts del repo (`package.json`, `tools/`) tienen que ser multiplataforma (sin sintaxis exclusiva de bash o de cmd).
+
 ## Cuándo frenar y preguntar
 - Un requisito es ambiguo o contradice un ADR.
 - La tarea requiere tocar `infra/bootstrap`, permisos IAM o workflows de deploy.
