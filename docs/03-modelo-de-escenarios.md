@@ -44,6 +44,17 @@ content/
 
 CI corre `pnpm content:gen --check` y falla si `diagram.mmd` o `README.md` no coinciden con el `scenario.yaml`.
 
+### Qué escenarios entran al bundle (`content:build`)
+
+| `status` | JSON del escenario | Listado en `index.json` |
+|---|---|---|
+| `draft` | No (solo con `--include-drafts`) | No (solo con `--include-drafts`) |
+| `beta` | Sí | Sí |
+| `published` | Sí | Sí |
+| `retired` | Sí, para que el historial de los jugadores lo pueda abrir | No |
+
+`pnpm content:build --include-drafts` agrega los `draft` al bundle y al índice para probarlos en desarrollo local. **El deploy nunca usa `--include-drafts`**: un `draft` no llega a producción aunque esté mergeado en `main`.
+
 > ⚠️ Los README generados contienen las respuestas (spoilers). Es una decisión aceptada: el repo es público y la idea es no hacerse trampa uno mismo.
 
 ## 2. Especificación de `scenario.yaml` (schemaVersion 1)
@@ -302,10 +313,10 @@ Tipos de regla (conjunto cerrado, [ADR-0018](adr/0018-gamificacion-declarativa.m
 draft ──(PR revisado)──▶ beta ──(métricas OK / revisión)──▶ published ──▶ retired
 ```
 
-- `draft`: solo visible en el Studio y en entornos de desarrollo.
+- `draft`: solo visible en el Studio y en entornos de desarrollo (`content:build --include-drafts`).
 - `beta`: visible con etiqueta "Beta"; otorga XP normalmente.
 - `published`: estable. Cambios de respuestas ⇒ `version++`.
-- `retired`: no se lista; el progreso histórico de los jugadores se conserva.
+- `retired`: no se lista; su JSON sigue en el bundle y el progreso histórico de los jugadores se conserva.
 
 ## 8. Ejemplo completo
 

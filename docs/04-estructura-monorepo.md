@@ -180,7 +180,7 @@ Reglas (enforced con `eslint-plugin-boundaries` o `dependency-cruiser`):
 | `pnpm lint` / `pnpm typecheck` | ESLint + `tsc --noEmit`. |
 | `pnpm content:validate` | Schema + lint de todos los escenarios (o `-- <id>`). |
 | `pnpm content:gen [--check]` | Genera `diagram.mmd` y `README.md`. |
-| `pnpm content:build` | Bundle JSON en `dist/content`. |
+| `pnpm content:build` | Bundle JSON en `dist/content` (sin escenarios `draft`; `--include-drafts` solo en desarrollo local). |
 | `pnpm icons:fetch` | Descarga el paquete oficial de íconos. |
 | `pnpm catalog:sync [--dry-run]` | Diff del catálogo contra SSM (requiere credenciales AWS de solo lectura). |
 

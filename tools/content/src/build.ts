@@ -8,6 +8,8 @@ import { inspectContent, type ValidationReport } from "./validate.js";
 export interface BuildOptions {
   contentDir: string;
   outDir: string;
+  /** Also bundle and list draft scenarios. Local development only: the deploy never uses it. */
+  includeDrafts?: boolean;
 }
 
 export interface BuildResult {
@@ -16,14 +18,26 @@ export interface BuildResult {
   outDir: string;
   /** Files written, relative to `outDir`, sorted. */
   files: string[];
-  /** Scenarios listed in index.json (beta and published). */
+  /** Scenarios listed in index.json (beta and published, plus drafts with `includeDrafts`). */
   listed: number;
+  /** Draft scenarios left out of the bundle (0 with `includeDrafts`). */
+  excludedDrafts: number;
 }
 
 export const BUNDLE_SCHEMA_VERSION = 1;
 
-/** Statuses shown in the game's listing; drafts and retired scenarios are not listed. */
-const LISTED_STATUSES: ReadonlySet<Scenario["status"]> = new Set(["beta", "published"]);
+type Status = Scenario["status"];
+
+/**
+ * Statuses written to the bundle. Retired scenarios keep their JSON so players' history can
+ * still open them; drafts only with `includeDrafts`.
+ */
+const bundledStatuses = (includeDrafts: boolean): ReadonlySet<Status> =>
+  new Set<Status>(includeDrafts ? ["draft", "beta", "published", "retired"] : ["beta", "published", "retired"]);
+
+/** Statuses shown in the game's listing (index.json); retired scenarios are never listed. */
+const listedStatuses = (includeDrafts: boolean): ReadonlySet<Status> =>
+  new Set<Status>(includeDrafts ? ["draft", "beta", "published"] : ["beta", "published"]);
 
 export const scenarioBundleFile = (scenario: Pick<Scenario, "id" | "version">): string =>
   `${scenario.id}.v${scenario.version}.json`;
@@ -80,7 +94,14 @@ const removeStaleBundle = async (outDir: string): Promise<void> => {
 export const build = async (options: BuildOptions): Promise<BuildResult> => {
   const outDir = path.resolve(options.outDir);
   const { report, shared, scenarios } = await inspectContent({ contentDir: options.contentDir });
-  const result: BuildResult = { ok: false, report, outDir, files: [], listed: 0 };
+  const result: BuildResult = {
+    ok: false,
+    report,
+    outDir,
+    files: [],
+    listed: 0,
+    excludedDrafts: 0,
+  };
   const { services, categories, confusionGroups, areas, gameRules, badges } = shared;
   if (
     !report.ok ||
@@ -93,10 +114,14 @@ export const build = async (options: BuildOptions): Promise<BuildResult> => {
   ) {
     return result;
   }
-  const parsed = scenarios.flatMap((loaded) =>
+  const includeDrafts = options.includeDrafts === true;
+  const bundled = bundledStatuses(includeDrafts);
+  const valid = scenarios.flatMap((loaded) =>
     loaded.scenario === undefined ? [] : [loaded.scenario],
   );
-  const listed = parsed.filter((scenario) => LISTED_STATUSES.has(scenario.status));
+  const parsed = valid.filter((scenario) => bundled.has(scenario.status));
+  const listing = listedStatuses(includeDrafts);
+  const listed = parsed.filter((scenario) => listing.has(scenario.status));
   const index: BundleIndex = {
     schemaVersion: BUNDLE_SCHEMA_VERSION,
     areas,
@@ -118,5 +143,6 @@ export const build = async (options: BuildOptions): Promise<BuildResult> => {
   result.ok = true;
   result.files = [...files.keys()].sort();
   result.listed = listed.length;
+  result.excludedDrafts = valid.length - parsed.length;
   return result;
 };

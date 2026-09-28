@@ -253,19 +253,22 @@ describe("content gen", () => {
 });
 
 describe("content build", () => {
-  it("writes the bundle with only beta and published scenarios in the index", async () => {
+  const readIndex = async (): Promise<BundleIndex> =>
+    JSON.parse(await readFile(path.join(ws.outDir, "index.json"), "utf8")) as BundleIndex;
+
+  it("leaves drafts out by default and lists only beta and published scenarios", async () => {
     const { code, stdout } = await ws.cli("build");
     expect(code).toBe(0);
-    expect(stdout).toContain("6 archivos; 1 escenario/s en index.json");
+    expect(stdout).toContain("5 archivos; 1 escenario/s en index.json");
+    expect(stdout).toContain("1 draft/s excluido/s (usá --include-drafts en desarrollo local)");
     expect((await readdir(ws.outDir)).sort()).toEqual([
       "badges.json",
       "catalog.json",
       "club-photos.v1.json",
       "game-rules.json",
       "index.json",
-      "photo-queue.v1.json",
     ]);
-    const index = JSON.parse(await readFile(path.join(ws.outDir, "index.json"), "utf8")) as BundleIndex;
+    const index = await readIndex();
     expect(index.scenarios.map((s) => [s.id, s.status, s.file])).toEqual([
       ["club-photos", "beta", "club-photos.v1.json"],
     ]);
@@ -273,6 +276,34 @@ describe("content build", () => {
       services: unknown[];
     };
     expect(catalog.services).toHaveLength(8);
+  });
+
+  it("bundles and lists drafts with --include-drafts", async () => {
+    const { code, stdout } = await ws.cli("build", "--include-drafts");
+    expect(code).toBe(0);
+    expect(stdout).toContain("6 archivos; 2 escenario/s en index.json).\n");
+    expect(await readdir(ws.outDir)).toContain("photo-queue.v1.json");
+    const index = await readIndex();
+    expect(index.scenarios.map((s) => [s.id, s.status])).toEqual([
+      ["club-photos", "beta"],
+      ["photo-queue", "draft"],
+    ]);
+  });
+
+  it("keeps the JSON of retired scenarios but does not list them", async () => {
+    await ws.edit(CLUB, "status: beta", "status: retired");
+    await ws.cli("gen");
+    const { code, stdout } = await ws.cli("build");
+    expect(code).toBe(0);
+    expect(stdout).toContain("5 archivos; 0 escenario/s en index.json");
+    expect(await readdir(ws.outDir)).toContain("club-photos.v1.json");
+    expect((await readIndex()).scenarios).toEqual([]);
+  });
+
+  it("removes a draft written by a previous --include-drafts build", async () => {
+    await ws.cli("build", "--include-drafts");
+    await ws.cli("build");
+    expect(await readdir(ws.outDir)).not.toContain("photo-queue.v1.json");
   });
 
   it("is deterministic and removes stale scenario files", async () => {
@@ -303,6 +334,7 @@ describe("usage", () => {
     [["frobnicate"], "Comando desconocido"],
     [["validate", "--nope"], "--nope"],
     [["validate", "--check"], "--check no aplica a validate"],
+    [["gen", "--include-drafts"], "--include-drafts no aplica a gen"],
     [["validate", "--format", "xml"], '--format tiene que ser "text" o "json"'],
     [["gen", "extra"], "Argumentos de más"],
   ])("rejects %j with exit code 2", async (argv, message) => {
