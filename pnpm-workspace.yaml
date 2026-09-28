@@ -7,7 +7,7 @@ packages:
 # Shared versions for tooling used across packages (`"catalog:"` in package.json).
 catalog:
   "@eslint/js": ^10.0.1
-  "@types/node": ^24.19.0
+  "@types/node": ^26.6.2
   eslint: ^10.11.0
   eslint-config-prettier: ^10.1.8
   globals: ^17.12.0
