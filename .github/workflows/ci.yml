@@ -60,6 +60,29 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # L014 compares each scenario's version against the PR base branch. The checkout is
+      # shallow and only has the PR merge commit, so fetch the base ref explicitly.
+      - name: Fetch PR base branch
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: git fetch --no-tags --depth=1 origin "+refs/heads/${BASE_REF}:refs/remotes/origin/${BASE_REF}"
+
+      - name: Validate content (against PR base)
+        if: github.event_name == 'pull_request'
+        shell: bash
+        env:
+          BASE_REF: ${{ github.base_ref }}
+        run: pnpm --reporter=silent content:validate --base "origin/${BASE_REF}"
+
+      - name: Validate content
+        if: github.event_name != 'pull_request'
+        run: pnpm --reporter=silent content:validate
+
+      - name: Check generated content files
+        run: pnpm content:gen --check
+
   # Single stable status check for branch protection, independent of matrix names.
   ci:
     name: ci

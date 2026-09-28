@@ -1,0 +1,31 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Reglas de juego (ADR-0018, docs/03 §6). Valores iniciales de docs/01 (EVAL y ONB).
+
+scoring:
+  firstTryGreen: 100 # verde al primer intento
+  greenAfterErrors: # verde tras N errores: max(min, firstTryGreen − penaltyPerError·N)
+    penaltyPerError: 25
+    min: 25
+  acceptedAcceptable: 50 # naranja aceptado por el jugador
+  hintCost: 15 # por pista usada (el puntaje del casillero no baja de 0)
+
+levelMultipliers: { 100: 1, 200: 1.5, 300: 2, 400: 3 }
+
+ranks: # umbral de XP acumulada (RF-GAM-01)
+  - { id: aprendiz, name: Aprendiz, minXp: 0 }
+  - { id: constructor, name: Constructor, minXp: 1000 }
+  - { id: arquitecto, name: Arquitecto, minXp: 5000 }
+  - { id: arquitecto-senior, name: Arquitecto Senior, minXp: 15000 }
+  - { id: principal, name: Principal, minXp: 40000 }
+
+unlock:
+  scenariosRequired: 3 # escenarios del nivel N para desbloquear N+1
+  byExperience: # niveles desbloqueados al inicio según el onboarding (RF-ONB-02)
+    beginner: [100] # Recién empiezo
+    aws-user: [100, 200] # Uso AWS
+    architect: [100, 200, 300] # Diseño arquitecturas
+    expert: [100, 200, 300, 400] # Experto
+
+palette:
+  modeByLevel: { 100: curated, 200: categories, 300: categories-plus, 400: full }
+  defaultMaxSize: 12

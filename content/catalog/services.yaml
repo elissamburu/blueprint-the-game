@@ -1,0 +1,736 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Catálogo curado de servicios (RF-CAT-01, ADR-0011, docs/03 §4).
+#
+# - `id` es estable: lo usan los escenarios. No se renombra; si un servicio se retira, pasa a
+#   `status: deprecated`.
+# - `category`: id de catalog/categories.yaml, igual a la carpeta del paquete de íconos.
+# - `icon`: nombre base del archivo en el paquete oficial de íconos de arquitectura de AWS
+#   (release 07/31/2026), sin tamaño de carpeta ni extensión. Los íconos no se versionan en el
+#   repo (ADR-0012). Los balanceadores usan íconos de recurso (Res_…) porque el paquete solo
+#   trae un ícono de servicio genérico para Elastic Load Balancing.
+# - `leakPatterns`: textos que delatan al servicio (lint L005). Para nombres que son palabras
+#   comunes (Config, Glue, Batch, Shield, Backup…) se usan patrones compuestos.
+# - `ssmNamespaces`: namespaces de /aws/service/global-infrastructure/services (us-east-1,
+#   consultados el 2026-09-28) que corresponden al producto. Un namespace puede aparecer en
+#   más de un servicio (p. ej. `elb` en alb y nlb). Los de productos que no están en el
+#   catálogo quedan sin mapear: catalog-sync los propone como candidatos (ADR-0011).
+# - `since`, `whenToUse` y `whenNotToUse` se completan más adelante, con fuente.
+
+# ── Cómputo ──────────────────────────────────────────────────────────────────────────────────
+- id: ec2
+  name: Amazon EC2
+  fullName: Amazon Elastic Compute Cloud
+  category: compute
+  aliases: [ec2, máquina virtual, instancia, servidor]
+  leakPatterns: ["EC2", "Elastic Compute Cloud"]
+  short: "Máquinas virtuales en la nube; el cliente administra el sistema operativo."
+  docs: https://docs.aws.amazon.com/ec2/
+  ssmNamespaces: [ec2]
+  icon: Arch_Amazon-EC2_48
+  status: active
+- id: ec2-auto-scaling
+  name: Amazon EC2 Auto Scaling
+  category: compute
+  aliases: [auto scaling, autoescalado, asg]
+  leakPatterns: ["EC2 Auto Scaling", "Auto Scaling group", "Auto Scaling"]
+  short: "Ajusta automáticamente la cantidad de instancias de un grupo según la demanda."
+  docs: https://docs.aws.amazon.com/autoscaling/ec2/userguide/what-is-amazon-ec2-auto-scaling.html
+  ssmNamespaces: [autoscaling]
+  icon: Arch_Amazon-EC2-Auto-Scaling_48
+  status: active
+- id: lambda
+  name: AWS Lambda
+  category: compute
+  aliases: [lambda, funciones, serverless]
+  leakPatterns: ["Lambda"]
+  short: "Ejecuta código en respuesta a eventos sin administrar servidores; cobra por uso."
+  docs: https://docs.aws.amazon.com/lambda/
+  ssmNamespaces: [lambda]
+  icon: Arch_AWS-Lambda_48
+  status: active
+- id: elastic-beanstalk
+  name: AWS Elastic Beanstalk
+  category: compute
+  aliases: [beanstalk, paas]
+  leakPatterns: ["Elastic Beanstalk", "Beanstalk"]
+  short: "Despliega y escala aplicaciones web administrando por vos la infraestructura subyacente."
+  docs: https://docs.aws.amazon.com/elastic-beanstalk/
+  ssmNamespaces: [elasticbeanstalk]
+  icon: Arch_AWS-Elastic-Beanstalk_48
+  status: active
+- id: app-runner
+  name: AWS App Runner
+  category: compute
+  aliases: [app runner, apprunner]
+  leakPatterns: ["App Runner", "AppRunner"]
+  short: "Ejecuta aplicaciones web y APIs en contenedores desde código o una imagen, sin administrar infraestructura."
+  docs: https://docs.aws.amazon.com/apprunner/
+  ssmNamespaces: [apprunner]
+  icon: Arch_AWS-App-Runner_48
+  status: active
+- id: batch
+  name: AWS Batch
+  category: compute
+  aliases: [batch, trabajos por lotes]
+  leakPatterns: ["AWS Batch"]
+  short: "Planifica y ejecuta trabajos de cómputo por lotes, aprovisionando la capacidad necesaria."
+  docs: https://docs.aws.amazon.com/batch/
+  ssmNamespaces: [batch]
+  icon: Arch_AWS-Batch_48
+  status: active
+
+# ── Contenedores ─────────────────────────────────────────────────────────────────────────────
+- id: ecs
+  name: Amazon ECS
+  fullName: Amazon Elastic Container Service
+  category: containers
+  aliases: [ecs, contenedores, orquestador]
+  leakPatterns: ["ECS", "Elastic Container Service"]
+  short: "Orquestador de contenedores administrado por AWS."
+  docs: https://docs.aws.amazon.com/ecs/
+  ssmNamespaces: [ecs]
+  icon: Arch_Amazon-Elastic-Container-Service_48
+  status: active
+- id: eks
+  name: Amazon EKS
+  fullName: Amazon Elastic Kubernetes Service
+  category: containers
+  aliases: [eks, kubernetes, k8s]
+  leakPatterns: ["EKS", "Elastic Kubernetes Service"]
+  short: "Kubernetes administrado: AWS opera el plano de control."
+  docs: https://docs.aws.amazon.com/eks/
+  ssmNamespaces: [eks, eks-auth]
+  icon: Arch_Amazon-Elastic-Kubernetes-Service_48
+  status: active
+- id: fargate
+  name: AWS Fargate
+  category: containers
+  aliases: [fargate, contenedores serverless]
+  leakPatterns: ["Fargate"]
+  short: "Ejecuta contenedores de ECS o EKS sin administrar servidores ni clústeres de instancias."
+  docs: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html
+  ssmNamespaces: [fargate]
+  icon: Arch_AWS-Fargate_48
+  status: active
+- id: ecr
+  name: Amazon ECR
+  fullName: Amazon Elastic Container Registry
+  category: containers
+  aliases: [ecr, registro de imágenes, registry]
+  leakPatterns: ["ECR", "Elastic Container Registry"]
+  short: "Registro administrado de imágenes de contenedores."
+  docs: https://docs.aws.amazon.com/ecr/
+  ssmNamespaces: [ecr, ecr-public]
+  icon: Arch_Amazon-Elastic-Container-Registry_48
+  status: active
+
+# ── Almacenamiento ───────────────────────────────────────────────────────────────────────────
+- id: s3
+  name: Amazon S3
+  fullName: Amazon Simple Storage Service
+  category: storage
+  aliases: [s3, simple storage, buckets, objetos]
+  leakPatterns: ["S3", "Simple Storage Service"]
+  short: "Almacenamiento de objetos durable y escalable, pago por uso."
+  docs: https://docs.aws.amazon.com/s3/
+  ssmNamespaces: [s3, s3control]
+  icon: Arch_Amazon-Simple-Storage-Service_48
+  status: active
+- id: ebs
+  name: Amazon EBS
+  fullName: Amazon Elastic Block Store
+  category: storage
+  aliases: [ebs, disco, volumen, almacenamiento en bloque]
+  leakPatterns: ["EBS", "Elastic Block Store"]
+  short: "Volúmenes de almacenamiento en bloque que se conectan a instancias EC2."
+  docs: https://docs.aws.amazon.com/ebs/
+  ssmNamespaces: [ebs]
+  icon: Arch_Amazon-Elastic-Block-Store_48
+  status: active
+- id: efs
+  name: Amazon EFS
+  fullName: Amazon Elastic File System
+  category: storage
+  aliases: [efs, nfs, sistema de archivos compartido]
+  leakPatterns: ["EFS", "Elastic File System"]
+  short: "Sistema de archivos NFS administrado y elástico que se monta desde cómputo."
+  docs: https://docs.aws.amazon.com/efs/
+  ssmNamespaces: [efs]
+  icon: Arch_Amazon-EFS_48
+  status: active
+- id: fsx
+  name: Amazon FSx
+  category: storage
+  aliases: [fsx, lustre, windows file server, ontap, openzfs]
+  leakPatterns: ["FSx"]
+  short: "Sistemas de archivos administrados basados en tecnologías conocidas (Windows File Server, Lustre, NetApp ONTAP, OpenZFS)."
+  docs: https://docs.aws.amazon.com/fsx/
+  ssmNamespaces: [fsx, fsx-lustre, fsx-ontap, fsx-openzfs, fsx-windows]
+  icon: Arch_Amazon-FSx_48
+  status: active
+- id: backup
+  name: AWS Backup
+  category: storage
+  aliases: [backup, respaldos, copias de seguridad]
+  leakPatterns: ["AWS Backup", "Backup vault"]
+  short: "Centraliza y automatiza copias de seguridad de varios servicios de AWS."
+  docs: https://docs.aws.amazon.com/aws-backup/
+  ssmNamespaces: [backup, backup-gateway]
+  icon: Arch_AWS-Backup_48
+  status: active
+- id: storage-gateway
+  name: AWS Storage Gateway
+  category: storage
+  aliases: [storage gateway, almacenamiento híbrido]
+  leakPatterns: ["Storage Gateway"]
+  short: "Da acceso desde instalaciones propias a almacenamiento en la nube (almacenamiento híbrido)."
+  docs: https://docs.aws.amazon.com/storagegateway/
+  ssmNamespaces: [storagegateway]
+  icon: Arch_AWS-Storage-Gateway_48
+  status: active
+
+# ── Bases de datos ───────────────────────────────────────────────────────────────────────────
+- id: rds
+  name: Amazon RDS
+  fullName: Amazon Relational Database Service
+  category: databases
+  aliases: [rds, base relacional, mysql, postgresql, sql server, oracle, mariadb]
+  leakPatterns: ["RDS", "Relational Database Service"]
+  short: "Bases de datos relacionales administradas con motores conocidos."
+  docs: https://docs.aws.amazon.com/rds/
+  ssmNamespaces: [rds, rds-data]
+  icon: Arch_Amazon-RDS_48
+  status: active
+- id: aurora
+  name: Amazon Aurora
+  category: databases
+  aliases: [aurora, base relacional, mysql, postgresql]
+  leakPatterns: ["Aurora"]
+  short: "Base de datos relacional administrada compatible con MySQL y PostgreSQL."
+  docs: https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/CHAP_AuroraOverview.html
+  ssmNamespaces: [aurora]
+  icon: Arch_Amazon-Aurora_48
+  status: active
+- id: dynamodb
+  name: Amazon DynamoDB
+  category: databases
+  aliases: [dynamodb, dynamo, nosql, clave-valor]
+  leakPatterns: ["DynamoDB", "Dynamo"]
+  short: "Base de datos NoSQL clave-valor y de documentos, serverless y de baja latencia."
+  docs: https://docs.aws.amazon.com/dynamodb/
+  ssmNamespaces: [dynamodb, dynamodbstreams]
+  icon: Arch_Amazon-DynamoDB_48
+  status: active
+- id: elasticache
+  name: Amazon ElastiCache
+  category: databases
+  aliases: [elasticache, caché, redis, valkey, memcached]
+  leakPatterns: ["ElastiCache"]
+  short: "Caché en memoria administrada compatible con Valkey, Redis OSS y Memcached."
+  docs: https://docs.aws.amazon.com/elasticache/
+  ssmNamespaces: [elasticache]
+  icon: Arch_Amazon-ElastiCache_48
+  status: active
+- id: documentdb
+  name: Amazon DocumentDB
+  fullName: Amazon DocumentDB (with MongoDB compatibility)
+  category: databases
+  aliases: [documentdb, documentos, mongodb]
+  leakPatterns: ["DocumentDB"]
+  short: "Base de datos de documentos administrada compatible con MongoDB."
+  docs: https://docs.aws.amazon.com/documentdb/
+  ssmNamespaces: [docdb]
+  icon: Arch_Amazon-DocumentDB_48
+  status: active
+- id: neptune
+  name: Amazon Neptune
+  category: databases
+  aliases: [neptune, grafos]
+  leakPatterns: ["Neptune"]
+  short: "Base de datos de grafos administrada."
+  docs: https://docs.aws.amazon.com/neptune/
+  ssmNamespaces: [neptune]
+  icon: Arch_Amazon-Neptune_48
+  status: active
+
+# ── Redes y entrega de contenido ─────────────────────────────────────────────────────────────
+- id: vpc
+  name: Amazon VPC
+  fullName: Amazon Virtual Private Cloud
+  category: networking-content-delivery
+  aliases: [vpc, red privada, subredes]
+  leakPatterns: ["VPC", "Virtual Private Cloud"]
+  short: "Red virtual aislada donde se despliegan los recursos, con subredes y tablas de ruteo."
+  docs: https://docs.aws.amazon.com/vpc/
+  ssmNamespaces: [vpc]
+  icon: Arch_Amazon-Virtual-Private-Cloud_48
+  status: active
+- id: cloudfront
+  name: Amazon CloudFront
+  category: networking-content-delivery
+  aliases: [cloudfront, cdn]
+  leakPatterns: ["CloudFront"]
+  short: "Red de entrega de contenido (CDN) que sirve contenido desde ubicaciones cercanas al usuario."
+  docs: https://docs.aws.amazon.com/cloudfront/
+  ssmNamespaces: [cloudfront]
+  icon: Arch_Amazon-CloudFront_48
+  status: active
+- id: route53
+  name: Amazon Route 53
+  category: networking-content-delivery
+  aliases: [route 53, route53, dns]
+  leakPatterns: ["Route 53", "Route53"]
+  short: "Servicio de DNS administrado, registro de dominios y chequeos de salud."
+  docs: https://docs.aws.amazon.com/route53/
+  ssmNamespaces: [route53, route53domains, route53resolver, route53profiles]
+  icon: Arch_Amazon-Route-53_48
+  status: active
+- id: apigateway
+  name: Amazon API Gateway
+  category: networking-content-delivery
+  aliases: [api gateway, apigateway, api rest, api http, websocket]
+  leakPatterns: ["API Gateway", "APIGateway"]
+  short: "Crea, publica y protege APIs REST, HTTP y WebSocket administradas."
+  docs: https://docs.aws.amazon.com/apigateway/
+  ssmNamespaces: [apigateway, apigatewayv2, apigatewaymanagementapi]
+  icon: Arch_Amazon-API-Gateway_48
+  status: active
+- id: alb
+  name: Application Load Balancer
+  fullName: Elastic Load Balancing - Application Load Balancer
+  category: networking-content-delivery
+  aliases: [alb, balanceador, load balancer, elb, capa 7]
+  leakPatterns: ["ALB", "Application Load Balancer"]
+  short: "Balanceador de carga de capa 7 (HTTP/HTTPS) con ruteo por contenido."
+  docs: https://docs.aws.amazon.com/elasticloadbalancing/latest/application/introduction.html
+  ssmNamespaces: [elb]
+  icon: Res_Elastic-Load-Balancing_Application-Load-Balancer_48
+  status: active
+- id: nlb
+  name: Network Load Balancer
+  fullName: Elastic Load Balancing - Network Load Balancer
+  category: networking-content-delivery
+  aliases: [nlb, balanceador, load balancer, elb, capa 4, tcp, udp]
+  leakPatterns: ["NLB", "Network Load Balancer"]
+  short: "Balanceador de carga de capa 4 (TCP/UDP/TLS) de alto rendimiento."
+  docs: https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html
+  ssmNamespaces: [elb]
+  icon: Res_Elastic-Load-Balancing_Network-Load-Balancer_48
+  status: active
+- id: global-accelerator
+  name: AWS Global Accelerator
+  category: networking-content-delivery
+  aliases: [global accelerator, ip estáticas, anycast]
+  leakPatterns: ["Global Accelerator"]
+  short: "Direcciones IP estáticas que dirigen el tráfico por la red global de AWS hacia el endpoint más adecuado."
+  docs: https://docs.aws.amazon.com/global-accelerator/
+  ssmNamespaces: [globalaccelerator]
+  icon: Arch_AWS-Global-Accelerator_48
+  status: active
+- id: direct-connect
+  name: AWS Direct Connect
+  category: networking-content-delivery
+  aliases: [direct connect, conexión dedicada, enlace privado]
+  leakPatterns: ["Direct Connect", "DirectConnect"]
+  short: "Conexión de red dedicada y privada entre instalaciones propias y AWS."
+  docs: https://docs.aws.amazon.com/directconnect/
+  ssmNamespaces: [directconnect]
+  icon: Arch_AWS-Direct-Connect_48
+  status: active
+- id: transit-gateway
+  name: AWS Transit Gateway
+  category: networking-content-delivery
+  aliases: [transit gateway, tgw, hub de redes]
+  leakPatterns: ["Transit Gateway", "TGW"]
+  short: "Hub central que interconecta VPCs y redes propias."
+  docs: https://docs.aws.amazon.com/vpc/latest/tgw/what-is-transit-gateway.html
+  ssmNamespaces: [transitgateway]
+  icon: Arch_AWS-Transit-Gateway_48
+  status: active
+
+# ── Integración de aplicaciones ──────────────────────────────────────────────────────────────
+- id: sqs
+  name: Amazon SQS
+  fullName: Amazon Simple Queue Service
+  category: application-integration
+  aliases: [sqs, cola, colas de mensajes, queue]
+  leakPatterns: ["SQS", "Simple Queue Service"]
+  short: "Colas de mensajes administradas para desacoplar productores y consumidores."
+  docs: https://docs.aws.amazon.com/sqs/
+  ssmNamespaces: [sqs]
+  icon: Arch_Amazon-Simple-Queue-Service_48
+  status: active
+- id: sns
+  name: Amazon SNS
+  fullName: Amazon Simple Notification Service
+  category: application-integration
+  aliases: [sns, pub/sub, notificaciones, tópicos]
+  leakPatterns: ["SNS", "Simple Notification Service"]
+  short: "Mensajería pub/sub: publica un mensaje en un tópico y lo envía a todos sus suscriptores."
+  docs: https://docs.aws.amazon.com/sns/
+  ssmNamespaces: [sns]
+  icon: Arch_Amazon-Simple-Notification-Service_48
+  status: active
+- id: eventbridge
+  name: Amazon EventBridge
+  category: application-integration
+  aliases: [eventbridge, bus de eventos, event bus, scheduler]
+  leakPatterns: ["EventBridge", "CloudWatch Events"]
+  short: "Bus de eventos serverless que enruta eventos entre servicios según reglas."
+  docs: https://docs.aws.amazon.com/eventbridge/
+  ssmNamespaces: [eventbridge, events, pipes, scheduler]
+  icon: Arch_Amazon-EventBridge_48
+  status: active
+- id: step-functions
+  name: AWS Step Functions
+  category: application-integration
+  aliases: [step functions, máquina de estados, workflow, orquestación]
+  leakPatterns: ["Step Functions", "Step Function"]
+  short: "Orquesta flujos de trabajo de varios pasos como máquinas de estado."
+  docs: https://docs.aws.amazon.com/step-functions/
+  ssmNamespaces: [stepfunctions]
+  icon: Arch_AWS-Step-Functions_48
+  status: active
+- id: mq
+  name: Amazon MQ
+  category: application-integration
+  aliases: [amazon mq, activemq, rabbitmq, broker]
+  leakPatterns: ["Amazon MQ"]
+  short: "Brokers de mensajes administrados para Apache ActiveMQ y RabbitMQ."
+  docs: https://docs.aws.amazon.com/amazon-mq/
+  ssmNamespaces: [mq]
+  icon: Arch_Amazon-MQ_48
+  status: active
+- id: appsync
+  name: AWS AppSync
+  category: application-integration
+  aliases: [appsync, graphql]
+  leakPatterns: ["AppSync"]
+  short: "APIs GraphQL administradas, con suscripciones en tiempo real."
+  docs: https://docs.aws.amazon.com/appsync/
+  ssmNamespaces: [appsync]
+  icon: Arch_AWS-AppSync_48
+  status: active
+
+# ── Seguridad, identidad y cumplimiento ──────────────────────────────────────────────────────
+- id: iam
+  name: AWS IAM
+  fullName: AWS Identity and Access Management
+  category: security-identity
+  aliases: [iam, roles, políticas, permisos]
+  leakPatterns: ["IAM", "Identity and Access Management"]
+  short: "Controla quién puede acceder a qué recursos de AWS mediante identidades y políticas."
+  docs: https://docs.aws.amazon.com/iam/
+  ssmNamespaces: [iam]
+  icon: Arch_AWS-Identity-and-Access-Management_48
+  status: active
+- id: cognito
+  name: Amazon Cognito
+  category: security-identity
+  aliases: [cognito, login, usuarios, autenticación]
+  leakPatterns: ["Cognito"]
+  short: "Registro, inicio de sesión y control de acceso para usuarios de aplicaciones web y móviles."
+  docs: https://docs.aws.amazon.com/cognito/
+  ssmNamespaces: [cognito-idp, cognito-identity, cognito-sync]
+  icon: Arch_Amazon-Cognito_48
+  status: active
+- id: kms
+  name: AWS KMS
+  fullName: AWS Key Management Service
+  category: security-identity
+  aliases: [kms, claves, cifrado]
+  leakPatterns: ["KMS", "Key Management Service"]
+  short: "Crea y controla claves criptográficas para cifrar datos."
+  docs: https://docs.aws.amazon.com/kms/
+  ssmNamespaces: [kms]
+  icon: Arch_AWS-Key-Management-Service_48
+  status: active
+- id: secrets-manager
+  name: AWS Secrets Manager
+  category: security-identity
+  aliases: [secrets manager, secretos, credenciales, rotación]
+  leakPatterns: ["Secrets Manager"]
+  short: "Guarda, recupera y rota secretos como credenciales de bases de datos y claves de API."
+  docs: https://docs.aws.amazon.com/secretsmanager/
+  ssmNamespaces: [secretsmanager]
+  icon: Arch_AWS-Secrets-Manager_48
+  status: active
+- id: acm
+  name: AWS Certificate Manager
+  category: security-identity
+  aliases: [acm, certificados, tls, ssl]
+  leakPatterns: ["ACM", "Certificate Manager"]
+  short: "Emite y administra certificados TLS para servicios de AWS."
+  docs: https://docs.aws.amazon.com/acm/
+  ssmNamespaces: [acm]
+  icon: Arch_AWS-Certificate-Manager_48
+  status: active
+- id: waf
+  name: AWS WAF
+  category: security-identity
+  aliases: [waf, firewall web, firewall de aplicaciones]
+  leakPatterns: ["WAF", "Web Application Firewall"]
+  short: "Firewall de aplicaciones web que filtra pedidos HTTP según reglas."
+  docs: https://docs.aws.amazon.com/waf/
+  ssmNamespaces: [waf, waf-regional]
+  icon: Arch_AWS-WAF_48
+  status: active
+- id: shield
+  name: AWS Shield
+  category: security-identity
+  aliases: [shield, ddos]
+  leakPatterns: ["AWS Shield", "Shield Advanced", "Shield Standard"]
+  short: "Protección administrada contra ataques de denegación de servicio distribuidos (DDoS)."
+  docs: https://docs.aws.amazon.com/waf/latest/developerguide/shield-chapter.html
+  ssmNamespaces: [shield]
+  icon: Arch_AWS-Shield_48
+  status: active
+- id: guardduty
+  name: Amazon GuardDuty
+  category: security-identity
+  aliases: [guardduty, detección de amenazas]
+  leakPatterns: ["GuardDuty"]
+  short: "Detección de amenazas que analiza continuamente la actividad de cuentas y cargas de trabajo."
+  docs: https://docs.aws.amazon.com/guardduty/
+  ssmNamespaces: [guardduty]
+  icon: Arch_Amazon-GuardDuty_48
+  status: active
+
+# ── Inteligencia artificial ──────────────────────────────────────────────────────────────────
+- id: bedrock
+  name: Amazon Bedrock
+  category: artificial-intelligence
+  aliases: [bedrock, ia generativa, modelos fundacionales, llm]
+  leakPatterns: ["Bedrock"]
+  short: "Acceso administrado a modelos fundacionales para construir aplicaciones de IA generativa."
+  docs: https://docs.aws.amazon.com/bedrock/
+  ssmNamespaces: [bedrock, bedrock-runtime, bedrock-data-automation]
+  icon: Arch_Amazon-Bedrock_48
+  status: active
+- id: sagemaker-ai
+  name: Amazon SageMaker AI
+  category: artificial-intelligence
+  aliases: [sagemaker, machine learning, entrenamiento de modelos]
+  leakPatterns: ["SageMaker"]
+  short: "Plataforma para construir, entrenar y desplegar modelos de aprendizaje automático propios."
+  docs: https://docs.aws.amazon.com/sagemaker/
+  ssmNamespaces: [sagemaker, sagemaker-runtime, sagemaker-featurestore-runtime, sagemaker-metrics]
+  icon: Arch_Amazon-SageMaker-AI_48
+  status: active
+- id: rekognition
+  name: Amazon Rekognition
+  category: artificial-intelligence
+  aliases: [rekognition, visión, análisis de imágenes, video]
+  leakPatterns: ["Rekognition"]
+  short: "Análisis de imágenes y video con modelos ya entrenados."
+  docs: https://docs.aws.amazon.com/rekognition/
+  ssmNamespaces: [rekognition]
+  icon: Arch_Amazon-Rekognition_48
+  status: active
+- id: textract
+  name: Amazon Textract
+  category: artificial-intelligence
+  aliases: [textract, ocr, extracción de documentos]
+  leakPatterns: ["Textract"]
+  short: "Extrae texto, formularios y tablas de documentos escaneados."
+  docs: https://docs.aws.amazon.com/textract/
+  ssmNamespaces: [textract]
+  icon: Arch_Amazon-Textract_48
+  status: active
+- id: comprehend
+  name: Amazon Comprehend
+  category: artificial-intelligence
+  aliases: [comprehend, nlp, procesamiento de lenguaje natural, sentimiento]
+  leakPatterns: ["Amazon Comprehend", "Comprehend Medical"]
+  short: "Procesamiento de lenguaje natural para encontrar entidades, frases clave y sentimiento en texto."
+  docs: https://docs.aws.amazon.com/comprehend/
+  ssmNamespaces: [comprehend]
+  icon: Arch_Amazon-Comprehend_48
+  status: active
+- id: transcribe
+  name: Amazon Transcribe
+  category: artificial-intelligence
+  aliases: [transcribe, voz a texto, transcripción]
+  leakPatterns: ["Amazon Transcribe"]
+  short: "Convierte audio de voz en texto."
+  docs: https://docs.aws.amazon.com/transcribe/
+  ssmNamespaces: [transcribe]
+  icon: Arch_Amazon-Transcribe_48
+  status: active
+
+# ── Analítica ────────────────────────────────────────────────────────────────────────────────
+- id: athena
+  name: Amazon Athena
+  category: analytics
+  aliases: [athena, sql sobre s3, consultas interactivas]
+  leakPatterns: ["Athena"]
+  short: "Consultas SQL interactivas y serverless sobre datos en S3."
+  docs: https://docs.aws.amazon.com/athena/
+  ssmNamespaces: [athena]
+  icon: Arch_Amazon-Athena_48
+  status: active
+- id: glue
+  name: AWS Glue
+  category: analytics
+  aliases: [glue, etl, catálogo de datos]
+  leakPatterns: ["AWS Glue", "Glue Data Catalog", "Glue job", "Glue crawler"]
+  short: "Integración de datos serverless: ETL y catálogo de datos."
+  docs: https://docs.aws.amazon.com/glue/
+  ssmNamespaces: [glue]
+  icon: Arch_AWS-Glue_48
+  status: active
+- id: kinesis-data-streams
+  name: Amazon Kinesis Data Streams
+  category: analytics
+  aliases: [kinesis, streams, streaming]
+  leakPatterns: ["Kinesis Data Streams", "Kinesis"]
+  short: "Streams de datos en tiempo real con retención y relectura por varios consumidores."
+  docs: https://docs.aws.amazon.com/streams/latest/dev/introduction.html
+  ssmNamespaces: [kinesis]
+  icon: Arch_Amazon-Kinesis-Data-Streams_48
+  status: active
+- id: data-firehose
+  name: Amazon Data Firehose
+  category: analytics
+  aliases: [firehose, kinesis firehose, entrega de streams]
+  leakPatterns: ["Data Firehose", "Firehose"]
+  short: "Entrega datos en streaming a destinos como S3, Redshift u OpenSearch, sin administrar infraestructura."
+  docs: https://docs.aws.amazon.com/firehose/
+  ssmNamespaces: [firehose]
+  icon: Arch_Amazon-Data-Firehose_48
+  status: active
+- id: redshift
+  name: Amazon Redshift
+  category: analytics
+  aliases: [redshift, data warehouse, almacén de datos]
+  leakPatterns: ["Redshift"]
+  short: "Data warehouse administrado para análisis SQL sobre grandes volúmenes de datos."
+  docs: https://docs.aws.amazon.com/redshift/
+  ssmNamespaces: [redshift, redshift-data, redshift-serverless]
+  icon: Arch_Amazon-Redshift_48
+  status: active
+- id: emr
+  name: Amazon EMR
+  category: analytics
+  aliases: [emr, spark, hadoop, big data]
+  leakPatterns: ["EMR", "Elastic MapReduce"]
+  short: "Ejecuta frameworks de big data como Apache Spark y Hadoop en clústeres administrados."
+  docs: https://docs.aws.amazon.com/emr/
+  ssmNamespaces: [emr, emr-containers, emr-serverless]
+  icon: Arch_Amazon-EMR_48
+  status: active
+- id: opensearch
+  name: Amazon OpenSearch Service
+  category: analytics
+  aliases: [opensearch, elasticsearch, búsqueda, logs]
+  leakPatterns: ["OpenSearch"]
+  short: "Búsqueda y análisis de logs con clústeres de OpenSearch administrados."
+  docs: https://docs.aws.amazon.com/opensearch-service/
+  ssmNamespaces: [es, opensearchserverless]
+  icon: Arch_Amazon-OpenSearch-Service_48
+  status: active
+- id: msk
+  name: Amazon MSK
+  fullName: Amazon Managed Streaming for Apache Kafka
+  category: analytics
+  aliases: [msk, kafka, streaming]
+  leakPatterns: ["MSK", "Managed Streaming for Apache Kafka"]
+  short: "Apache Kafka administrado para streaming de datos."
+  docs: https://docs.aws.amazon.com/msk/
+  ssmNamespaces: [kafka, kafkaconnect]
+  icon: Arch_Amazon-Managed-Streaming-for-Apache-Kafka_48
+  status: active
+
+# ── Administración y observabilidad ──────────────────────────────────────────────────────────
+- id: cloudwatch
+  name: Amazon CloudWatch
+  category: management-tools
+  aliases: [cloudwatch, métricas, logs, alarmas, monitoreo]
+  leakPatterns: ["CloudWatch"]
+  short: "Métricas, logs y alarmas para monitorear recursos y aplicaciones."
+  docs: https://docs.aws.amazon.com/cloudwatch/
+  ssmNamespaces: [cloudwatch, logs]
+  icon: Arch_Amazon-CloudWatch_48
+  status: active
+- id: cloudtrail
+  name: AWS CloudTrail
+  category: management-tools
+  aliases: [cloudtrail, auditoría, registro de llamadas a la api]
+  leakPatterns: ["CloudTrail"]
+  short: "Registra la actividad de usuarios y llamadas a la API de la cuenta para auditoría."
+  docs: https://docs.aws.amazon.com/cloudtrail/
+  ssmNamespaces: [cloudtrail, cloudtrail-data]
+  icon: Arch_AWS-CloudTrail_48
+  status: active
+- id: config
+  name: AWS Config
+  category: management-tools
+  aliases: [config, cumplimiento, inventario de recursos]
+  leakPatterns: ["AWS Config", "Config rules", "Config rule", "reglas de Config"]
+  short: "Registra la configuración de los recursos y evalúa su cumplimiento con reglas."
+  docs: https://docs.aws.amazon.com/config/
+  ssmNamespaces: [config]
+  icon: Arch_AWS-Config_48
+  status: active
+- id: systems-manager
+  name: AWS Systems Manager
+  category: management-tools
+  aliases: [systems manager, ssm, parameter store, session manager, patch manager]
+  leakPatterns: ["Systems Manager", "SSM", "Parameter Store", "Session Manager", "Patch Manager"]
+  short: "Administra y opera instancias y otros recursos: parches, acceso remoto y parámetros de configuración."
+  docs: https://docs.aws.amazon.com/systems-manager/
+  ssmNamespaces: [ssm]
+  icon: Arch_AWS-Systems-Manager_48
+  status: active
+- id: cloudformation
+  name: AWS CloudFormation
+  category: management-tools
+  aliases: [cloudformation, infraestructura como código, iac, plantillas]
+  leakPatterns: ["CloudFormation"]
+  short: "Infraestructura como código: crea y actualiza recursos a partir de plantillas."
+  docs: https://docs.aws.amazon.com/cloudformation/
+  ssmNamespaces: [cloudformation]
+  icon: Arch_AWS-CloudFormation_48
+  status: active
+
+# ── Herramientas para desarrolladores ────────────────────────────────────────────────────────
+- id: codepipeline
+  name: AWS CodePipeline
+  category: developer-tools
+  aliases: [codepipeline, ci/cd, pipeline, entrega continua]
+  leakPatterns: ["CodePipeline"]
+  short: "Automatiza las etapas de un pipeline de entrega continua."
+  docs: https://docs.aws.amazon.com/codepipeline/
+  ssmNamespaces: [codepipeline]
+  icon: Arch_AWS-CodePipeline_48
+  status: active
+- id: codebuild
+  name: AWS CodeBuild
+  category: developer-tools
+  aliases: [codebuild, compilación, integración continua, build]
+  leakPatterns: ["CodeBuild"]
+  short: "Compila código, corre pruebas y genera artefactos en entornos administrados."
+  docs: https://docs.aws.amazon.com/codebuild/
+  ssmNamespaces: [codebuild]
+  icon: Arch_AWS-CodeBuild_48
+  status: active
+- id: codedeploy
+  name: AWS CodeDeploy
+  category: developer-tools
+  aliases: [codedeploy, despliegue, blue/green]
+  leakPatterns: ["CodeDeploy"]
+  short: "Automatiza despliegues de aplicaciones en EC2, servidores propios, Lambda y ECS."
+  docs: https://docs.aws.amazon.com/codedeploy/
+  ssmNamespaces: [codedeploy]
+  icon: Arch_AWS-CodeDeploy_48
+  status: active
+- id: x-ray
+  name: AWS X-Ray
+  category: developer-tools
+  aliases: [x-ray, xray, trazas, tracing distribuido]
+  leakPatterns: ["X-Ray", "XRay"]
+  short: "Trazas distribuidas para seguir un pedido a través de los servicios de una aplicación."
+  docs: https://docs.aws.amazon.com/xray/
+  ssmNamespaces: [xray]
+  icon: Arch_AWS-X-Ray_48
+  status: active

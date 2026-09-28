@@ -43,8 +43,11 @@ export const USAGE = `Uso:
   pnpm content:gen [--check]
       Genera diagram.mmd y README.md de cada escenario. Con --check no escribe:
       falla si alguno falta o está desactualizado.
-  pnpm content:build [--out <dir>]
+  pnpm content:build [--out <dir>] [--include-drafts]
       Genera el bundle JSON en dist/content (falla si content:validate tiene errores).
+      Incluye los escenarios beta, published y retired (retired no se lista en index.json).
+      --include-drafts  incluye y lista también los draft (solo desarrollo local; el deploy
+                        nunca lo usa).
 
 Opción común: --content <dir> usa otro directorio de contenido (por defecto content/).
 `;
@@ -55,6 +58,7 @@ const OPTIONS = {
   content: { type: "string" },
   format: { type: "string" },
   help: { type: "boolean", short: "h" },
+  "include-drafts": { type: "boolean" },
   out: { type: "string" },
 } as const;
 
@@ -63,7 +67,7 @@ type OptionName = keyof typeof OPTIONS;
 const ALLOWED: Record<string, readonly OptionName[]> = {
   validate: ["base", "content", "format", "help"],
   gen: ["check", "content", "help"],
-  build: ["content", "out", "help"],
+  build: ["content", "out", "include-drafts", "help"],
 };
 
 class UsageError extends Error {}
@@ -143,14 +147,19 @@ const run = async (argv: readonly string[], io: CliIo, defaults: CliDefaults): P
       const result = await build({
         contentDir,
         outDir: path.resolve(defaults.cwd, values.out ?? defaults.outDir),
+        includeDrafts: values["include-drafts"] === true,
       });
       if (!result.ok) {
         io.stdout(formatValidationText(result.report));
         io.stdout("FALLÓ: content:build necesita que content:validate pase sin errores.\n");
         return 1;
       }
+      const drafts =
+        result.excludedDrafts === 0
+          ? ""
+          : ` ${result.excludedDrafts} draft/s excluido/s (usá --include-drafts en desarrollo local).`;
       io.stdout(
-        `OK: bundle en ${shownPath(result.outDir)} (${result.files.length} archivos; ${result.listed} escenario/s en index.json).\n`,
+        `OK: bundle en ${shownPath(result.outDir)} (${result.files.length} archivos; ${result.listed} escenario/s en index.json).${drafts}\n`,
       );
       return 0;
     }

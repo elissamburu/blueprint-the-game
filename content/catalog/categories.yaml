@@ -1,0 +1,77 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Categorías de servicios (RF-CAT-02, docs/03 §6). Alineadas con las carpetas de íconos de
+# servicio (Architecture-Service-Icons/Arch_<Categoría>) del paquete oficial de íconos de
+# arquitectura de AWS, release 07/31/2026. El id es el nombre de la carpeta en kebab-case.
+#
+# `adjacent`: categorías que se suman a la paleta en el modo categories-plus (nivel 300).
+# Son relaciones de diseño frecuentes, no una jerarquía; revisarlas con las métricas de juego.
+
+- id: analytics
+  name: Analítica
+  adjacent: [databases, storage, artificial-intelligence]
+- id: application-integration
+  name: Integración de aplicaciones
+  adjacent: [compute, analytics]
+- id: artificial-intelligence
+  name: Inteligencia artificial
+  adjacent: [analytics, storage]
+- id: blockchain
+  name: Blockchain
+  adjacent: [databases]
+- id: business-applications
+  name: Aplicaciones de negocio
+  adjacent: [application-integration]
+- id: cloud-financial-management
+  name: Gestión financiera de la nube
+  adjacent: [management-tools]
+- id: compute
+  name: Cómputo
+  adjacent: [containers, storage, networking-content-delivery]
+- id: containers
+  name: Contenedores
+  adjacent: [compute, developer-tools]
+- id: customer-enablement
+  name: Soporte y habilitación
+  adjacent: []
+- id: databases
+  name: Bases de datos
+  adjacent: [storage, analytics]
+- id: developer-tools
+  name: Herramientas para desarrolladores
+  adjacent: [management-tools, containers]
+- id: end-user-computing
+  name: Cómputo para usuarios finales
+  adjacent: [security-identity]
+- id: front-end-web-mobile
+  name: Front-end web y móvil
+  adjacent: [application-integration, networking-content-delivery]
+- id: games
+  name: Videojuegos
+  adjacent: [compute]
+- id: internet-of-things
+  name: Internet de las cosas
+  adjacent: [analytics, application-integration]
+- id: management-tools
+  name: Administración y observabilidad
+  adjacent: [developer-tools, security-identity]
+- id: media-services
+  name: Servicios de medios
+  adjacent: [storage, networking-content-delivery]
+- id: migration-modernization
+  name: Migración y modernización
+  adjacent: [storage, databases]
+- id: networking-content-delivery
+  name: Redes y entrega de contenido
+  adjacent: [security-identity, compute]
+- id: quantum-technologies
+  name: Tecnologías cuánticas
+  adjacent: [compute]
+- id: satellite
+  name: Satélite
+  adjacent: [networking-content-delivery]
+- id: security-identity
+  name: Seguridad, identidad y cumplimiento
+  adjacent: [networking-content-delivery, management-tools]
+- id: storage
+  name: Almacenamiento
+  adjacent: [databases, compute]

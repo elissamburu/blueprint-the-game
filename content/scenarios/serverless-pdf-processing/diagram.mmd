@@ -1,0 +1,26 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: serverless-pdf-processing v1
+flowchart LR
+  n_client(["Cliente del estudio"])
+  subgraph g_cloud["Nube"]
+    n_logs["Amazon CloudWatch"]
+    n_api_entry["Amazon API Gateway"]
+    n_url_signer["AWS Lambda"]
+    n_upload_store["Amazon S3"]
+    n_event_buffer["Amazon SQS"]
+    n_processor["AWS Lambda"]
+    n_extractor["Amazon Textract"]
+    n_results_db["Amazon DynamoDB"]
+  end
+  n_client -->|"1. Pide subir un comprobante"| n_api_entry
+  n_api_entry -->|"2. Reenvía el pedido autenticado"| n_url_signer
+  n_url_signer -->|"3. Devuelve una URL temporal"| n_client
+  n_client ==>|"4. Sube el PDF directo"| n_upload_store
+  n_upload_store -.->|"5. Aviso: objeto creado"| n_event_buffer
+  n_event_buffer -.->|"6. Entrega avisos en lotes"| n_processor
+  n_processor ==>|"7. Lee el PDF"| n_upload_store
+  n_processor -->|"8. Pide extraer los campos"| n_extractor
+  n_processor ==>|"9. Guarda CUIT, fecha e importe"| n_results_db
+  n_processor --o|"9. Registra resultado y errores"| n_logs
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_api_entry,n_url_signer,n_upload_store,n_event_buffer,n_processor,n_extractor,n_results_db slot
