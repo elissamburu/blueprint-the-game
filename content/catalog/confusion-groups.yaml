@@ -1,0 +1,62 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Grupos de servicios que suelen confundirse (docs/03 §5). En la paleta curated, los
+# compañeros de grupo de cada respuesta se suman como distractores, en el orden de este
+# archivo (docs/03 §2, "Paleta curated").
+
+- id: messaging
+  services: [sqs, sns, eventbridge, kinesis-data-streams, mq]
+  note: "Colas vs pub/sub vs bus de eventos vs streaming vs broker tradicional."
+- id: load-balancing-entry
+  services: [alb, nlb, apigateway, cloudfront, global-accelerator]
+  note: "Puertas de entrada del tráfico: balanceo L7/L4, API administrada, CDN y red global."
+- id: compute-models
+  services: [lambda, fargate, ec2, app-runner, elastic-beanstalk, batch]
+  note: "Funciones vs contenedores vs máquinas virtuales vs plataformas administradas vs lotes."
+- id: container-orchestration
+  services: [ecs, eks, fargate]
+  note: "Orquestador propio de AWS vs Kubernetes vs capacidad serverless para ambos."
+- id: storage-types
+  services: [s3, ebs, efs, fsx]
+  note: "Objetos vs bloques vs archivos compartidos."
+- id: relational
+  services: [rds, aurora, redshift]
+  note: "Bases relacionales transaccionales vs data warehouse analítico."
+- id: nosql-and-cache
+  services: [dynamodb, elasticache, documentdb, neptune]
+  note: "Clave-valor vs caché en memoria vs documentos vs grafos."
+- id: streaming-ingest
+  services: [kinesis-data-streams, data-firehose, msk]
+  note: "Stream con consumidores propios vs entrega administrada a destinos vs Kafka."
+- id: analytics-engines
+  services: [athena, redshift, emr, glue, opensearch]
+  note: "Consultas ad hoc vs data warehouse vs clústeres de big data vs ETL vs búsqueda."
+- id: api-layer
+  services: [apigateway, appsync]
+  note: "APIs REST/HTTP/WebSocket vs GraphQL."
+- id: workflow-and-events
+  services: [step-functions, eventbridge]
+  note: "Orquestación de pasos con estado vs enrutamiento de eventos."
+- id: identity
+  services: [iam, cognito]
+  note: "Permisos sobre recursos de AWS vs usuarios de la aplicación."
+- id: keys-and-secrets
+  services: [kms, secrets-manager, acm, systems-manager]
+  note: "Claves de cifrado vs secretos rotables vs certificados TLS vs parámetros de configuración."
+- id: threat-protection
+  services: [waf, shield, guardduty]
+  note: "Filtrado de pedidos HTTP vs mitigación de DDoS vs detección de amenazas."
+- id: audit-and-monitoring
+  services: [cloudwatch, cloudtrail, config, x-ray]
+  note: "Métricas y logs vs auditoría de llamadas a la API vs configuración de recursos vs trazas."
+- id: document-and-vision-ai
+  services: [textract, rekognition, comprehend, bedrock]
+  note: "Documentos vs imágenes vs texto vs modelos fundacionales de propósito general."
+- id: ml-platform
+  services: [sagemaker-ai, bedrock]
+  note: "Entrenar y operar modelos propios vs consumir modelos fundacionales administrados."
+- id: hybrid-connectivity
+  services: [direct-connect, transit-gateway, storage-gateway]
+  note: "Enlace dedicado vs hub de redes vs acceso híbrido a almacenamiento."
+- id: ci-cd
+  services: [codepipeline, codebuild, codedeploy]
+  note: "Orquestar el pipeline vs compilar y probar vs desplegar."
