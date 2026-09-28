@@ -19,8 +19,8 @@ ranks: # umbral de XP acumulada (RF-GAM-01)
   - { id: principal, name: Principal, minXp: 40000 }
 
 unlock:
-  scenariosRequired: 3 # escenarios del nivel N para desbloquear N+1
-  byExperience: # niveles desbloqueados al inicio según el onboarding (RF-ONB-02)
+  scenariosRequired: 3 # por área: escenarios del área en el nivel N para abrir N+1 en esa área (RF-NAV-03)
+  byExperience: # niveles desbloqueados al inicio en todas las áreas según el onboarding (RF-ONB-02)
     beginner: [100] # Recién empiezo
     aws-user: [100, 200] # Uso AWS
     architect: [100, 200, 300] # Diseño arquitecturas

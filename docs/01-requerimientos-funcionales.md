@@ -56,7 +56,7 @@
 | ID | Requisito | P | Fase |
 |---|---|---|---|
 | RF-ONB-01 | En el primer ingreso, el jugador elige **áreas de interés** (multi-selección) de la lista `content/areas.yaml`. | M | F1 |
-| RF-ONB-02 | El jugador indica su **experiencia** (Recién empiezo / Uso AWS / Diseño arquitecturas / Experto), que define los niveles desbloqueados al inicio. | M | F1 |
+| RF-ONB-02 | El jugador indica su **experiencia** (Recién empiezo / Uso AWS / Diseño arquitecturas / Experto), que define los niveles desbloqueados al inicio en todas las áreas (RF-NAV-03). | M | F1 |
 | RF-ONB-03 | El jugador puede **editar áreas e intereses** en cualquier momento desde el perfil. | M | F1 |
 | RF-ONB-04 | Tutorial interactivo de 1 escenario nivel 100 que enseña la mecánica (colocar, colores, pistas, flujo). | S | F1 |
 
@@ -77,10 +77,19 @@
 |---|---|---|---|
 | RF-NAV-01 | Listado de escenarios con **filtros por nivel, área y estado** (nuevo, en curso, completado verde, completado con naranjas). | M | F1 |
 | RF-NAV-02 | Sección **"Recomendados para vos"** según áreas de interés, nivel desbloqueado y escenarios no jugados. | M | F1 |
-| RF-NAV-03 | **Desbloqueo progresivo de niveles**: el nivel N+1 se desbloquea al completar `unlock.scenariosRequired` escenarios del nivel N (default 3), además de lo definido en onboarding. | M | F1 |
+| RF-NAV-03 | **Desbloqueo progresivo de niveles por área**: el nivel N+1 de un área se desbloquea al completar `unlock.scenariosRequired` escenarios (default 3) de esa área en el nivel N, además de lo definido en onboarding. Ver reglas en CA RF-NAV-03. | M | F1 |
 | RF-NAV-04 | Cada tarjeta muestra: título, resumen, nivel, áreas, duración estimada, mejor resultado del jugador. | M | F1 |
 | RF-NAV-05 | Solo se listan escenarios con `status: published` (y `beta` con etiqueta "Beta"). `draft` y `retired` no se listan. | M | F1 |
 | RF-NAV-06 | **Escenario destacado de la semana** (configurable en contenido). | C | F7 |
+
+**CA RF-NAV-03**
+- El desbloqueo es por par **(área, nivel)**. XP y rango siguen siendo globales.
+- La experiencia del onboarding (RF-ONB-02) define los niveles abiertos al inicio en **todas** las áreas.
+- Requisito para abrir (área, N+1): tener abierto (área, N) y haber completado `min(unlock.scenariosRequired, escenarios de esa área en el nivel N)` escenarios de esa área en el nivel N. Si ese número es 0 (el área no tiene escenarios en el nivel N), el requisito se considera cumplido y se evalúa el nivel siguiente.
+- Un escenario completado cuenta para **cada una** de sus áreas.
+- Un escenario es jugable si su nivel está desbloqueado en **al menos una** de sus áreas.
+- Los desbloqueos son permanentes: el progreso guarda los pares (área, nivel) abiertos como un conjunto que solo crece. Si después se publican más escenarios en el nivel N, el nivel N+1 ya abierto sigue abierto.
+- Jugar niveles inferiores o repetir escenarios nunca bloquea nada.
 
 ---
 

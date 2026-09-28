@@ -293,8 +293,9 @@ ranks:                            # ≥ 1, umbral de XP acumulada
   - { id: aprendiz, name: Aprendiz, minXp: 0 }
   - { id: constructor, name: Constructor, minXp: 1000 }
 unlock:
-  scenariosRequired: 3            # escenarios del nivel N para desbloquear N+1
-  byExperience:                   # niveles desbloqueados al inicio según el onboarding (las 4 claves)
+  scenariosRequired: 3            # por área: escenarios del área en el nivel N para abrir N+1 en esa área
+                                  # (se exige min(3, escenarios del área en N); con 0 se cumple solo)
+  byExperience:                   # niveles desbloqueados al inicio en todas las áreas (las 4 claves)
     beginner: [100]
     aws-user: [100, 200]
     architect: [100, 200, 300]

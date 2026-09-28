@@ -1,0 +1,36 @@
+{
+  "name": "@blueprint/game-engine",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Motor del juego: sesión de juego, evaluación, puntaje, XP, rangos, desbloqueos y paleta (puro, sin IO).",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module",
+  "exports": {
+    ".": {
+      "types": "./dist/index.d.ts",
+      "default": "./dist/index.js"
+    }
+  },
+  "files": [
+    "dist"
+  ],
+  "scripts": {
+    "build": "tsc -p tsconfig.build.json",
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "clean": "rimraf dist coverage .turbo"
+  },
+  "dependencies": {
+    "@blueprint/scenario-schema": "workspace:*"
+  },
+  "devDependencies": {
+    "@blueprint/config": "workspace:*",
+    "@vitest/coverage-v8": "catalog:",
+    "eslint": "catalog:",
+    "rimraf": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:",
+    "yaml": "catalog:"
+  }
+}
