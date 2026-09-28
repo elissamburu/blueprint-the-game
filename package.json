@@ -16,11 +16,14 @@
     "typecheck": "turbo run typecheck",
     "format": "prettier --write .",
     "format:check": "prettier --check .",
-    "clean": "turbo run clean"
+    "clean": "turbo run clean",
+    "deps:check": "depcruise . --config .dependency-cruiser.cjs --output-type err-long"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",
+    "dependency-cruiser": "catalog:",
     "prettier": "catalog:",
-    "turbo": "catalog:"
+    "turbo": "catalog:",
+    "typescript": "catalog:"
   }
 }
