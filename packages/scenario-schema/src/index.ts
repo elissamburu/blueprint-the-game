@@ -5,4 +5,5 @@ export * from "./catalog.js";
 export * from "./game.js";
 export { formatIssues, type SchemaIssue } from "./errors.js";
 export * from "./parse.js";
+export * from "./palette.js";
 export { scenarioJsonSchema } from "./json-schema.js";

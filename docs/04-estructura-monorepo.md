@@ -78,7 +78,7 @@ blueprint/
 │   │   ├── src/
 │   │   ├── migrations/                # schemaVersion N → N+1
 │   │   └── dist/scenario.schema.json  # ⚙️ generado (para autocompletado YAML)
-│   ├── content-lint/                  # reglas L001–L017, reporter para CLI/Studio/CI
+│   ├── content-lint/                  # reglas de docs/03 §3, reporter para CLI/Studio/CI
 │   ├── game-engine/                   # 🧠 puro: evaluar, puntaje, XP, rangos, desbloqueos, insignias, paleta por nivel
 │   ├── diagram/                       # renderer React Flow compartido (web + studio), auto-layout (elkjs), export Mermaid
 │   ├── ai-generator/                  # prompts, tool schema, bucle de reparación, revisión crítica

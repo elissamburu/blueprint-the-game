@@ -2,7 +2,7 @@
   "name": "@blueprint/content-lint",
   "version": "0.0.0",
   "private": true,
-  "description": "Reglas de lint de contenido L001–L017 (puro, sin IO).",
+  "description": "Lint semántico de escenarios (docs/03 §3): reglas puras, sin IO.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "exports": {
@@ -19,13 +19,18 @@
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "clean": "rimraf dist .turbo"
+    "clean": "rimraf dist coverage .turbo"
+  },
+  "dependencies": {
+    "@blueprint/scenario-schema": "workspace:*"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",
+    "@vitest/coverage-v8": "catalog:",
     "eslint": "catalog:",
     "rimraf": "catalog:",
     "typescript": "catalog:",
-    "vitest": "catalog:"
+    "vitest": "catalog:",
+    "yaml": "catalog:"
   }
 }

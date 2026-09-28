@@ -42,6 +42,18 @@ export const GROUP_KINDS = [
 ] as const;
 export const NODE_TYPES = ["actor", "external", "fixed", "slot"] as const;
 export const ACTOR_ICONS = ["user", "users", "mobile", "browser", "server", "third-party"] as const;
+
+/**
+ * Logical size (canvas units) of the box each node type occupies; `position` is its top-left
+ * corner. Part of the content contract (docs/03 §2): the renderer draws with it and lint L007
+ * checks canvas bounds, group membership and overlaps with it.
+ */
+export const NODE_SIZE = {
+  actor: { w: 120, h: 80 },
+  external: { w: 120, h: 80 },
+  fixed: { w: 160, h: 80 },
+  slot: { w: 160, h: 80 },
+} as const satisfies Record<(typeof NODE_TYPES)[number], { w: number; h: number }>;
 export const GRADES = ["optimal", "acceptable"] as const;
 export const EDGE_STYLES = ["sync", "async", "data", "control"] as const;
 export const PALETTE_MODES = ["auto", "curated", "categories", "categories-plus", "full"] as const;

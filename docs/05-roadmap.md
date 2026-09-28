@@ -11,7 +11,7 @@ Fases pensadas para implementarse con Claude Code **en orden**. Cada fase termin
 
 - Monorepo (pnpm, Turborepo, TS strict, ESLint, Vitest), `CLAUDE.md`, `CONTRIBUTING.md`, licencias.
 - `packages/scenario-schema` (Zod + JSON Schema generado).
-- `packages/content-lint` (L001–L016).
+- `packages/content-lint` (L001–L016 y L018).
 - `tools/content` (`validate`, `gen`, `build`).
 - Catálogo inicial curado (~60 servicios de las categorías más usadas), categorías y grupos de confusión.
 - 3 escenarios reales: uno de 100, `serverless-pdf-processing` (200) y uno de 300.

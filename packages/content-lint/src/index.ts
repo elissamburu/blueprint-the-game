@@ -1,3 +1,4 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Placeholder: implementation arrives in a later F0 task.
-export {};
+export type { Issue, IssuePath, LintContext, LintInput, Rule, Severity } from "./types.js";
+export { createContext, hasErrors, lintScenario } from "./lint.js";
+export * from "./rules/index.js";

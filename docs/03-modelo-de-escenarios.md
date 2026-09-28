@@ -71,7 +71,8 @@ objectives:                      # definen qué es "óptimo"
                                  # durability | availability | scalability | performance | team
     text: "El equipo no quiere administrar servidores ni parches de SO."
 diagram:
-  canvas: { width: 1400, height: 800 }   # coordenadas lógicas; el renderer escala
+  canvas: { width: 1400, height: 800 }   # coordenadas lógicas; el renderer escala.
+                                         # position de un nodo = esquina superior izquierda de su caja
   groups:
     - id: cloud
       kind: aws-cloud            # aws-cloud | region | vpc | az | subnet-public | subnet-private |
@@ -127,6 +128,30 @@ references:                      # opcional: lecturas generales del escenario
     url: https://...
 ```
 
+### Geometría del diagrama (contrato)
+
+`position` es la **esquina superior izquierda** de la caja del nodo, y `rect` la de un grupo (`x`, `y`, `w`, `h`), en unidades lógicas del `canvas`. El tamaño lógico de cada tipo de nodo es la constante `NODE_SIZE` exportada por `@blueprint/scenario-schema`:
+
+| Tipo | Ancho × alto |
+|---|---|
+| `slot` | 160 × 80 |
+| `fixed` | 160 × 80 |
+| `actor` | 120 × 80 |
+| `external` | 120 × 80 |
+
+El renderer dibuja cada nodo con ese tamaño y el lint L007 lo usa para chequear bordes, pertenencia a grupos y superposiciones. Cambiar un tamaño es un cambio de contrato: puede invalidar escenarios existentes (L007) y se hace en un PR propio.
+
+### Paleta curated
+
+El modo de paleta **resuelto** es `palette.mode` si es explícito, o `game-rules.palette.modeByLevel[level]` si es `auto` o no hay `palette` (`resolvePaletteMode` en `@blueprint/scenario-schema`). Cuando resuelve a `curated`, la paleta se arma siempre igual (`buildCuratedPalette`, la misma función que usan el lint y el motor), en este orden:
+
+1. Todas las respuestas (`optimal` y `acceptable`) de todos los casilleros. **Nunca se recortan.**
+2. Los servicios de `incorrect` de los casilleros.
+3. `palette.extra`.
+4. Los compañeros de grupos de confusión de las respuestas.
+
+Dentro de cada paso se respeta el orden de aparición (nodos en orden del diagrama y, dentro de cada uno, el orden de sus listas; grupos de confusión en el orden del archivo). Se omiten los servicios ya agregados, los servicios de nodos `fixed` como distractores y los que no están en el catálogo (L002 los reporta). Los distractores (pasos 2–4) se recortan al llegar a `maxSize` (`palette.maxSize` o `palette.defaultMaxSize` de game-rules).
+
 ### Semántica de la evaluación
 
 Para un casillero y un servicio colocado `s`:
@@ -144,25 +169,28 @@ Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con 
 
 ## 3. Reglas de lint semántico (`packages/content-lint`)
 
+`lintScenario` recibe el escenario, el catálogo, los grupos de confusión y game-rules **ya parseados** por `@blueprint/scenario-schema`, más el nombre de la carpeta del escenario, y devuelve `Issue[]` (`code`, `severity`, `message`, `path`). No hace IO: la lectura de archivos y de git (L012, L014) la hace el CLI.
+
 | Código | Severidad | Regla |
 |---|---|---|
 | L001 | error | `id` coincide con el nombre de la carpeta. |
-| L002 | error | Todo `service` existe en `content/catalog/services.yaml`. |
+| L002 | error | Todo `service` existe en `content/catalog/services.yaml` (nodos `fixed`, `answers`, `incorrect` y `palette.extra`). |
 | L003 | error | Cada `slot` tiene ≥ 1 respuesta `optimal`. |
-| L004 | error | Cada `optimal`/`acceptable` tiene `rationale` no vacía y referencia ≥ 1 `objectives[].id` existente. |
-| **L005** | **error** | **Sin filtraciones**: ningún `leakPattern` de un servicio **oculto** aparece en `title`, `summary`, `context`, `objectives[].text`, `role`, `hints`, etiquetas de grupos o `label`/`description` de aristas. Case-insensitive, por límites de palabra. Los servicios de nodos `fixed` están permitidos. |
-| L006 | error | Aristas referencian nodos existentes; `step` ≥ 1 y sin huecos (1..n). |
-| L007 | error | Nodos dentro del `canvas`; un nodo con `group` está dentro del `rect` de su grupo; los casilleros no se superponen. |
+| L004 | error | Cada `optimal`/`acceptable` referencia objetivos (`objectives[].id`) existentes. Que la `rationale` no esté vacía y que haya ≥ 1 objetivo lo valida el schema. |
+| **L005** | **error / warning** | **Sin filtraciones**: ningún `leakPattern` aparece en `title`, `summary`, `context`, `objectives[].text`, `role`, `hints`, `label` de grupos, `label` de nodos `actor`/`external` o `label`/`description` de aristas. Case-insensitive, por límites de palabra que reconocen acentos y ñ. **Error** si nombra una respuesta (`optimal` o `acceptable`) de cualquier casillero: un `acceptable` también confirma que el jugador va bien. **Warning** si nombra un servicio de `incorrect` o de `palette.extra`: filtra por eliminación, pero puede haber usos narrativos legítimos (decide el autor). Los servicios de nodos `fixed` se ignoran siempre, aunque sean respuesta de otro casillero, porque ya son visibles. Los servicios que no participan del escenario no tienen restricción. |
+| L006 | error | Aristas referencian nodos existentes; `step` sin huecos (1..n). Que `step` sea entero ≥ 1 lo valida el schema. |
+| L007 | error / warning | Con las cajas de `NODE_SIZE` (§2). **Error**: un nodo o un grupo fuera del `canvas`; un nodo con `group` fuera del `rect` de su grupo; un grupo hijo fuera del `rect` de su `parent`; dos nodos cualesquiera superpuestos (compartir solo el borde no cuenta). **Warning**: grupos hermanos (mismo `parent`) superpuestos, porque hay superposiciones legítimas (p. ej. un grupo `generic` transversal a varias subredes) pero casi siempre es un descuido; un nodo **sin** `group` cuya caja queda dentro del `rect` de un grupo (suele ser un `group` olvidado). |
 | L008 | error | Un servicio no aparece dos veces en el mismo casillero (entre `answers` e `incorrect`). |
 | L009 | warning | Cantidad de casilleros recomendada por nivel — 100: 2–4 · 200: 4–7 · 300: 6–10 · 400: 8–14. |
 | L010 | error / warning | Servicio `deprecated`: error si es `optimal`; warning en otros usos. |
-| L011 | warning | Cada `optimal` tiene ≥ 1 `reference` a documentación oficial (dominios permitidos: `docs.aws.amazon.com`, `aws.amazon.com`). |
-| L012 | error | `diagram.mmd` y `README.md` sincronizados (`content:gen --check`). |
-| L013 | error | Límites de longitud (title 80, summary 200, role 140, label 40, rationale 600). `label` aplica a todos los `label` (grupos, actores/externos y aristas) y `rationale` a `answers` e `incorrect`. Lo valida el schema. |
-| L014 | error (CI) | Si cambiaron `answers`/`incorrect`/grados respecto de `main` en un escenario `published`, `version` debe incrementarse. |
-| L015 | error | `violates` solo se permite en `incorrect` y referencia objetivos existentes. Si la rationale de un `acceptable` menciona que viola una restricción `hard`, el servicio debe moverse a `incorrect` (la revisión crítica de IA y el reviewer lo verifican; el lint valida la estructura). |
-| L016 | warning | Nivel 100 con paleta `curated` debe tener ≥ 3 distractores (`incorrect` + grupos de confusión + `extra`). |
+| L011 | warning | Cada `optimal` tiene ≥ 1 `reference` a documentación oficial (dominios permitidos, por coincidencia exacta del host: `docs.aws.amazon.com`, `aws.amazon.com`). |
+| L012 | error | `diagram.mmd` y `README.md` sincronizados (`content:gen --check`). `content-lint` exporta la comparación pura (`checkGeneratedFiles`, ignora finales de línea CRLF); el CLI lee los archivos y corre el generador. |
+| L013 | error | Límites de longitud (title 80, summary 200, role 140, label 40, rationale 600). `label` aplica a todos los `label` (grupos, actores/externos y aristas) y `rationale` a `answers` e `incorrect`. **Se aplica en el schema** (`packages/scenario-schema`), no en `content-lint`. |
+| L014 | error (CI) | Si el escenario existe en `main` con `status` distinto de `draft` (`beta` y `published` otorgan XP; `retired` conserva progreso histórico), todo cambio que altere el resultado de un intento o las condiciones de juego exige incrementar `version`: por casillero (`id`), el conjunto de (`service`, `grade`) de `answers` y el de servicios de `incorrect`; casilleros agregados o quitados; `level`; `palette` (`mode`, `maxSize`, `extra`). No lo exigen los cambios de texto (`rationale`, `references`, `hints`, `context`, objetivos, labels), de orden ni de posiciones del diagrama. Escenarios nuevos o en `draft` en `main`: no aplica. `content-lint` exporta la comparación pura (`checkVersionBump`); el CLI lee `main` con git. |
+| L015 | error | `violates` solo se permite en `incorrect` (lo valida el schema) y referencia objetivos existentes (lo valida el lint). Si la rationale de un `acceptable` menciona que viola una restricción `hard`, el servicio debe moverse a `incorrect` (la revisión crítica de IA y el reviewer lo verifican; el lint valida la estructura). |
+| L016 | error / warning | Si el modo de paleta **resuelto** es `curated` (sea cual sea el nivel; ver "Paleta curated" en §2): **error** si las respuestas solas superan `maxSize` (la paleta no puede contenerlas); **warning** si la paleta armada tiene < 3 distractores. Se cuentan los distractores que efectivamente entran, después del recorte por `maxSize`. |
 | L017 | warning | Enlaces en `references` responden 200 (job de CI semanal, no bloqueante en PR). |
+| L018 | error | Ids únicos dentro de cada colección (`objectives`, `diagram.groups`, `diagram.nodes`, `diagram.edges`); `node.group` y `group.parent` apuntan a grupos existentes, sin ciclos de anidamiento. Las demás referencias viven en una sola regla: `answers[].objectives` en L004, `incorrect[].violates` en L015 y `from`/`to` de aristas en L006. |
 
 > **Nota sobre L005:** muchos nombres de servicios son palabras comunes (*Config*, *Glue*, *Batch*, *Shield*, *Connect*). Por eso el catálogo define `leakPatterns` explícitos por servicio (p. ej. `["AWS Config", "Config rules"]`) en vez de usar el nombre a secas. Los falsos positivos se resuelven ajustando patrones en el catálogo, no silenciando la regla en el escenario.
 
