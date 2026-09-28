@@ -11,7 +11,7 @@ title: "Comprobantes en PDF para un estudio contable"
 summary: "Los clientes suben comprobantes desde la web y el sistema extrae CUIT, fecha e importe automáticamente."
 estimatedMinutes: 10
 authors:
-  - github: TODO-usuario-github
+  - github: elissamburu
 
 context: |
   Un estudio contable quiere que sus clientes suban **comprobantes en PDF** desde una web.

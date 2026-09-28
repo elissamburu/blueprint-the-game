@@ -14,7 +14,7 @@ Los clientes suben comprobantes desde la web y el sistema extrae CUIT, fecha e i
 | Nivel | 200 |
 | Áreas | `serverless`, `storage`, `integration` |
 | Duración estimada | 10 min |
-| Autores | @TODO-usuario-github |
+| Autores | @elissamburu |
 | Paleta | auto (máx. 14) |
 
 ## Contexto
