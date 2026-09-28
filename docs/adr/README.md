@@ -24,6 +24,7 @@ Formato: [MADR](https://adr.github.io/madr/) simplificado (Contexto · Decisión
 | [0018](0018-gamificacion-declarativa.md) | Gamificación con reglas declarativas | Aceptado |
 | [0019](0019-nombre-y-marcas.md) | Nombre del proyecto y uso de marcas de AWS | Pendiente |
 | [0020](0020-modelo-de-branching.md) | Modelo de branching: GitHub Flow con squash merge | Aceptado |
+| [0021](0021-ui-shadcn-tailwind-y-referencia-visual.md) | UI con shadcn/ui + Tailwind v4; herramientas de diseño solo como referencia | Propuesto |
 
 ## Plantilla
 
