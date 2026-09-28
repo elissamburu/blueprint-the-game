@@ -36,11 +36,11 @@ export interface CuratedPalette {
  * 1. answers (optimal and acceptable) of every slot, never trimmed;
  * 2. `incorrect` services of the slots;
  * 3. `palette.extra`;
- * 4. confusion-group mates of the answers.
+ * 4. confusion-group mates of the answers, except `deprecated` ones (RF-PAL-05: a deprecated
+ *    service appears only if the author chose it as answer, `incorrect` or `palette.extra`).
  * Each step keeps order of appearance (nodes, then entries; confusion groups in file order)
- * and skips services already added, services of fixed nodes (as distractors), services
- * missing from the catalog (lint L002 reports those) and `deprecated` services (RF-PAL-05:
- * they only appear as answers). Distractors are cut at `maxSize`.
+ * and skips services already added, services of fixed nodes (as distractors) and services
+ * missing from the catalog (lint L002 reports those). Distractors are cut at `maxSize`.
  */
 export const buildCuratedPalette = (
   scenario: Pick<Scenario, "diagram" | "palette">,
@@ -66,7 +66,6 @@ export const buildCuratedPalette = (
   const excluded = new Set([
     ...answers,
     ...nodes.flatMap((node) => (node.type === "fixed" ? [node.service] : [])),
-    ...deprecated,
   ]);
   const candidates = [
     ...nodes.flatMap((node) => (node.type === "slot" ? node.incorrect.map((i) => i.service) : [])),
@@ -74,7 +73,8 @@ export const buildCuratedPalette = (
     ...answers.flatMap((answer) =>
       confusionGroups
         .filter((group) => group.services.includes(answer))
-        .flatMap((group) => group.services),
+        .flatMap((group) => group.services)
+        .filter((id) => !deprecated.has(id)),
     ),
   ];
   const allDistractors = unique(candidates).filter((id) => known.has(id) && !excluded.has(id));

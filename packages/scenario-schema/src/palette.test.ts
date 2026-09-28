@@ -156,33 +156,42 @@ describe("buildCuratedPalette", () => {
     });
   });
 
-  it("leaves deprecated services out of the distractors, but keeps them as answers", () => {
-    const scenario = example();
-    scenario.palette = { mode: "curated", maxSize: 40, extra: ["mq"] };
-    const deprecated = new Set(["aurora", "efs", "mq", "sns"]);
-    const palette = buildCuratedPalette(
-      scenario,
-      catalog.map((service) =>
-        deprecated.has(service.id) ? { ...service, status: "deprecated" as const } : service,
-      ),
-      [{ services: ["sqs", "sns", "redshift"] }],
-      gameRules,
+  describe("deprecated services (RF-PAL-05)", () => {
+    const deprecated = new Set(["aurora", "efs", "sns", "mq"]);
+    const withDeprecated = catalog.map((service) =>
+      deprecated.has(service.id) ? { ...service, status: "deprecated" as const } : service,
     );
-    // aurora is an acceptable answer; efs and sns are incorrect, mq is extra.
-    expect(palette.answers).toContain("aurora");
-    expect(palette.services).toContain("aurora");
-    expect(palette.distractors).not.toContain("efs");
-    expect(palette.distractors).not.toContain("sns");
-    expect(palette.distractors).not.toContain("mq");
-    expect(palette.distractors).toEqual([
-      "route53",
-      "ec2",
-      "ebs",
-      "rekognition",
-      "sagemaker-ai",
-      "redshift",
-      "elasticache",
-    ]);
+    const groups = [{ services: ["sqs", "sns", "mq"] }];
+
+    it("keeps the ones the author chose: answers, incorrect and extra", () => {
+      const scenario = example();
+      scenario.palette = { mode: "curated", maxSize: 40, extra: ["mq"] };
+      const palette = buildCuratedPalette(scenario, withDeprecated, groups, gameRules);
+      // aurora is an acceptable answer; efs and sns are incorrect; mq is extra.
+      expect(palette.answers).toContain("aurora");
+      expect(palette.distractors).toEqual([
+        "route53",
+        "ec2",
+        "efs",
+        "ebs",
+        "sns",
+        "rekognition",
+        "sagemaker-ai",
+        "redshift",
+        "elasticache",
+        "mq",
+      ]);
+    });
+
+    it("leaves out the ones that would only come from a confusion group", () => {
+      const scenario = example();
+      scenario.palette = { mode: "curated", maxSize: 40, extra: [] };
+      const palette = buildCuratedPalette(scenario, withDeprecated, groups, gameRules);
+      // sns is also in the group, but stays because it is incorrect.
+      expect(palette.distractors).toContain("sns");
+      expect(palette.distractors).not.toContain("mq");
+      expect(palette.dropped).not.toContain("mq");
+    });
   });
 });
 

@@ -17,7 +17,7 @@ describe("C009 deprecated services in confusion groups", () => {
         code: "C009",
         severity: "warning",
         message:
-          'El grupo de confusión "nosql" incluye "simpledb", que está deprecated: la paleta no lo ofrece como distractor; revisá si el grupo sigue teniendo sentido.',
+          'El grupo de confusión "nosql" incluye "simpledb", que está deprecated: la paleta curated no lo agrega como compañero de grupo; revisá si el grupo sigue teniendo sentido.',
         path: ["confusionGroups", 1, "services", 1],
       },
     ]);

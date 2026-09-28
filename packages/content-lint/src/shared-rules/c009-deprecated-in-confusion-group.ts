@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import type { Issue, SharedRule } from "../types.js";
 
-/** buildCuratedPalette never offers a deprecated service as a distractor (RF-PAL-05). */
+/** buildCuratedPalette never adds a deprecated service as a confusion-group mate (RF-PAL-05). */
 export const c009: SharedRule = {
   code: "C009",
   description: "Un grupo de confusión no incluye servicios deprecated.",
@@ -16,7 +16,7 @@ export const c009: SharedRule = {
               {
                 code: "C009",
                 severity: "warning",
-                message: `El grupo de confusión "${group.id}" incluye "${service}", que está deprecated: la paleta no lo ofrece como distractor; revisá si el grupo sigue teniendo sentido.`,
+                message: `El grupo de confusión "${group.id}" incluye "${service}", que está deprecated: la paleta curated no lo agrega como compañero de grupo; revisá si el grupo sigue teniendo sentido.`,
                 path: ["confusionGroups", i, "services", j],
               },
             ]
