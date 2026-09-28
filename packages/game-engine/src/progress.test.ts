@@ -142,18 +142,13 @@ describe("refreshUnlocks", () => {
     const progress = createProgress("aws-user", scenarios, gameRules);
     const withNewArea = [...scenarios, { id: "ml-100", level: 100 as const, areas: ["ml"] }];
     const { progress: next, events } = refreshUnlocks(progress, withNewArea, gameRules);
-    // 100 and 200 by experience; "ml" has no scenarios at 200 or 300, so 300 and 400 follow.
-    expect(next.unlocked.filter((u) => u.area === "ml").map((u) => u.level)).toEqual([
-      100, 200, 300, 400,
-    ]);
+    // 100 and 200 by experience; "ml" has no level-200 scenarios, so 300 waits for "s-200".
+    expect(next.unlocked.filter((u) => u.area === "ml").map((u) => u.level)).toEqual([100, 200]);
     expect(next.unlocked.filter((u) => u.area !== "ml")).toEqual(progress.unlocked);
-    expect(events).toEqual(
-      ([100, 200, 300, 400] as const).map((level) => ({
-        type: "levelUnlocked",
-        level,
-        areas: ["ml"],
-      })),
-    );
+    expect(events).toEqual([
+      { type: "levelUnlocked", level: 100, areas: ["ml"] },
+      { type: "levelUnlocked", level: 200, areas: ["ml"] },
+    ]);
     expect(refreshUnlocks(next, withNewArea, gameRules).events).toEqual([]);
   });
 });

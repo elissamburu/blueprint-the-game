@@ -95,27 +95,55 @@ describe("computeUnlocks", () => {
     expect(levelsOf(unlocked, "serverless")).toEqual([100, 200]);
   });
 
-  it("treats a level without scenarios in an area as met, so the chain goes on", () => {
-    // "data" has only a level-300 scenario: 100 → 200 → 300 open with no completions, and
-    // 300 → 400 waits for that scenario.
+  it("uses the level-N scenarios of any area when the area has none at N", () => {
     const scenarios = [
-      info("serverless-100", 100, ["serverless"]),
-      info("data-300", 300, ["data"]),
+      info("d-100-1", 100, ["data"]),
+      info("d-100-2", 100, ["data"]),
+      info("s-200", 200, ["serverless"]),
     ];
-    const unlocked = computeUnlocks(
+    const at = (completed: CompletedScenario[]) =>
+      computeUnlocks({ experience: "beginner", unlocked: [], completed }, scenarios, gameRules);
+
+    // "serverless" has no level-100 scenarios: it needs min(3, 2) = 2 of level 100 of any area.
+    expect(levelsOf(at([]), "serverless")).toEqual([100]);
+    const one = at([done(100, ["data"])]);
+    expect(levelsOf(one, "serverless")).toEqual([100]);
+    expect(levelsOf(one, "data")).toEqual([100]);
+
+    const two = at([done(100, ["data"]), done(100, ["data"])]);
+    expect(levelsOf(two, "serverless")).toEqual([100, 200]);
+    // "data" has no level-200 scenarios: it waits for "s-200", the only one of level 200.
+    expect(levelsOf(two, "data")).toEqual([100, 200]);
+    expect(
+      levelsOf(at([done(100, ["data"]), done(100, ["data"]), done(200, ["serverless"])]), "data"),
+    ).toEqual([100, 200, 300]);
+  });
+
+  it("never opens N+1 when no area has scenarios of level N (a requirement of 0 is not met)", () => {
+    const scenarios = [info("d-100", 100, ["data"]), info("d-300", 300, ["data"])];
+    const fresh = computeUnlocks(
       { experience: "beginner", unlocked: [], completed: [] },
       scenarios,
       gameRules,
     );
-    expect(levelsOf(unlocked, "data")).toEqual([100, 200, 300]);
-    expect(levelsOf(unlocked, "serverless")).toEqual([100]);
+    expect(levelsOf(fresh, "data")).toEqual([100]);
 
     const after = computeUnlocks(
-      { experience: "beginner", unlocked, completed: [done(300, ["data"])] },
+      { experience: "beginner", unlocked: [], completed: [done(100, ["data"])] },
       scenarios,
       gameRules,
     );
-    expect(levelsOf(after, "data")).toEqual([100, 200, 300, 400]);
+    expect(levelsOf(after, "data")).toEqual([100, 200]);
+    expect(
+      levelsOf(
+        computeUnlocks(
+          { experience: "expert", unlocked: [], completed: [] },
+          [info("d-300", 300, ["data"])],
+          gameRules,
+        ),
+        "data",
+      ),
+    ).toEqual([100, 200, 300, 400]);
   });
 
   it("keeps (area, N+1) open when level N later grows from 1 to 3 scenarios", () => {

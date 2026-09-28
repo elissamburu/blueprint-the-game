@@ -293,8 +293,10 @@ ranks:                            # ≥ 1, umbral de XP acumulada
   - { id: aprendiz, name: Aprendiz, minXp: 0 }
   - { id: constructor, name: Constructor, minXp: 1000 }
 unlock:
-  scenariosRequired: 3            # por área: escenarios del área en el nivel N para abrir N+1 en esa área
-                                  # (se exige min(3, escenarios del área en N); con 0 se cumple solo)
+  scenariosRequired: 3            # por área: completar min(3, escenarios del área en N) del área en N
+                                  # para abrir N+1 en esa área; si el área no tiene escenarios de N,
+                                  # min(3, escenarios de N de cualquier área) de cualquier área; si no
+                                  # hay escenarios de N en ninguna, no se abre (RF-NAV-03)
   byExperience:                   # niveles desbloqueados al inicio en todas las áreas (las 4 claves)
     beginner: [100]
     aws-user: [100, 200]

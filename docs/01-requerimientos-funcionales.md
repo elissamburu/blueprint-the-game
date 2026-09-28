@@ -85,7 +85,11 @@
 **CA RF-NAV-03**
 - El desbloqueo es por par **(área, nivel)**. XP y rango siguen siendo globales.
 - La experiencia del onboarding (RF-ONB-02) define los niveles abiertos al inicio en **todas** las áreas.
-- Requisito para abrir (área, N+1): tener abierto (área, N) y haber completado `min(unlock.scenariosRequired, escenarios de esa área en el nivel N)` escenarios de esa área en el nivel N. Si ese número es 0 (el área no tiene escenarios en el nivel N), el requisito se considera cumplido y se evalúa el nivel siguiente.
+- Requisito para abrir (área, N+1), con (área, N) abierto:
+  - si el área tiene escenarios de nivel N: completar `min(unlock.scenariosRequired, escenarios del área en N)` escenarios de esa área en N;
+  - si el área no tiene escenarios de nivel N: completar `min(unlock.scenariosRequired, escenarios de nivel N en cualquier área)` escenarios de nivel N de cualquier área;
+  - si no hay ningún escenario de nivel N en ninguna área, no se abre.
+- Un requisito de 0 nunca cuenta como cumplido: un jugador nuevo no tiene abierto ningún nivel más allá de los de su experiencia.
 - Un escenario completado cuenta para **cada una** de sus áreas.
 - Un escenario es jugable si su nivel está desbloqueado en **al menos una** de sus áreas.
 - Los desbloqueos son permanentes: el progreso guarda los pares (área, nivel) abiertos como un conjunto que solo crece. Si después se publican más escenarios en el nivel N, el nivel N+1 ya abierto sigue abierto.

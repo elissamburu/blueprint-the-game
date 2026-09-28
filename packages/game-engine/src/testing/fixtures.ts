@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Test fixtures. Game rules and the serverless-pdf-processing scenario are the real content
-// files, loaded with Vite's ?raw (no fs) and validated with the schema.
+// Test fixtures. Game rules and the scenarios are the real content files, loaded with Vite's
+// ?raw (no fs) and validated with the schema.
 import {
   parseGameRules,
   parseScenario,
@@ -11,7 +11,9 @@ import {
 } from "@blueprint/scenario-schema";
 import { parse as parseYaml } from "yaml";
 import gameRulesRaw from "../../../../content/game-rules.yaml?raw";
+import privateVpcRaw from "../../../../content/scenarios/private-vpc-service-access/scenario.yaml?raw";
 import pdfRaw from "../../../../content/scenarios/serverless-pdf-processing/scenario.yaml?raw";
+import staticWebsiteRaw from "../../../../content/scenarios/static-website-https/scenario.yaml?raw";
 
 const unwrap = <T>(result: ParseResult<T>): T => {
   if (!result.success) throw new Error(JSON.stringify(result.issues, null, 2));
@@ -20,6 +22,10 @@ const unwrap = <T>(result: ParseResult<T>): T => {
 
 export const gameRules: GameRules = unwrap(parseGameRules(parseYaml(gameRulesRaw)));
 export const pdfScenario: Scenario = unwrap(parseScenario(parseYaml(pdfRaw)));
+export const staticWebsiteScenario: Scenario = unwrap(parseScenario(parseYaml(staticWebsiteRaw)));
+export const privateVpcScenario: Scenario = unwrap(parseScenario(parseYaml(privateVpcRaw)));
+/** Every scenario of content/scenarios: levels 100, 200 and 300. */
+export const realScenarios: Scenario[] = [staticWebsiteScenario, pdfScenario, privateVpcScenario];
 
 export const slot = (id: string, overrides: Partial<SlotNode> = {}): SlotNode => ({
   id,

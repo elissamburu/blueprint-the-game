@@ -1,11 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // End-to-end play of the real content/scenarios/serverless-pdf-processing (level 200, 7 slots)
 // with the real game-rules: reds, oranges, hints and retries, then the player progress.
-import { parseScenario, type Scenario } from "@blueprint/scenario-schema";
 import { describe, expect, it } from "vitest";
-import { parse as parseYaml } from "yaml";
-import privateVpcRaw from "../../../content/scenarios/private-vpc-service-access/scenario.yaml?raw";
-import staticWebsiteRaw from "../../../content/scenarios/static-website-https/scenario.yaml?raw";
 import { applyScenarioResult, createProgress } from "./progress.js";
 import { scenarioResult } from "./scoring.js";
 import {
@@ -15,14 +11,7 @@ import {
   type CommandOutcome,
   type SessionState,
 } from "./session.js";
-import { gameRules, pdfScenario } from "./testing/fixtures.js";
-
-const parse = (raw: string): Scenario => {
-  const result = parseScenario(parseYaml(raw));
-  if (!result.success) throw new Error(JSON.stringify(result.issues));
-  return result.data;
-};
-const allScenarios = [parse(staticWebsiteRaw), pdfScenario, parse(privateVpcRaw)];
+import { gameRules, pdfScenario, realScenarios as allScenarios } from "./testing/fixtures.js";
 
 const { placeService, useHint, acceptAcceptable, clearSlot } = commands;
 
@@ -147,9 +136,14 @@ describe("serverless-pdf-processing, end to end", () => {
     expect(first.progress.xp).toBe(623);
     expect(first.events).toEqual([
       { type: "xpGained", amount: 623, total: 623 },
-      // Level 200 done in each of its areas; none has level-300 scenarios, so 400 follows.
-      { type: "levelUnlocked", level: 300, areas: ["integration", "serverless", "storage"] },
-      { type: "levelUnlocked", level: 400, areas: ["integration", "serverless", "storage"] },
+      // Its areas have their own level-200 scenario (this one); networking and security have
+      // none, so they count level 200 of any area. 400 stays closed: the only level-300
+      // scenario is still pending.
+      {
+        type: "levelUnlocked",
+        level: 300,
+        areas: ["integration", "networking", "security", "serverless", "storage"],
+      },
     ]);
 
     const perfect = run(

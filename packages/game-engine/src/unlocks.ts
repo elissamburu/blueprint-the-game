@@ -28,9 +28,11 @@ export interface UnlockInput {
  * permanent) plus:
  * - the levels of `unlock.byExperience[experience]` in every area of `scenarios`;
  * - (area, N+1) when (area, N) is open and the player completed at least
- *   `min(scenariosRequired, scenarios of that area at level N)` scenarios of that area at
- *   level N. A completed scenario counts for each of its areas; with 0 scenarios the
- *   requirement is met, so the chain goes on.
+ *   `min(scenariosRequired, available)` scenarios of level N, where the pool is:
+ *   - the scenarios of that area at level N, when the area has any;
+ *   - otherwise, the scenarios of level N of any area.
+ *   With no scenario of level N at all, (area, N+1) does not open: a requirement of 0 never
+ *   counts as met. A completed scenario counts for each of its areas.
  * Sorted by area and level.
  */
 export const computeUnlocks = (
@@ -43,8 +45,10 @@ export const computeUnlocks = (
     ...input.unlocked.map((u) => u.area),
   ]);
   const initial = rules.unlock.byExperience[input.experience];
-  const countIn = (items: readonly CompletedScenario[], area: string, level: Level) =>
-    items.filter((item) => item.level === level && item.areas.includes(area)).length;
+  const countIn = (items: readonly CompletedScenario[], level: Level, area?: string) =>
+    items.filter(
+      (item) => item.level === level && (area === undefined || item.areas.includes(area)),
+    ).length;
 
   return [...areas].sort().flatMap((area) => {
     const open = new Set<Level>([
@@ -54,8 +58,12 @@ export const computeUnlocks = (
     LEVELS.forEach((level, i) => {
       const next = LEVELS[i + 1];
       if (next === undefined || !open.has(level) || open.has(next)) return;
-      const required = Math.min(rules.unlock.scenariosRequired, countIn(scenarios, area, level));
-      if (countIn(input.completed, area, level) >= required) open.add(next);
+      // Pool of level N: the area's own scenarios, or those of any area when it has none.
+      const pool = countIn(scenarios, level, area) > 0 ? area : undefined;
+      const available = countIn(scenarios, level, pool);
+      if (available === 0) return;
+      const required = Math.min(rules.unlock.scenariosRequired, available);
+      if (countIn(input.completed, level, pool) >= required) open.add(next);
     });
     return LEVELS.filter((level) => open.has(level)).map((level) => ({ area, level }));
   });
