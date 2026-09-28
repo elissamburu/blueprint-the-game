@@ -1,6 +1,6 @@
 # 0021 · UI con shadcn/ui + Tailwind v4; herramientas de diseño solo como referencia
 
-- Estado: Propuesto
+- Estado: Aceptado
 - Fecha: 2026-09-28
 
 ## Contexto

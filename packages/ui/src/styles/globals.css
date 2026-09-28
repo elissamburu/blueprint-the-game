@@ -1,30 +1,24 @@
 /* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
 /*
- * Tokens de diseño de referencia para packages/ui (ADR-0021).
+ * CSS global de Blueprint (ADR-0021): Tailwind v4 + tokens de diseño.
  *
- * Origen: prototipo visual en Lovable (src/styles.css), 2026-09-28.
- * Formato: el de shadcn/ui para Tailwind v4 (variables en :root + @theme inline, colores OKLCH),
- * así que se puede copiar casi tal cual al CSS global de packages/ui.
+ * Los bloques @theme inline y :root son los de docs/design/tokens.css, que es la fuente de verdad
+ * visual (incluye los AJUSTE de contraste). Si cambia un token, se cambia primero ahí.
+ * Solo tema claro en v1: no hay bloque .dark.
  *
- * Diferencias con el original (marcadas con "AJUSTE"):
- *  - --warning y --destructive oscurecidos para llegar a 4,5:1 como texto chico (WCAG 1.4.3).
- *  - --slot-border nuevo: el borde punteado del casillero vacío necesita 3:1 contra el fondo (WCAG 1.4.11);
- *    --border (1,43:1) queda para separadores decorativos.
- *  - Sin tema oscuro en v1: el bloque .dark del prototipo es el default de shadcn, no se diseñó.
+ * Tipografía: Manrope autoalojada con @fontsource-variable/manrope (sin Google Fonts). Fontsource
+ * registra la familia como "Manrope Variable", por eso encabeza la pila de --font-sans.
  *
- * Contrastes medidos (texto / fondo):
- *   foreground / background ........ 15,84
- *   muted-foreground / card ......... 6,25
- *   primary / card .................. 6,49
- *   primary-foreground / primary .... 6,20
- *   success / success-soft .......... 5,15
- *   warning / warning-soft .......... 4,77  (original 3,44)
- *   destructive / danger-soft ....... 4,95  (original 4,03)
- *   slot-border / card .............. 3,35  (borde de UI, mínimo 3)
+ * Las apps que usan este CSS agregan su propio @source hacia packages/ui/src para que Tailwind
+ * genere las clases de los componentes compartidos.
  */
+@import "tailwindcss";
+@import "tw-animate-css";
+@import "@fontsource-variable/manrope";
 
 @theme inline {
-  --font-sans: "Manrope Variable", "Manrope", "Segoe UI", sans-serif; /* "Manrope Variable": nombre de @fontsource-variable/manrope */
+  --font-sans:
+    "Manrope Variable", "Manrope", "Segoe UI", sans-serif; /* "Manrope Variable": nombre de @fontsource-variable/manrope */
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);
@@ -53,14 +47,14 @@
   --color-ring: var(--ring);
 
   /* semánticos del juego */
-  --color-success: var(--success);            /* óptimo */
+  --color-success: var(--success); /* óptimo */
   --color-success-soft: var(--success-soft);
-  --color-warning: var(--warning);            /* aceptable, pistas, XP */
+  --color-warning: var(--warning); /* aceptable, pistas, XP */
   --color-warning-soft: var(--warning-soft);
-  --color-danger-soft: var(--danger-soft);    /* incorrecto (texto: destructive) */
-  --color-blueprint: var(--blueprint);        /* bandas destacadas */
+  --color-danger-soft: var(--danger-soft); /* incorrecto (texto: destructive) */
+  --color-blueprint: var(--blueprint); /* bandas destacadas */
   --color-blueprint-soft: var(--blueprint-soft);
-  --color-canvas: var(--canvas);              /* fondo del tablero */
+  --color-canvas: var(--canvas); /* fondo del tablero */
   --color-slot-border: var(--slot-border);
 }
 
@@ -81,7 +75,7 @@
   --muted-foreground: oklch(0.49 0.035 255);
   --accent: oklch(0.92 0.04 245);
   --accent-foreground: oklch(0.208 0.042 265.755);
-  --destructive: oklch(0.53 0.2 27.325);      /* AJUSTE: original oklch(0.577 0.245 27.325) */
+  --destructive: oklch(0.53 0.2 27.325); /* AJUSTE: original oklch(0.577 0.245 27.325) */
   --destructive-foreground: oklch(0.984 0.003 247.858);
   --border: oklch(0.88 0.018 250);
   --input: oklch(0.88 0.018 250);
@@ -89,11 +83,21 @@
 
   --success: oklch(0.49 0.13 157);
   --success-soft: oklch(0.955 0.045 154);
-  --warning: oklch(0.53 0.13 67);             /* AJUSTE: original oklch(0.61 0.15 67) */
+  --warning: oklch(0.53 0.13 67); /* AJUSTE: original oklch(0.61 0.15 67) */
   --warning-soft: oklch(0.965 0.06 77);
   --danger-soft: oklch(0.96 0.045 25);
   --blueprint: oklch(0.42 0.14 251);
   --blueprint-soft: oklch(0.95 0.035 248);
   --canvas: oklch(0.97 0.012 243);
-  --slot-border: oklch(0.64 0.03 250);        /* AJUSTE: nuevo */
+  --slot-border: oklch(0.64 0.03 250); /* AJUSTE: nuevo */
+}
+
+@layer base {
+  * {
+    @apply border-border outline-ring/50;
+  }
+
+  body {
+    @apply bg-background text-foreground font-sans antialiased;
+  }
 }

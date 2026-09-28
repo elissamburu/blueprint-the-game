@@ -1,0 +1,9 @@
+{
+  "extends": "@blueprint/config/tsconfig.react.json",
+  "compilerOptions": {
+    "paths": {
+      "@blueprint/ui/*": ["./src/*"]
+    }
+  },
+  "include": ["src", "vitest.config.ts"]
+}

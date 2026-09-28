@@ -20,6 +20,16 @@ module.exports = {
       to: { path: "^(apps|services|tools)/" },
     },
     {
+      name: "ui-not-to-game-logic",
+      severity: "error",
+      comment:
+        "packages/ui is presentation only (ADR-0021): components receive state through props and " +
+        "must not import game-engine.",
+      from: { path: "^packages/ui/" },
+      // Matches the workspace link (node_modules/@blueprint/game-engine) and a direct path.
+      to: { path: "(^|/)(@blueprint/game-engine|packages/game-engine)(/|$)" },
+    },
+    {
       name: "pure-packages-no-node-builtins",
       severity: "error",
       comment:
