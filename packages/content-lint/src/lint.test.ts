@@ -80,7 +80,18 @@ describe("lintSharedContent", () => {
 
   it("registers each rule once, in code order", () => {
     const codes = sharedRules.map((rule) => rule.code);
-    expect(codes).toEqual(["C001", "C002", "C003", "C004", "C005", "C006", "C007"]);
+    expect(codes).toEqual([
+      "C001",
+      "C002",
+      "C003",
+      "C004",
+      "C005",
+      "C006",
+      "C007",
+      "C008",
+      "C009",
+      "C010",
+    ]);
     for (const rule of sharedRules) expect(rule.description).not.toBe("");
   });
 

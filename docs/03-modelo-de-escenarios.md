@@ -159,9 +159,9 @@ El modo de paleta **resuelto** es `palette.mode` si es explícito, o `game-rules
 1. Todas las respuestas (`optimal` y `acceptable`) de todos los casilleros. **Nunca se recortan.**
 2. Los servicios de `incorrect` de los casilleros.
 3. `palette.extra`.
-4. Los compañeros de grupos de confusión de las respuestas.
+4. Los compañeros de grupos de confusión de las respuestas, salvo los `deprecated`.
 
-Dentro de cada paso se respeta el orden de aparición (nodos en orden del diagrama y, dentro de cada uno, el orden de sus listas; grupos de confusión en el orden del archivo). Se omiten los servicios ya agregados, los servicios de nodos `fixed` como distractores y los que no están en el catálogo (L002 los reporta). Los distractores (pasos 2–4) se recortan al llegar a `maxSize` (`palette.maxSize` o `palette.defaultMaxSize` de game-rules).
+Dentro de cada paso se respeta el orden de aparición (nodos en orden del diagrama y, dentro de cada uno, el orden de sus listas; grupos de confusión en el orden del archivo). Se omiten los servicios ya agregados, los servicios de nodos `fixed` como distractores y los que no están en el catálogo (L002 los reporta). Servicios `deprecated` (RF-PAL-05): aparecen si el autor los eligió explícitamente (respuesta, `incorrect` o `palette.extra`; L010 lo advierte cuando no es `optimal`), pero nunca llegan solo por el relleno automático del paso 4. Los distractores (pasos 2–4) se recortan al llegar a `maxSize` (`palette.maxSize` o `palette.defaultMaxSize` de game-rules).
 
 ### Semántica de la evaluación
 
@@ -217,6 +217,9 @@ Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con 
 | C005 | error | Ids únicos en cada archivo: servicios, categorías, grupos de confusión, áreas, insignias y rangos de `game-rules.yaml`. |
 | C006 | error | El `area` de las reglas de insignias (`complete_count`, `area_mastery`) existe en `areas.yaml`. Que `level` y `minLevel` sean niveles válidos (100, 200, 300, 400) lo valida el schema. |
 | C007 | error | Los `ranks` de `game-rules.yaml` empiezan en `minXp: 0` y siguen ordenados por `minXp` estrictamente creciente (sin umbrales repetidos). |
+| C008 | error | En `unlock.byExperience` de `game-rules.yaml`, cada experiencia incluye el nivel 100 y sus niveles son contiguos, sin saltos (p. ej. `[100, 300]` falla). El orden dentro de la lista no importa. |
+| C009 | warning | Un grupo de confusión incluye un servicio `deprecated`. La paleta curated no lo agrega como compañero de grupo (paso 4 de "Paleta curated"), así que el grupo pierde ese distractor salvo que el escenario lo nombre explícitamente. |
+| C010 | warning | El mismo `leakPattern`, comparado sin distinguir mayúsculas, aparece en más de un servicio: L005 no puede distinguir cuál de los dos filtra. Las repeticiones dentro de un mismo servicio no se reportan. |
 
 > **Nota sobre L005:** muchos nombres de servicios son palabras comunes (*Config*, *Glue*, *Batch*, *Shield*, *Connect*). Por eso el catálogo define `leakPatterns` explícitos por servicio (p. ej. `["AWS Config", "Config rules"]`) en vez de usar el nombre a secas. Los falsos positivos se resuelven ajustando patrones en el catálogo, no silenciando la regla en el escenario.
 
@@ -272,6 +275,8 @@ Formatos validados por `packages/scenario-schema`. Los valores de ejemplo son lo
   name: Almacenamiento
   adjacent: [database]            # opcional: categorías adyacentes para el modo categories-plus
 ```
+
+La adyacencia es **simétrica por definición**: si `storage` lista a `database`, también `database` es adyacente a `storage`, aunque no lo liste. Alcanza con declarar cada par de un solo lado. Donde se usa (modo `categories-plus`), se resuelve en ambos sentidos con `adjacentCategories` de `@blueprint/scenario-schema`; no hay regla de lint que exija declararla en los dos archivos.
 
 ### `game-rules.yaml`
 

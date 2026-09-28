@@ -51,6 +51,7 @@ Fases pensadas para implementarse con Claude Code **en orden**. Cada fase termin
 
 - `infra/modules/{auth,api,data}`, `services/api`, `packages/api-contract`.
 - Registro/login, importación del progreso de invitado, re-evaluación en el servidor, XP/rangos/insignias/rachas/maestría/álbum, borrar y exportar datos.
+- Validación pendiente del contenido: detectar **insignias imposibles de cumplir** (p. ej. `complete_count` con más escenarios que los existentes para ese nivel/área, o `area_mastery` / `level_complete` sobre un área o nivel sin escenarios `published`). Hoy C006 solo valida que las áreas existan.
 
 **DoD**: un invitado se registra, importa su progreso y el servidor recalcula el mismo XP; al borrar la cuenta no quedan datos personales.
 

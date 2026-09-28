@@ -114,7 +114,7 @@ describe("content validate", () => {
     expect(stdout).toContain("FILE");
     expect(stdout).toContain("Falta el archivo obligatorio content/catalog/services.yaml");
     expect(stdout).toContain("catálogo curado de servicios");
-    expect(stdout).toContain("Omitida C001-C007");
+    expect(stdout).toContain("Omitida C001-C010");
     expect(stdout).toContain("Omitida L001-L019");
     expect(stdout).not.toContain("Integridad entre archivos compartidos");
     noStackTrace(stdout + stderr);
