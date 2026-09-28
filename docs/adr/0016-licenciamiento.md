@@ -1,6 +1,6 @@
 # 0016 · Licencias no comerciales para código y contenido + DCO
 
-- Estado: **Propuesto** (requiere decisión del mantenedor y, idealmente, revisión legal)
+- Estado: **Aceptado**
 - Fecha: 2026-09-27
 
 ## Contexto
