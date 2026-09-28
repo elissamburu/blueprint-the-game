@@ -1,0 +1,7 @@
+{
+  "extends": "@blueprint/config/tsconfig.node.json",
+  "compilerOptions": {
+    "noEmit": true
+  },
+  "include": ["src", "vitest.config.ts"]
+}
