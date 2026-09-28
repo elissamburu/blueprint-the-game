@@ -7,6 +7,11 @@ updates:
     commit-message:
       prefix: chore
       include: scope
+    ignore:
+      # typescript-eslint 8.x peers on typescript <6.1.0 and fails at runtime on TS 7.
+      # Remove once typescript-eslint supports TS 7.
+      - dependency-name: typescript
+        update-types: [version-update:semver-major]
     groups:
       npm-minor-patch:
         update-types: [minor, patch]
