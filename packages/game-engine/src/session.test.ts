@@ -2,6 +2,7 @@
 import { describe, expect, it } from "vitest";
 import {
   applyCommand,
+  canApply,
   commands,
   createSession,
   revealedHints,
@@ -163,5 +164,17 @@ describe("applyCommand", () => {
     const snapshot = structuredClone(before.slots);
     applyCommand(before, commands.placeService("a", "ec2"));
     expect(before.slots).toEqual(snapshot);
+  });
+});
+
+describe("canApply", () => {
+  it("tells whether applyCommand would accept the command, without changing the state", () => {
+    const state = twoSlots();
+    expect(canApply(state, commands.useHint("a"))).toBe(true);
+    expect(canApply(state, commands.clearSlot("a"))).toBe(false);
+    const green = play(state, commands.placeService("a", "lambda"));
+    expect(canApply(green, commands.useHint("a"))).toBe(false);
+    expect(canApply(green, commands.placeService("a", "fargate"))).toBe(false);
+    expect(slotStatus(slotOf(state, "a"))).toBe("empty");
   });
 });

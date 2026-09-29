@@ -186,6 +186,13 @@ export const applyCommand = (state: SessionState, command: Command): CommandResu
   }
 };
 
+/**
+ * The command would be accepted in this state. Lets the UI enable or hide a control (e.g. "Ver
+ * pista") without repeating the rules of `applyCommand`.
+ */
+export const canApply = (state: SessionState, command: Command): boolean =>
+  applyCommand(state, command).outcome.type !== "rejected";
+
 /** Hints revealed so far for a slot, in order. */
 export const revealedHints = (state: SessionState, slotId: string): readonly string[] => {
   const slot = state.slots.find((s) => s.slotId === slotId);

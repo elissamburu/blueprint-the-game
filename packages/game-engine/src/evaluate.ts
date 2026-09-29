@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Grade of a service placed in a slot (docs/03 §2 "Semántica de la evaluación", ADR-0007).
-import type { Grade, SlotNode } from "@blueprint/scenario-schema";
+import type { Grade, Objective, SlotNode } from "@blueprint/scenario-schema";
 
 /** Grade shown to the player: green (`optimal`), orange (`acceptable`) or red (`incorrect`). */
 export type EvaluationGrade = Grade | "incorrect";
@@ -62,4 +62,33 @@ export const evaluatePlacement = (
     };
   }
   return { source: "undeclared", grade: "incorrect", serviceId, role: slot.role };
+};
+
+/** How a placement relates to one objective (docs/03 §2 "Objetivos de cada respuesta"). */
+export type ObjectiveStatus = "met" | "partial" | "violated";
+
+export interface ObjectiveAssessment {
+  readonly objective: Objective;
+  readonly status: ObjectiveStatus;
+}
+
+/**
+ * Objectives the evaluation references, with their status, in the order the scenario lists
+ * them: an `optimal` meets its `objectives`, an `acceptable` meets its `objectives` only
+ * partially (soft goals, L020) and an `incorrect` violates its `violates`. An undeclared
+ * service references none. Ids missing from the scenario are skipped (L004/L015 report them).
+ */
+export const objectiveStatuses = (
+  evaluation: Evaluation,
+  objectives: readonly Objective[],
+): ObjectiveAssessment[] => {
+  if (evaluation.source === "undeclared") return [];
+  const [ids, status]: [readonly string[], ObjectiveStatus] =
+    evaluation.source === "answer"
+      ? [evaluation.objectives, evaluation.grade === "optimal" ? "met" : "partial"]
+      : [evaluation.violates, "violated"];
+  const referenced = new Set(ids);
+  return objectives
+    .filter((objective) => referenced.has(objective.id))
+    .map((objective) => ({ objective, status }));
 };
