@@ -7,6 +7,7 @@ import {
   PROGRESS_STORAGE_KEY,
   type LocalStorageProgressRepositoryOptions,
 } from "./local-storage-progress-repository";
+import { PROGRESS_SCHEMA_VERSION } from "./progress-schema";
 
 const BACKUP_KEY = `${PROGRESS_STORAGE_KEY}.backup`;
 
@@ -34,6 +35,7 @@ class MemoryStorage implements Storage {
 
 const progress: PlayerProgress = {
   experience: "aws-user",
+  interests: ["networking"],
   xp: 150,
   best: {
     "static-website-https": {
@@ -45,13 +47,36 @@ const progress: PlayerProgress = {
       xp: 150,
       hintsUsed: 1,
       perfect: false,
+      allOptimal: false,
     },
   },
   unlocked: [
     { area: "networking", level: 100 },
     { area: "networking", level: 200 },
   ],
+  started: ["static-website-https"],
 };
+
+/** The same progress as version 1 stored it: without interests, started nor allOptimal. */
+const progressV1 = {
+  experience: "aws-user",
+  xp: 150,
+  best: {
+    "static-website-https": {
+      version: 1,
+      level: 100 as const,
+      areas: ["networking", "storage"],
+      score: 350,
+      maxScore: 400,
+      xp: 150,
+      hintsUsed: 1,
+      perfect: false,
+    },
+  },
+  unlocked: progress.unlocked,
+};
+
+const CURRENT = PROGRESS_SCHEMA_VERSION;
 
 let storage: MemoryStorage;
 let warn: ReturnType<typeof vi.fn<(message: string) => void>>;
@@ -76,7 +101,7 @@ describe("LocalStorageProgressRepository", () => {
 
   it("saves the progress with its schemaVersion and reads it back", async () => {
     await repository().save(progress);
-    expect(stored()).toEqual({ schemaVersion: 1, progress });
+    expect(stored()).toEqual({ schemaVersion: CURRENT, progress });
     expect(await repository().load()).toEqual({ status: "loaded", progress });
   });
 
@@ -92,14 +117,17 @@ describe("LocalStorageProgressRepository", () => {
       ["data without an envelope", { xp: 10 }],
       [
         "an unknown experience",
-        { schemaVersion: 1, progress: { ...progress, experience: "guru" } },
+        { schemaVersion: CURRENT, progress: { ...progress, experience: "guru" } },
       ],
-      ["negative XP", { schemaVersion: 1, progress: { ...progress, xp: -1 } }],
+      ["negative XP", { schemaVersion: CURRENT, progress: { ...progress, xp: -1 } }],
       [
         "an invalid level",
-        { schemaVersion: 1, progress: { ...progress, unlocked: [{ area: "x", level: 150 }] } },
+        {
+          schemaVersion: CURRENT,
+          progress: { ...progress, unlocked: [{ area: "x", level: 150 }] },
+        },
       ],
-      ["unknown fields", { schemaVersion: 1, progress: { ...progress, streak: 4 } }],
+      ["unknown fields", { schemaVersion: CURRENT, progress: { ...progress, streak: 4 } }],
     ])("discards %s with a warning, backs it up and removes it", async (_case, value) => {
       store(value);
       const original = storage.getItem(PROGRESS_STORAGE_KEY);
@@ -134,13 +162,16 @@ describe("LocalStorageProgressRepository", () => {
   });
 
   describe("data from a newer version of the game", () => {
-    // Stored by the game with schemaVersion 2, read by this app, still on version 1.
-    const newer = JSON.stringify({ schemaVersion: 2, progress: { ...progress, streak: 4 } });
+    // Stored by a newer version of the game, read by this app.
+    const newer = JSON.stringify({
+      schemaVersion: CURRENT + 1,
+      progress: { ...progress, streak: 4 },
+    });
 
     it("is not loaded and stays intact after load and a save attempt", async () => {
       storage.setItem(PROGRESS_STORAGE_KEY, newer);
       const repo = repository();
-      expect(await repo.load()).toEqual({ status: "incompatible", storedVersion: 2 });
+      expect(await repo.load()).toEqual({ status: "incompatible", storedVersion: CURRENT + 1 });
       await expect(repo.save(progress)).rejects.toBeInstanceOf(IncompatibleProgressError);
       await repo.clear();
       expect(storage.getItem(PROGRESS_STORAGE_KEY)).toBe(newer);
@@ -155,15 +186,47 @@ describe("LocalStorageProgressRepository", () => {
       storage.removeItem(PROGRESS_STORAGE_KEY);
       expect(await repo.load()).toEqual({ status: "empty" });
       await repo.save(progress);
-      expect(stored()).toEqual({ schemaVersion: 1, progress });
+      expect(stored()).toEqual({ schemaVersion: CURRENT, progress });
     });
   });
 
   describe("migrations", () => {
-    it("runs the example migration and rewrites the data with the current version", async () => {
-      store({ schemaVersion: 0, progress });
-      expect(await repository().load()).toEqual({ status: "loaded", progress });
-      expect(stored()).toEqual({ schemaVersion: 1, progress });
+    const migrated: PlayerProgress = {
+      ...progress,
+      interests: [],
+      started: [],
+      best: {
+        "static-website-https": { ...progressV1.best["static-website-https"], allOptimal: false },
+      },
+    };
+
+    it("runs the real migrations and rewrites the data with the current version", async () => {
+      store({ schemaVersion: 0, progress: progressV1 });
+      expect(await repository().load()).toEqual({ status: "loaded", progress: migrated });
+      expect(stored()).toEqual({ schemaVersion: CURRENT, progress: migrated });
+    });
+
+    it("v1 → v2: no interests nor started scenarios; only a perfect result is all green", async () => {
+      const result = progressV1.best["static-website-https"];
+      store({
+        schemaVersion: 1,
+        progress: { ...progressV1, best: { a: { ...result, perfect: true }, b: result } },
+      });
+      const loaded = await repository().load();
+      if (loaded.status !== "loaded") throw new Error(loaded.status);
+      expect(loaded.progress.interests).toEqual([]);
+      expect(loaded.progress.started).toEqual([]);
+      expect(loaded.progress.best.a?.allOptimal).toBe(true);
+      expect(loaded.progress.best.b?.allOptimal).toBe(false);
+    });
+
+    it.each([
+      ["a progress that is not an object", []],
+      ["a best result that is not an object", { ...progressV1, best: { a: 3 } }],
+      ["best results that are not a record", { ...progressV1, best: null }],
+    ])("v1 → v2 leaves %s to the validation", async (_case, value) => {
+      store({ schemaVersion: 1, progress: value });
+      expect((await repository().load()).status).toBe("discarded");
     });
 
     it("chains migrations from the stored version to the current one", async () => {

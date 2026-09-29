@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Layout of every game screen: skip link, header, the route page and a footer with the link
 // to "Acerca de". Starts loading the content bundle and the stored progress. An immersive page
-// (the game screen, useImmersiveLayout) hides the header and the footer and fills the viewport.
+// (the game screen, useImmersiveLayout) hides the header and the footer and fills the viewport;
+// a standalone one (the onboarding, useStandaloneLayout) hides only the header.
 import { Button } from "@blueprint/ui/components/button";
 import { Toaster, toast } from "@blueprint/ui/components/sonner";
 import { Suspense, useEffect, useState } from "react";
@@ -12,7 +13,7 @@ import { Loading } from "../content/RequireContent";
 import { useProgressStore } from "../progress/progress-store";
 import { AppHeader } from "./AppHeader";
 import { ErrorBoundary } from "./ErrorBoundary";
-import { ImmersiveContext } from "./immersive";
+import { ImmersiveContext, type LayoutMode } from "./immersive";
 
 export const MAIN_ID = "contenido";
 
@@ -20,14 +21,15 @@ export function AppLayout() {
   const { t } = useTranslation();
   const loadContent = useContentStore((s) => s.load);
   const hydrate = useProgressStore((s) => s.hydrate);
-  const [immersive, setImmersive] = useState(false);
+  const [mode, setMode] = useState<LayoutMode>("default");
+  const immersive = mode === "immersive";
   useEffect(() => {
     void loadContent();
     void hydrate();
   }, [loadContent, hydrate]);
 
   return (
-    <ImmersiveContext.Provider value={setImmersive}>
+    <ImmersiveContext.Provider value={setMode}>
       <div
         className={immersive ? "flex h-dvh flex-col overflow-hidden" : "flex min-h-screen flex-col"}
       >
@@ -37,7 +39,7 @@ export function AppLayout() {
         >
           {t("app.skipToContent")}
         </a>
-        {!immersive && <AppHeader />}
+        {mode === "default" && <AppHeader />}
         <IncompatibleProgressBanner />
         <main
           id={MAIN_ID}
@@ -53,7 +55,13 @@ export function AppLayout() {
           </ErrorBoundary>
         </main>
         {!immersive && (
-          <footer className="border-t px-4 py-6 pb-24 text-center text-[0.78rem] text-muted-foreground md:pb-6">
+          <footer
+            className={
+              mode === "standalone"
+                ? "border-t px-4 py-6 text-center text-sm text-muted-foreground"
+                : "border-t px-4 py-6 pb-24 text-center text-sm text-muted-foreground md:pb-6"
+            }
+          >
             {t("app.footer")}{" "}
             <Link to="/acerca" className="text-primary underline-offset-4 hover:underline">
               {t("nav.about")}

@@ -4,7 +4,8 @@
 // blueprint-app.tsx. It is a Radix RadioGroup item, so it keeps the radiogroup semantics
 // (arrow keys, aria-checked) that Lovable's pressed buttons did not have.
 // Accessibility change: the empty radio dot uses --slot-border (3:1) instead of --border (1.43:1),
-// because it is what shows the unchecked state (WCAG 1.4.11).
+// because it is what shows the unchecked state (WCAG 1.4.11). Text sizes follow the minimums of
+// docs/design (problem 28) instead of Lovable's .75rem and .7rem.
 import * as React from "react";
 import { useId } from "react";
 import { cn } from "@blueprint/ui/lib/utils";
@@ -37,7 +38,7 @@ function RadioCardItem({ marker, title, description, className, ...props }: Radi
     >
       <span
         aria-hidden="true"
-        className="grid size-7 place-items-center rounded-md bg-muted text-xs font-extrabold text-muted-foreground group-data-[state=checked]:bg-primary group-data-[state=checked]:text-primary-foreground"
+        className="grid size-7 place-items-center rounded-md bg-muted text-sm font-extrabold text-muted-foreground group-data-[state=checked]:bg-primary group-data-[state=checked]:text-primary-foreground"
       >
         {marker}
       </span>
@@ -48,7 +49,7 @@ function RadioCardItem({ marker, title, description, className, ...props }: Radi
         {description !== undefined && (
           <small
             id={`${id}-description`}
-            className="mt-[0.2rem] block text-[0.7rem] leading-[1.35] text-muted-foreground"
+            className="mt-[0.2rem] block text-sm leading-[1.35] text-muted-foreground"
           >
             {description}
           </small>

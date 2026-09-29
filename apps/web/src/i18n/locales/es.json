@@ -41,9 +41,35 @@
     "reload": "Recargar"
   },
   "welcome": {
-    "title": "Te damos la bienvenida",
-    "kicker": "Primeros pasos",
-    "description": "Aprendé a diseñar arquitecturas completando diagramas. La configuración de tus áreas y tu experiencia está en construcción.",
+    "title": "Armemos tu ruta de aprendizaje",
+    "eyebrow": "Aprendé haciendo",
+    "headline": "Entrená tu criterio para diseñar en la nube.",
+    "lead": "Resolvé casos reales, compará decisiones y entendé por qué una arquitectura funciona.",
+    "kicker": "Configuración inicial",
+    "description": "Elegí todo lo que te interese. Después podés cambiarlo desde tu perfil.",
+    "areas": "¿Qué áreas querés practicar?",
+    "experience": "¿Cuál es tu experiencia?",
+    "experiences": {
+      "beginner": {
+        "title": "Recién empiezo",
+        "description": "Quiero conocer los conceptos"
+      },
+      "aws-user": {
+        "title": "Uso AWS",
+        "description": "Ya desplegué algunos proyectos"
+      },
+      "architect": {
+        "title": "Diseño arquitecturas",
+        "description": "Tomo decisiones técnicas"
+      },
+      "expert": {
+        "title": "Experto",
+        "description": "Optimizo sistemas complejos"
+      }
+    },
+    "submit": "Ver mi ruta",
+    "missing": "Elegí al menos un área y tu experiencia para continuar.",
+    "incompatible": "Tu progreso fue guardado con una versión más nueva del juego. Recargá la página para seguir con él; mientras tanto no se puede empezar de nuevo.",
     "browse": "Ver escenarios"
   },
   "scenarios": {
@@ -56,7 +82,38 @@
     "areas": "Áreas",
     "minutes": "{{count}} min",
     "play": "Jugar",
-    "playLabel": "Jugar «{{title}}»"
+    "playLabel": "Jugar «{{title}}»",
+    "replay": "Volver a jugar",
+    "replayLabel": "Volver a jugar «{{title}}»",
+    "recommended": {
+      "badge": "Recomendado para vos",
+      "start": "Empezar escenario",
+      "continue": "Continuar escenario",
+      "startLabel": "Empezar escenario «{{title}}»",
+      "continueLabel": "Continuar escenario «{{title}}»"
+    },
+    "filters": {
+      "label": "Filtros de escenarios",
+      "title": "Filtrar",
+      "level": "Nivel",
+      "area": "Área",
+      "status": "Estado",
+      "allLevels": "Todos",
+      "allAreas": "Todas",
+      "allStatuses": "Todos",
+      "levelOption": "Nivel {{level}}",
+      "none": "Ningún escenario coincide con los filtros."
+    },
+    "status": {
+      "new": "Nuevo",
+      "in-progress": "En curso",
+      "completed-green": "Completado en verde",
+      "completed-orange": "Completado con naranjas"
+    },
+    "best": "Mejor resultado: {{score}} de {{max}} puntos",
+    "locked": "Bloqueado",
+    "lockReason": "Completá escenarios de nivel {{level}} en {{area}}.",
+    "lockReasonAnyArea": "Completá escenarios de nivel {{level}}."
   },
   "play": {
     "loading": "Cargando escenario…",
@@ -75,12 +132,13 @@
       "score": "Puntaje",
       "report": "Reportar un problema",
       "finish": "Finalizar",
-      "finishHint": "Completá todos los casilleros (verdes o naranjas aceptados) para finalizar.",
       "viewCase": "Ver caso",
       "focusMode": "Modo foco",
       "exitFocus": "Salir del foco",
       "more": "Más acciones",
-      "playFlow": "Reproducir flujo"
+      "playFlow": "Reproducir flujo",
+      "finishMissing_one": "Falta {{count}} casillero",
+      "finishMissing_other": "Faltan {{count}} casilleros"
     },
     "case": {
       "kicker": "El caso",
@@ -178,6 +236,11 @@
       "start": "Empezar a diseñar",
       "preview": "Vista previa",
       "previewLabel": "Vista previa del diagrama con los casilleros vacíos"
+    },
+    "locked": {
+      "kicker": "Nivel {{level}}",
+      "title": "Escenario bloqueado",
+      "description": "«{{title}}» todavía no está disponible para vos."
     }
   },
   "profile": {

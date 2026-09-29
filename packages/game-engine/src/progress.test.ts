@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 import {
   applyScenarioResult,
   createProgress,
+  markScenarioStarted,
   rankForXp,
   refreshUnlocks,
   type PlayerProgress,
@@ -54,20 +55,62 @@ describe("rankForXp", () => {
 
 describe("createProgress", () => {
   it("starts with no XP and the experience levels open in every area", () => {
-    expect(createProgress("beginner", scenarios, gameRules)).toEqual({
+    expect(
+      createProgress({ experience: "beginner", interests: ["data"] }, scenarios, gameRules),
+    ).toEqual({
       experience: "beginner",
+      interests: ["data"],
       xp: 0,
       best: {},
       unlocked: [
         { area: "data", level: 100 },
         { area: "serverless", level: 100 },
       ],
+      started: [],
     });
+  });
+
+  it("opens the levels of each experience of game-rules", () => {
+    const levels = (experience: PlayerProgress["experience"]) => [
+      ...new Set(
+        createProgress({ experience, interests: [] }, scenarios, gameRules).unlocked.map(
+          (u) => u.level,
+        ),
+      ),
+    ];
+    expect(levels("beginner")).toEqual([100]);
+    expect(levels("aws-user")).toEqual([100, 200]);
+    expect(levels("architect")).toEqual([100, 200, 300]);
+    expect(levels("expert")).toEqual([100, 200, 300, 400]);
+  });
+
+  it("keeps each area of interest once", () => {
+    const progress = createProgress(
+      { experience: "beginner", interests: ["data", "serverless", "data"] },
+      scenarios,
+      gameRules,
+    );
+    expect(progress.interests).toEqual(["data", "serverless"]);
+  });
+});
+
+describe("markScenarioStarted", () => {
+  it("adds the scenario once and returns the same progress when it was already started", () => {
+    const progress = createProgress(
+      { experience: "beginner", interests: [] },
+      scenarios,
+      gameRules,
+    );
+    const started = markScenarioStarted(progress, "s-100");
+    expect(started.started).toEqual(["s-100"]);
+    expect(markScenarioStarted(started, "s-100")).toBe(started);
+    expect(progress.started).toEqual([]);
   });
 });
 
 describe("applyScenarioResult", () => {
-  const start = () => createProgress("beginner", scenarios, gameRules);
+  const start = () =>
+    createProgress({ experience: "beginner", interests: [] }, scenarios, gameRules);
 
   it("ignores an unfinished result", () => {
     const progress = start();
@@ -91,6 +134,7 @@ describe("applyScenarioResult", () => {
       xp: 300,
       hintsUsed: 1,
       perfect: false,
+      allOptimal: true,
     });
     expect(events).toEqual([
       { type: "xpGained", amount: 300, total: 300 },
@@ -137,9 +181,45 @@ describe("applyScenarioResult", () => {
   });
 });
 
+describe("allOptimal", () => {
+  const slot = (grade: "optimal" | "acceptable") => ({
+    slotId: grade,
+    serviceId: "lambda",
+    grade,
+    accepted: grade === "acceptable",
+    errors: 0,
+    hintsUsed: 0,
+    firstTry: grade === "optimal",
+    points: 100,
+  });
+  const start = () =>
+    createProgress({ experience: "beginner", interests: [] }, scenarios, gameRules);
+
+  it("is true when every slot ended green and false with an accepted orange", () => {
+    const green = applyScenarioResult(
+      start(),
+      result({ slots: [slot("optimal"), slot("optimal")] }),
+      gameRules,
+      scenarios,
+    );
+    expect(green.progress.best["s-100"]?.allOptimal).toBe(true);
+    const orange = applyScenarioResult(
+      start(),
+      result({ slots: [slot("optimal"), slot("acceptable")] }),
+      gameRules,
+      scenarios,
+    );
+    expect(orange.progress.best["s-100"]?.allOptimal).toBe(false);
+  });
+});
+
 describe("refreshUnlocks", () => {
   it("opens the levels of a new area without touching the rest", () => {
-    const progress = createProgress("aws-user", scenarios, gameRules);
+    const progress = createProgress(
+      { experience: "aws-user", interests: [] },
+      scenarios,
+      gameRules,
+    );
     const withNewArea = [...scenarios, { id: "ml-100", level: 100 as const, areas: ["ml"] }];
     const { progress: next, events } = refreshUnlocks(progress, withNewArea, gameRules);
     // 100 and 200 by experience; "ml" has no level-200 scenarios, so 300 waits for "s-200".

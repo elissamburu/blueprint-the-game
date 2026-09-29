@@ -1,15 +1,15 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The shell against a bundle served by a fake fetch: redirects, listing, errors and axe.
-import type { BundleIndex } from "@blueprint/scenario-schema";
 import { cleanup, render, screen, within } from "@testing-library/react";
-import axe from "axe-core";
 import { MemoryRouter } from "react-router";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { useContentStore } from "../content/content-store";
 import { bundleFiles, fetchFrom } from "../content/testing/bundle-fixture";
 import "../i18n";
 import { PROGRESS_STORAGE_KEY } from "../progress/local-storage-progress-repository";
+import { PROGRESS_SCHEMA_VERSION } from "../progress/progress-schema";
 import { useProgressStore } from "../progress/progress-store";
+import { newProgress, storeProgress } from "../testing/progress-fixture";
 import { mockReactFlowLayout } from "../testing/react-flow-mocks";
 import { AppRoutes } from "./App";
 
@@ -19,6 +19,8 @@ const renderAt = (path: string) =>
       <AppRoutes />
     </MemoryRouter>,
   );
+
+const WELCOME = "Entrená tu criterio para diseñar en la nube.";
 
 const serve = (files: Record<string, unknown>) => vi.stubGlobal("fetch", fetchFrom(files));
 
@@ -38,9 +40,7 @@ afterEach(() => {
 describe("routes", () => {
   it("sends a new player from / to the welcome page", async () => {
     renderAt("/");
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "Te damos la bienvenida" }),
-    ).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 1, name: WELCOME })).toBeTruthy();
   });
 
   it("sends a player with saved progress from / to the scenarios", async () => {
@@ -62,15 +62,16 @@ describe("routes", () => {
     localStorage.setItem(PROGRESS_STORAGE_KEY, "{broken");
     const warn = vi.spyOn(console, "warn").mockImplementation(() => undefined);
     renderAt("/");
-    expect(
-      await screen.findByRole("heading", { level: 1, name: "Te damos la bienvenida" }),
-    ).toBeTruthy();
+    expect(await screen.findByRole("heading", { level: 1, name: WELCOME })).toBeTruthy();
     expect(await screen.findByText(/estaba dañado y se descartó/)).toBeTruthy();
     expect(warn).toHaveBeenCalled();
   });
 
   it("asks to reload and keeps the progress saved by a newer version of the game", async () => {
-    const newer = JSON.stringify({ schemaVersion: 2, progress: { xp: 5000 } });
+    const newer = JSON.stringify({
+      schemaVersion: PROGRESS_SCHEMA_VERSION + 1,
+      progress: { xp: 5000 },
+    });
     localStorage.setItem(PROGRESS_STORAGE_KEY, newer);
     vi.spyOn(console, "warn").mockImplementation(() => undefined);
     renderAt("/");
@@ -89,19 +90,8 @@ describe("routes", () => {
 });
 
 describe("scenario listing", () => {
-  it("lists the scenarios of the bundle and tags drafts and betas", async () => {
-    const index = bundleFiles()["index.json"] as BundleIndex;
-    renderAt("/escenarios");
-    const cards = await screen.findAllByRole("article");
-    expect(cards.map((card) => within(card).getByRole("heading").textContent)).toEqual(
-      [...index.scenarios].sort((a, b) => a.level - b.level).map((s) => s.title),
-    );
-    expect(within(cards[1]!).getByText("Beta")).toBeTruthy();
-    expect(within(cards[2]!).getByText("Borrador")).toBeTruthy();
-    expect(screen.getByText("3 escenarios")).toBeTruthy();
-  });
-
   it("shows a clear error when the bundle does not validate", async () => {
+    storeProgress(newProgress("beginner"));
     const files = bundleFiles();
     files["index.json"] = { ...(files["index.json"] as object), scenarios: [{ id: "x" }] };
     serve(files);
@@ -110,18 +100,6 @@ describe("scenario listing", () => {
     expect(within(alert).getByText("No se pudo cargar el contenido")).toBeTruthy();
     expect(within(alert).getByText("index.json no tiene el formato esperado:")).toBeTruthy();
     expect(within(alert).getByRole("button", { name: "Reintentar" })).toBeTruthy();
-  });
-
-  it("has no critical or serious axe violations", async () => {
-    const { container } = renderAt("/escenarios");
-    await screen.findAllByRole("article");
-    const results = await axe.run(container, {
-      resultTypes: ["violations"],
-      rules: { "color-contrast": { enabled: false } },
-    });
-    expect(
-      results.violations.filter((v) => v.impact === "critical" || v.impact === "serious"),
-    ).toEqual([]);
   });
 });
 

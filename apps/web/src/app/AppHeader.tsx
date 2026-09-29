@@ -54,15 +54,18 @@ function NavItem({ to, icon: Icon, label }: { to: string; icon: LucideIcon; labe
   );
 }
 
-/** Rank from game-rules.yaml and the player XP; a new player is at the lowest rank. */
+/**
+ * Rank from game-rules.yaml and the XP of the stored progress. Without progress (before the
+ * onboarding, or while it is incompatible) there is no rank to show.
+ */
 function RankPill() {
   const { t } = useTranslation();
   const rules = useContentStore((s) => s.bundle?.rules ?? null);
-  const xp = useProgressStore((s) => s.progress?.xp ?? 0);
-  if (rules === null) return <span aria-hidden className="hidden md:block" />;
+  const xp = useProgressStore((s) => s.progress?.xp ?? null);
+  if (rules === null || xp === null) return <span aria-hidden className="hidden md:block" />;
   const rank = rankForXp(xp, rules);
   return (
-    <p className="flex items-center gap-[0.45rem] justify-self-end text-[0.82rem] font-bold">
+    <p className="flex items-center gap-[0.45rem] justify-self-end text-sm font-bold">
       <MedalIcon aria-hidden className="size-[17px] text-warning" />
       <span className="sr-only">{t("nav.rank")}:</span>
       <span className="rounded-md bg-secondary px-[0.6rem] py-[0.35rem] text-primary">

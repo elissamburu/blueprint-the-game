@@ -17,16 +17,28 @@ export interface BestResult {
   readonly xp: number;
   readonly hintsUsed: number;
   readonly perfect: boolean;
+  /** Every slot ended green: no accepted orange (RF-NAV-01, "completado en verde"). */
+  readonly allOptimal: boolean;
 }
 
 export interface PlayerProgress {
   readonly experience: Experience;
+  /** Areas of interest chosen in the onboarding (RF-ONB-01), ids of content/areas.yaml. */
+  readonly interests: readonly string[];
   /** Accumulated XP: the sum of the XP of every best result. */
   readonly xp: number;
   /** Best completed result by scenario id. */
   readonly best: Readonly<Record<string, BestResult>>;
   /** Open (area, level) pairs; the set only grows. */
   readonly unlocked: readonly LevelUnlock[];
+  /** Ids of the scenarios where the player placed at least one service; the set only grows. */
+  readonly started: readonly string[];
+}
+
+/** What the player answers in the onboarding (RF-ONB-01, RF-ONB-02). */
+export interface OnboardingChoices {
+  readonly experience: Experience;
+  readonly interests: readonly string[];
 }
 
 /** Events for the in-app toasts of RF-GAM-10. */
@@ -50,17 +62,34 @@ export const rankForXp = (xp: number, rules: Pick<GameRules, "ranks">): Rank => 
 
 const completedOf = (progress: Pick<PlayerProgress, "best">) => Object.values(progress.best);
 
-/** Progress of a new player: the levels of their experience (RF-ONB-02), in every area. */
+/**
+ * Progress of a new player: their areas of interest (without repeats) and the levels of their
+ * experience (RF-ONB-02), open in every area.
+ */
 export const createProgress = (
-  experience: Experience,
+  { experience, interests }: OnboardingChoices,
   scenarios: readonly ScenarioInfo[],
   rules: Pick<GameRules, "unlock">,
 ): PlayerProgress => ({
   experience,
+  interests: [...new Set(interests)],
   xp: 0,
   best: {},
   unlocked: computeUnlocks({ experience, unlocked: [], completed: [] }, scenarios, rules),
+  started: [],
 });
+
+/**
+ * Remembers that the player started a scenario ("en curso" in the listing until it is
+ * completed). Returns the same object when it was already started.
+ */
+export const markScenarioStarted = (
+  progress: PlayerProgress,
+  scenarioId: string,
+): PlayerProgress =>
+  progress.started.includes(scenarioId)
+    ? progress
+    : { ...progress, started: [...progress.started, scenarioId] };
 
 /**
  * Recomputes the open pairs against the current scenarios (e.g. after loading new content
@@ -112,6 +141,7 @@ export const applyScenarioResult = (
             xp: result.xp,
             hintsUsed: result.hintsUsed,
             perfect: result.perfect,
+            allOptimal: result.slots.every((slot) => slot.grade === "optimal"),
           },
         };
   const xp = progress.xp + gained;

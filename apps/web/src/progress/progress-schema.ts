@@ -7,7 +7,7 @@ import { EXPERIENCES, LEVELS } from "@blueprint/scenario-schema";
 import * as z from "zod";
 
 /** Current version of the stored format. Bump it and add a migration when the shape changes. */
-export const PROGRESS_SCHEMA_VERSION = 1;
+export const PROGRESS_SCHEMA_VERSION = 2;
 
 /** Transforms the `progress` of a stored envelope from version N to N + 1. */
 export type ProgressMigration = (progress: unknown) => unknown;
@@ -20,7 +20,26 @@ export const PROGRESS_MIGRATIONS: Readonly<Record<number, ProgressMigration>> = 
   // Example with no changes: version 0 never shipped. A real one reads the old shape and
   // returns the new one, e.g. `(p) => ({ ...(p as object), newField: [] })`.
   0: (progress) => progress,
+  // v2: areas of interest (RF-ONB-01), started scenarios and whether a best result was all
+  // green (RF-NAV-01). v1 did not know them: no interests, nothing started, and only a perfect
+  // result is known to be all green.
+  1: (progress) => {
+    if (!isRecord(progress)) return progress;
+    const best = isRecord(progress.best)
+      ? Object.fromEntries(
+          Object.entries(progress.best).map(([id, result]) => [
+            id,
+            isRecord(result) ? { ...result, allOptimal: result.perfect === true } : result,
+          ]),
+        )
+      : progress.best;
+    return { ...progress, interests: [], started: [], best };
+  },
 };
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
 
 const level = z.literal(LEVELS);
 const count = () => z.int().nonnegative();
@@ -34,13 +53,16 @@ const BestResultSchema = z.strictObject({
   xp: z.number().nonnegative(),
   hintsUsed: count(),
   perfect: z.boolean(),
+  allOptimal: z.boolean(),
 }) satisfies z.ZodType<BestResult>;
 
 export const PlayerProgressSchema = z.strictObject({
   experience: z.enum(EXPERIENCES),
+  interests: z.array(z.string().min(1)),
   xp: z.number().nonnegative(),
   best: z.record(z.string().min(1), BestResultSchema),
   unlocked: z.array(z.strictObject({ area: z.string().min(1), level })),
+  started: z.array(z.string().min(1)),
 }) satisfies z.ZodType<PlayerProgress>;
 
 export const StoredProgressSchema = z.strictObject({

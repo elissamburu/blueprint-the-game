@@ -131,7 +131,11 @@ describe("serverless-pdf-processing, end to end", () => {
   });
 
   it("updates the progress, then a perfect replay only adds the improvement", () => {
-    const start = createProgress("aws-user", allScenarios, gameRules);
+    const start = createProgress(
+      { experience: "aws-user", interests: [] },
+      allScenarios,
+      gameRules,
+    );
     const first = applyScenarioResult(start, scenarioResult(run().state), gameRules, allScenarios);
     expect(first.progress.xp).toBe(623);
     expect(first.events).toEqual([
