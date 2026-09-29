@@ -1,0 +1,299 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: kubernetes-api-migration
+version: 1
+status: draft
+lang: es
+level: 200
+areas: [containers, networking]
+title: "Migrar una API de pagos en Kubernetes sin reescribir sus charts"
+summary: "Una fintech lleva a la nube sus microservicios en Kubernetes: mismos charts de Helm, sin operar el plano de control ni servidores."
+estimatedMinutes: 10
+authors:
+  - github: elissamburu
+
+context: |
+  Una **fintech chica** corre hoy su **API de pagos** en un clúster de **Kubernetes** que
+  administra ella misma en servidores propios. La API es HTTP y está partida en varios
+  microservicios: `/pagos`, `/clientes` y algunos más.
+
+  El equipo ya tiene todos los **manifiestos y charts de Helm**, probados durante años, y
+  quiere migrar a AWS **sin reescribirlos**: puede ajustar valores y anotaciones, pero no
+  pasarse a otro orquestador. Lo que más le pesa hoy es mantener el plano de control
+  (actualizaciones, certificados, la base de datos del clúster) y los servidores donde
+  corren los contenedores; en la nube no quiere hacer ninguna de las dos cosas.
+
+  La API guarda los pagos en una base **PostgreSQL**, que se migra a una base administrada.
+  Hoy la contraseña de esa base viaja en **variables de entorno** definidas en los valores
+  de Helm, en texto plano: auditoría lo marcó como hallazgo crítico y además pide que la
+  contraseña se rote de forma periódica.
+
+objectives:
+  - id: keep-kubernetes
+    kind: hard
+    category: team
+    text: "Seguir usando Kubernetes y los charts de Helm existentes, sin migrar a otro orquestador; se permiten cambios de valores y anotaciones."
+  - id: no-control-plane
+    kind: hard
+    category: operations
+    text: "No instalar, actualizar ni operar el plano de control de Kubernetes."
+  - id: no-plaintext-credentials
+    kind: hard
+    category: security
+    text: "Las credenciales de la base no pueden quedar en texto plano en la configuración de los contenedores (manifiestos, valores de Helm ni variables de entorno)."
+  - id: minimal-servers
+    kind: soft
+    category: operations
+    text: "Administrar lo mínimo posible los servidores donde corren los contenedores: ni tipos de instancia, ni parches del sistema operativo, ni escalado de nodos."
+  - id: path-routing
+    kind: soft
+    category: traffic
+    text: "Un único punto de entrada HTTP que enrute por ruta (/pagos, /clientes) hacia distintos servicios."
+  - id: managed-rotation
+    kind: soft
+    category: security
+    text: "Rotar periódicamente la contraseña de la base sin que el equipo programe ni opere esa rotación."
+
+diagram:
+  canvas: { width: 1400, height: 900 }
+  groups:
+    - id: region
+      kind: region
+      label: "Región"
+      rect: { x: 200, y: 40, w: 1160, h: 820 }
+      parent: null
+    - id: vpc
+      kind: vpc
+      label: "Red de la API de pagos"
+      rect: { x: 240, y: 320, w: 760, h: 510 }
+      parent: region
+    - id: public-subnets
+      kind: subnet-public
+      label: "Subredes públicas"
+      rect: { x: 270, y: 370, w: 220, h: 430 }
+      parent: vpc
+    - id: private-subnets
+      kind: subnet-private
+      label: "Subredes privadas"
+      rect: { x: 530, y: 370, w: 440, h: 430 }
+      parent: vpc
+
+  nodes:
+    - id: platform-team
+      type: actor
+      label: "Equipo de plataforma"
+      icon: users
+      position: { x: 40, y: 140 }
+
+    - id: clients
+      type: actor
+      label: "Comercios y apps"
+      icon: users
+      position: { x: 40, y: 520 }
+
+    - id: orchestrator
+      type: slot
+      role: "Plano de control de Kubernetes administrado por AWS: recibe los charts de Helm de siempre y agenda los pods."
+      position: { x: 560, y: 100 }
+      group: region
+      answers:
+        - service: eks
+          grade: optimal
+          objectives: [keep-kubernetes, no-control-plane]
+          rationale: >
+            Está certificado como Kubernetes conforme: los mismos manifiestos y charts de Helm
+            se despliegan sin refactorizar, con `kubectl` y `helm` como hoy. AWS administra el
+            plano de control: los componentes que agendan cargas y guardan el estado del
+            clúster se operan y escalan por vos, así que el equipo no instala ni mantiene
+            ninguno.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/kubernetes-versions.html
+      incorrect:
+        - service: ecs
+          violates: [keep-kubernetes]
+          rationale: "Es un orquestador propio de AWS, con definiciones de tareas y servicios en su propio formato: no lee manifiestos de Kubernetes ni charts de Helm. Habría que reescribir todo el despliegue."
+        - service: ec2
+          violates: [no-control-plane]
+          rationale: "Podés instalar Kubernetes en máquinas virtuales, pero el plano de control vuelve a ser tuyo: versiones, certificados, respaldos de etcd y alta disponibilidad. Es justo lo que el equipo quiere dejar de hacer."
+        - service: fargate
+          rationale: "Pone la capacidad donde corren los pods, pero no es un orquestador: no expone la API de Kubernetes ni agenda nada por sí solo. Va en otro lugar del diagrama."
+        - service: app-runner
+          violates: [keep-kubernetes]
+          rationale: "Corre una aplicación web a partir de una imagen o del código, con su propia configuración; no acepta manifiestos de Kubernetes ni charts de Helm."
+      hints:
+        - "Buscá un servicio que hable la misma API que el clúster de hoy."
+        - "Es la opción de Kubernetes administrado de AWS, no el orquestador propio de AWS."
+
+    - id: pod-capacity
+      type: slot
+      role: "Capacidad de cómputo donde corren los pods de los microservicios, en las subredes privadas."
+      position: { x: 570, y: 420 }
+      group: private-subnets
+      answers:
+        - service: fargate
+          grade: optimal
+          objectives: [minimal-servers, keep-kubernetes]
+          rationale: >
+            Cada pod corre en su propia capacidad aislada y del tamaño justo: no hay instancias
+            que elegir, parchear ni escalar. Solo se agrega un perfil que dice qué namespaces
+            corren ahí; los manifiestos no cambian. Tiene límites (no corre DaemonSets,
+            contenedores privilegiados ni GPU, y solo usa subredes privadas) que esta API no
+            necesita. Sus pods toman permisos de IAM con roles para cuentas de servicio (IRSA).
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/fargate.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/fargate-profile.html
+        - service: ec2
+          grade: acceptable
+          objectives: [minimal-servers]
+          rationale: >
+            Con grupos de nodos administrados funciona muy bien: AWS crea las instancias y las
+            drena al actualizarlas. Pero seguís eligiendo tipos de instancia, dimensionando el
+            escalado y desplegando las AMI con los parches de seguridad. A cambio, los nodos
+            admiten DaemonSets, como el driver que monta secretos como archivos.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/managed-node-groups.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/eks-compute.html
+      incorrect:
+        - service: lambda
+          violates: [keep-kubernetes]
+          rationale: "Ejecuta funciones disparadas por eventos, no pods: los Deployments y Services de los charts no tienen dónde correr y habría que reescribir la API como funciones."
+        - service: ecs
+          violates: [keep-kubernetes]
+          rationale: "Es otro orquestador, no capacidad para los pods de este clúster: sus tareas se definen en su propio formato, fuera de Kubernetes."
+      hints:
+        - "Pensá en quién parchea el sistema operativo y quién decide cuántas máquinas hay."
+        - "Hay una opción donde cada pod recibe su propia capacidad y no existen nodos para administrar."
+
+    - id: image-registry
+      type: slot
+      role: "Registro privado de las imágenes de los microservicios, del que el clúster descarga cada versión."
+      position: { x: 1100, y: 100 }
+      group: region
+      answers:
+        - service: ecr
+          grade: optimal
+          objectives: [keep-kubernetes]
+          rationale: >
+            Registro de imágenes administrado: no hay servidor de registro que operar. Los
+            charts solo cambian el valor de la imagen al nombre completo del repositorio, y los
+            pods en capacidad sin servidores descargan las imágenes privadas con su rol de
+            ejecución.
+          references:
+            - https://docs.aws.amazon.com/AmazonECR/latest/userguide/ECR_on_EKS.html
+            - https://docs.aws.amazon.com/AmazonECR/latest/userguide/what-is-ecr.html
+      incorrect:
+        - service: s3
+          rationale: "Guarda objetos, pero no implementa la API de registro que usan los nodos para descargar imágenes: el pod no podría referenciar una imagen guardada ahí."
+        - service: codebuild
+          rationale: "Puede construir las imágenes en el pipeline, pero no las guarda ni las sirve: necesita un registro donde publicarlas."
+      hints:
+        - "Buscá un registro de contenedores administrado, no un almacén genérico."
+
+    - id: http-entry
+      type: slot
+      role: "Punto de entrada HTTP único que se crea desde los recursos Ingress y reparte los pedidos entre los pods de cada servicio."
+      position: { x: 300, y: 500 }
+      group: public-subnets
+      answers:
+        - service: alb
+          grade: optimal
+          objectives: [path-routing, keep-kubernetes]
+          rationale: >
+            El AWS Load Balancer Controller lo crea a partir de los Ingress existentes, con
+            reglas por ruta (`/pagos/*`, `/clientes/*`) hacia cada Service; con un IngressGroup
+            varios Ingress comparten un solo balanceador. Con pods en capacidad sin servidores
+            hay que anotar `target-type: ip`, un cambio de anotación que el objetivo permite.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/alb-ingress.html
+            - https://docs.aws.amazon.com/elasticloadbalancing/latest/application/rule-condition-types.html
+        - service: nlb
+          grade: acceptable
+          objectives: [path-routing]
+          rationale: >
+            Llega a los pods y funciona como entrada, pero balancea en capa 4: no ve la ruta
+            HTTP. Para separar `/pagos` de `/clientes` necesitás un balanceador por servicio o
+            instalar y operar un controlador de Ingress propio detrás. Conviene para tráfico
+            TCP/UDP, no para enrutar HTTP.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/network-load-balancing.html
+            - https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html
+      incorrect:
+        - service: apigateway
+          rationale: "Enruta rutas de una API, pero no se crea desde los Ingress del clúster y no llega directo a los pods: igual necesita un balanceador interno detrás, conectado por un enlace de VPC."
+        - service: cloudfront
+          rationale: "Es una red de entrega de contenido: cachea y acerca respuestas al usuario, pero necesita un origen al que reenviar los pedidos. No reemplaza al balanceador que llega a los pods."
+      hints:
+        - "Tiene que entender HTTP para mirar la ruta del pedido."
+        - "El clúster lo crea solo cuando aplicás un recurso Ingress con el controlador de balanceadores de AWS."
+
+    - id: db-credentials
+      type: slot
+      role: "Almacén cifrado de la contraseña de la base, que los pods consultan con la identidad de su cuenta de servicio."
+      position: { x: 1100, y: 420 }
+      group: region
+      answers:
+        - service: secrets-manager
+          grade: optimal
+          objectives: [no-plaintext-credentials, managed-rotation]
+          rationale: >
+            Guarda la contraseña cifrada, y la base puede delegarle su contraseña maestra, que
+            se rota cada siete días por defecto. En capacidad sin servidores no corre el
+            driver CSI (es un DaemonSet) ni Pod Identity: el pod la lee con el SDK usando IRSA
+            y la vuelve a leer si cambia. Nada queda en los valores de Helm.
+          references:
+            - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html
+            - https://docs.aws.amazon.com/secretsmanager/latest/userguide/retrieving-secrets.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/manage-secrets.html
+        - service: systems-manager
+          grade: acceptable
+          objectives: [managed-rotation]
+          rationale: >
+            Un parámetro SecureString guarda la contraseña cifrada y el pod la lee igual, con
+            el SDK e IRSA: cumple la restricción. Pero no rota credenciales; habría que
+            programar y operar la rotación. Su propia documentación recomienda otro servicio
+            para credenciales de bases de datos.
+          references:
+            - https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
+      incorrect:
+        - service: kms
+          rationale: "Administra las claves que cifran los datos, pero no guarda ni entrega la contraseña: igual necesitarías un lugar donde dejarla cifrada y un proceso para rotarla."
+        - service: iam
+          rationale: "Da al pod la identidad con la que pide el secreto, pero no guarda secretos. La autenticación de IAM a la base evitaría la contraseña, pero cambia cómo se conecta la API; este casillero pide dónde guardar y rotar la contraseña que ya usa."
+        - service: acm
+          rationale: "Administra certificados TLS para conexiones HTTPS; no guarda contraseñas de bases de datos."
+      hints:
+        - "Buscá un servicio hecho para secretos, no para configuración general ni para claves de cifrado."
+        - "El mejor candidato también puede rotar la contraseña de la base por su cuenta."
+
+    - id: payments-db
+      type: fixed
+      service: rds
+      position: { x: 570, y: 650 }
+      group: private-subnets
+
+  edges:
+    - { id: e1, from: platform-team, to: orchestrator, step: 1, style: control, label: "Instala los mismos charts de Helm" }
+    - { id: e2, from: orchestrator, to: pod-capacity, step: 2, style: control, label: "Agenda los pods" }
+    - { id: e3, from: orchestrator, to: http-entry, step: 2, style: control, label: "Crea la entrada desde el Ingress",
+        description: "Un controlador del clúster traduce cada regla de ruta del Ingress en una regla del balanceador." }
+    - { id: e4, from: pod-capacity, to: image-registry, step: 3, style: data, label: "Descarga las imágenes" }
+    - { id: e5, from: pod-capacity, to: db-credentials, step: 4, style: sync, label: "Lee la contraseña de la base",
+        description: "El pod usa la identidad de su cuenta de servicio; la contraseña no aparece en los valores de Helm." }
+    - { id: e6, from: clients, to: http-entry, step: 5, style: sync, label: "HTTPS a /pagos y /clientes" }
+    - { id: e7, from: http-entry, to: pod-capacity, step: 6, style: sync, label: "Enruta por ruta al servicio" }
+    - { id: e8, from: pod-capacity, to: payments-db, step: 7, style: data, label: "Registra el pago" }
+    - { id: e9, from: db-credentials, to: payments-db, step: 8, style: control, label: "Rota la contraseña periódicamente" }
+
+palette:
+  mode: auto
+
+references:
+  - title: "Amazon EKS: qué es"
+    url: https://docs.aws.amazon.com/eks/latest/userguide/what-is-eks.html
+  - title: "Consideraciones de Fargate en Amazon EKS"
+    url: https://docs.aws.amazon.com/eks/latest/userguide/fargate.html
+  - title: "Enrutar tráfico HTTP con Application Load Balancers en EKS"
+    url: https://docs.aws.amazon.com/eks/latest/userguide/alb-ingress.html
