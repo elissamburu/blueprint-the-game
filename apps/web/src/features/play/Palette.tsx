@@ -1,17 +1,35 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Service palette (RF-PAL-01, RF-PAL-02, RF-PAL-04): the services `buildPalette` picked for the
 // scenario, grouped by category, collapsible, with a search box. Every item is a button (slot
-// first / service first adapters) and a @dnd-kit draggable (drag adapter).
-// Lovable: .service-palette, .palette-group, .palette-service (src/styles.css).
+// first / service first adapters) and a @dnd-kit draggable (drag adapter). The whole palette
+// collapses to a column of icons, each one with its name as a tooltip and accessible name
+// (layout v2); the app remembers that as a preference of the browser, not as progress.
+// Lovable: ServicePalette, .palette-panel, .palette-heading, .collapsed-services, .service-group,
+// .service-card (src/components/blueprint-app.tsx, styles.css), capturas 13 y 16.
 import type { Category, Service } from "@blueprint/scenario-schema";
+import { Badge } from "@blueprint/ui/components/badge";
+import { Button } from "@blueprint/ui/components/button";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@blueprint/ui/components/tooltip";
 import { cn } from "@blueprint/ui/lib/utils";
-import { CheckIcon, ChevronDownIcon, SearchIcon } from "lucide-react";
+import {
+  CheckIcon,
+  ChevronDownIcon,
+  PanelRightCloseIcon,
+  PanelRightOpenIcon,
+  SearchIcon,
+} from "lucide-react";
 import { useId, useMemo, useState, type KeyboardEvent, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { useServiceDraggable } from "../../interaction/drag";
 import { serviceIconSrc } from "../../service-icons";
 import { groupPalette } from "./palette-groups";
+import { Kicker } from "./Kicker";
 
 export interface PaletteProps {
   serviceIds: readonly string[];
@@ -24,6 +42,9 @@ export interface PaletteProps {
   /** A slot is waiting for a service (slot first): the heading says so. */
   targetRole: string | null;
   onChoose: (serviceId: string) => void;
+  /** Collapsed to a column of icons. */
+  collapsed: boolean;
+  onCollapsedChange: (collapsed: boolean) => void;
   searchRef?: Ref<HTMLInputElement>;
 }
 
@@ -35,15 +56,22 @@ export function Palette({
   pendingServiceId,
   targetRole,
   onChoose,
+  collapsed,
+  onCollapsedChange,
   searchRef,
 }: PaletteProps) {
   const { t } = useTranslation();
-  const searchId = useId();
+  const baseId = useId();
+  const contentId = `${baseId}-content`;
   const [query, setQuery] = useState("");
-  const [collapsed, setCollapsed] = useState<ReadonlySet<string>>(new Set());
+  const [closedGroups, setClosedGroups] = useState<ReadonlySet<string>>(new Set());
   const groups = useMemo(
     () => groupPalette(serviceIds, catalog, categories, query),
     [serviceIds, catalog, categories, query],
+  );
+  const allGroups = useMemo(
+    () => groupPalette(serviceIds, catalog, categories, ""),
+    [serviceIds, catalog, categories],
   );
   const searching = query.trim() !== "";
 
@@ -70,93 +98,150 @@ export function Palette({
     }
   };
 
+  const help =
+    targetRole !== null
+      ? t("play.palette.forSlot", { role: targetRole })
+      : pendingServiceId !== null
+        ? t("play.palette.pending", {
+            service: catalog.get(pendingServiceId)?.name ?? pendingServiceId,
+          })
+        : t("play.palette.help");
+
+  const toggle = (
+    <Button
+      variant="ghost"
+      size="icon"
+      aria-expanded={!collapsed}
+      aria-controls={contentId}
+      aria-label={collapsed ? t("play.palette.expand") : t("play.palette.collapse")}
+      title={collapsed ? t("play.palette.expand") : t("play.palette.collapse")}
+      onClick={() => onCollapsedChange(!collapsed)}
+    >
+      {collapsed ? <PanelRightOpenIcon aria-hidden /> : <PanelRightCloseIcon aria-hidden />}
+    </Button>
+  );
+
   return (
     <aside
       data-palette
+      data-collapsed={collapsed ? "" : undefined}
       aria-label={t("play.palette.label")}
-      className="flex min-h-0 flex-col border-l bg-background"
+      className={cn(
+        "relative z-10 flex min-h-0 flex-col border-l bg-background transition-[width] duration-200 motion-reduce:transition-none",
+        collapsed ? "w-[4.125rem]" : "w-[17.875rem]",
+      )}
     >
-      <div className="flex-none border-b p-3">
-        <h2 className="text-[0.8rem] font-bold">{t("play.palette.title")}</h2>
-        <p className="mt-1 min-h-[1.1rem] text-[0.7rem] text-muted-foreground">
-          {targetRole !== null
-            ? t("play.palette.forSlot", { role: targetRole })
-            : pendingServiceId !== null
-              ? t("play.palette.pending", {
-                  service: catalog.get(pendingServiceId)?.name ?? pendingServiceId,
-                })
-              : t("play.palette.help")}
-        </p>
-        <label htmlFor={searchId} className="sr-only">
-          {t("play.palette.search")}
-        </label>
-        <div className="relative mt-2">
-          <SearchIcon
-            aria-hidden
-            className="pointer-events-none absolute top-1/2 left-2 size-4 -translate-y-1/2 text-muted-foreground"
-          />
-          <input
-            ref={searchRef}
-            id={searchId}
-            type="search"
-            value={query}
-            onChange={(event) => setQuery(event.target.value)}
-            onKeyDown={onSearchKey}
-            placeholder={t("play.palette.searchPlaceholder")}
-            autoComplete="off"
-            className="h-9 w-full rounded-md border bg-card pr-2 pl-8 text-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-          />
-        </div>
-      </div>
-      <div className="min-h-0 flex-1 overflow-y-auto p-3">
-        {groups.length === 0 && (
-          <p className="py-6 text-center text-sm text-muted-foreground">
-            {t("play.palette.noResults")}
-          </p>
-        )}
-        {groups.map(({ category, services }) => {
-          const open = searching || !collapsed.has(category.id);
-          const listId = `${searchId}-${category.id}`;
-          return (
-            <section key={category.id} className="border-b py-2 last:border-b-0">
-              <h3>
-                <button
-                  type="button"
-                  aria-expanded={open}
-                  aria-controls={listId}
-                  onClick={() =>
-                    setCollapsed((current) => {
-                      const next = new Set(current);
-                      if (!next.delete(category.id)) next.add(category.id);
-                      return next;
-                    })
-                  }
-                  className="flex w-full items-center gap-2 rounded-md px-1 py-1 text-left text-[0.78rem] font-semibold hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
-                >
-                  <ChevronDownIcon
-                    aria-hidden
-                    className={cn("size-4 transition-transform", !open && "-rotate-90")}
-                  />
-                  <span className="flex-1">{category.name}</span>
-                  <span className="text-muted-foreground">{services.length}</span>
-                </button>
-              </h3>
-              <ul id={listId} hidden={!open} className="mt-1 flex flex-col gap-[0.4rem]">
-                {services.map((service) => (
+      {collapsed ? (
+        <>
+          <div className="flex flex-none justify-center border-b p-3">{toggle}</div>
+          <TooltipProvider delayDuration={100}>
+            <ul
+              id={contentId}
+              className="flex min-h-0 flex-1 flex-col items-center gap-[0.55rem] overflow-y-auto py-3"
+            >
+              {allGroups.flatMap(({ services }) =>
+                services.map((service) => (
                   <li key={service.id}>
-                    <PaletteItem
+                    <CollapsedItem
                       service={service}
                       pending={pendingServiceId === service.id}
                       placed={placed.has(service.id)}
                       onChoose={onChoose}
                     />
                   </li>
-                ))}
-              </ul>
-            </section>
-          );
-        })}
-      </div>
+                )),
+              )}
+            </ul>
+          </TooltipProvider>
+        </>
+      ) : (
+        <>
+          <div className="flex-none border-b p-4">
+            <div className="flex items-start gap-[0.35rem]">
+              <div className="min-w-0">
+                <Kicker>{t("play.palette.kicker")}</Kicker>
+                <h2 className="mt-1 flex items-center gap-2 text-xl">
+                  {t("play.palette.title")}
+                  <Badge variant="secondary" className="text-sm">
+                    {serviceIds.length}
+                  </Badge>
+                </h2>
+              </div>
+              <span className="ml-auto">{toggle}</span>
+            </div>
+            <label htmlFor={`${baseId}-search`} className="sr-only">
+              {t("play.palette.search")}
+            </label>
+            <div className="relative mt-3">
+              <SearchIcon
+                aria-hidden
+                className="pointer-events-none absolute top-1/2 left-3 size-4 -translate-y-1/2 text-muted-foreground"
+              />
+              <input
+                ref={searchRef}
+                id={`${baseId}-search`}
+                type="search"
+                value={query}
+                onChange={(event) => setQuery(event.target.value)}
+                onKeyDown={onSearchKey}
+                placeholder={t("play.palette.searchPlaceholder")}
+                autoComplete="off"
+                className="min-h-10 w-full rounded-md border bg-card pr-2 pl-9 text-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+              />
+            </div>
+            <p className="mt-2 text-sm text-muted-foreground">{help}</p>
+          </div>
+          <div id={contentId} className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
+            {groups.length === 0 && (
+              <p className="py-6 text-center text-sm text-muted-foreground">
+                {t("play.palette.noResults")}
+              </p>
+            )}
+            {groups.map(({ category, services }) => {
+              const open = searching || !closedGroups.has(category.id);
+              const listId = `${baseId}-${category.id}`;
+              return (
+                <section key={category.id} className="border-b py-2 last:border-b-0">
+                  <h3>
+                    <button
+                      type="button"
+                      aria-expanded={open}
+                      aria-controls={listId}
+                      onClick={() =>
+                        setClosedGroups((current) => {
+                          const next = new Set(current);
+                          if (!next.delete(category.id)) next.add(category.id);
+                          return next;
+                        })
+                      }
+                      className="flex w-full items-center gap-2 rounded-md px-1 py-[0.35rem] text-left text-sm font-semibold hover:bg-muted focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
+                    >
+                      <ChevronDownIcon
+                        aria-hidden
+                        className={cn("size-4 transition-transform", !open && "-rotate-90")}
+                      />
+                      <span className="flex-1">{category.name}</span>
+                      <span className="text-muted-foreground">{services.length}</span>
+                    </button>
+                  </h3>
+                  <ul id={listId} hidden={!open} className="mt-1 flex flex-col gap-[0.4rem]">
+                    {services.map((service) => (
+                      <li key={service.id}>
+                        <PaletteItem
+                          service={service}
+                          pending={pendingServiceId === service.id}
+                          placed={placed.has(service.id)}
+                          onChoose={onChoose}
+                        />
+                      </li>
+                    ))}
+                  </ul>
+                </section>
+              );
+            })}
+          </div>
+        </>
+      )}
     </aside>
   );
 }
@@ -183,7 +268,7 @@ function PaletteItem({
       onClick={() => onChoose(service.id)}
       {...listeners}
       className={cn(
-        "flex w-full cursor-grab items-center gap-[0.6rem] rounded-md border bg-card p-[0.45rem] text-left text-[0.75rem] font-semibold shadow-xs hover:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none active:cursor-grabbing",
+        "flex w-full cursor-grab items-center gap-[0.6rem] rounded-md border bg-card p-[0.45rem] text-left text-sm font-semibold shadow-xs hover:border-primary focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none active:cursor-grabbing",
         pending && "border-primary bg-blueprint-soft ring-2 ring-primary",
         isDragging && "opacity-50",
       )}
@@ -194,13 +279,67 @@ function PaletteItem({
         category={service.category}
         decorative
       />
-      <span className="min-w-0 flex-1 truncate">{service.name}</span>
+      <span className="min-w-0 flex-1 break-words">{service.name}</span>
       {placed && (
-        <span className="flex items-center gap-1 text-[0.65rem] font-normal text-muted-foreground">
-          <CheckIcon aria-hidden className="size-3.5" />
+        <span className="flex shrink-0 items-center gap-1 text-sm font-normal text-muted-foreground">
+          <CheckIcon aria-hidden className="size-4" />
           {t("play.palette.placed")}
         </span>
       )}
     </button>
+  );
+}
+
+/** An icon of the collapsed palette: same button and draggable, the name in a tooltip. */
+function CollapsedItem({
+  service,
+  pending,
+  placed,
+  onChoose,
+}: {
+  service: Service;
+  pending: boolean;
+  placed: boolean;
+  onChoose: (serviceId: string) => void;
+}) {
+  const { t } = useTranslation();
+  const { setNodeRef, listeners, isDragging } = useServiceDraggable(service.id);
+  const name = placed ? t("play.palette.placedName", { service: service.name }) : service.name;
+  return (
+    <Tooltip>
+      <TooltipTrigger asChild>
+        <button
+          ref={setNodeRef}
+          type="button"
+          data-palette-service={service.id}
+          aria-pressed={pending}
+          aria-label={name}
+          onClick={() => onChoose(service.id)}
+          {...listeners}
+          className={cn(
+            "relative grid size-11 cursor-grab place-items-center rounded-[7px] border border-transparent hover:border-primary hover:bg-blueprint-soft focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none active:cursor-grabbing",
+            pending && "border-primary bg-blueprint-soft ring-2 ring-primary",
+            isDragging && "opacity-50",
+          )}
+        >
+          <ServiceIcon
+            src={serviceIconSrc(service.id)}
+            name={service.name}
+            category={service.category}
+            decorative
+            className="size-8"
+          />
+          {placed && (
+            <CheckIcon
+              aria-hidden
+              className="absolute -right-1 -bottom-1 size-4 rounded-full border bg-card p-[1px] text-success"
+            />
+          )}
+        </button>
+      </TooltipTrigger>
+      <TooltipContent side="left" className="text-sm">
+        {name}
+      </TooltipContent>
+    </Tooltip>
   );
 }

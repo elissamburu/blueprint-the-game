@@ -1,9 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Board of a scenario (RF-PLAY-02, RF-PLAY-03, RF-PLAY-11): the `diagram` block drawn with React
-// Flow at the YAML positions, zoom controls, the flow player and the step strip below. It does not
-// decide grades nor import game-engine: slot states come in by props and it only emits events
-// (ADR-0008: the app turns them into engine commands).
-// Lovable: .board-toolbar, .zoom-controls, .architecture-board, .flow-steps (src/styles.css).
+// Flow at the YAML positions, with floating zoom controls, the flow player and the list of steps,
+// which is the text alternative of the board. It does not decide grades nor import game-engine:
+// slot states come in by props and it only emits events (ADR-0008: the app turns them into engine
+// commands). With `preview` it is a small, still picture of the diagram with empty slots.
+// Lovable: .board-zoom, .zoom-controls, .architecture-board, .mini-diagram (src/styles.css).
 import "@xyflow/react/dist/base.css";
 import { Button } from "@blueprint/ui/components/button";
 import type { Diagram as DiagramData } from "@blueprint/scenario-schema";
@@ -12,11 +13,13 @@ import { useDndMonitor, type DragEndEvent } from "@dnd-kit/core";
 import {
   Background,
   BackgroundVariant,
+  PanOnScrollMode,
   ReactFlow,
   ReactFlowProvider,
   useReactFlow,
   useStore,
   type ReactFlowInstance,
+  type Viewport,
 } from "@xyflow/react";
 import {
   ChevronLeftIcon,
@@ -28,7 +31,17 @@ import {
   RotateCcwIcon,
   SquareIcon,
 } from "lucide-react";
-import { useCallback, useEffect, useId, useMemo, useRef, type ReactNode } from "react";
+import {
+  useCallback,
+  useEffect,
+  useId,
+  useImperativeHandle,
+  useMemo,
+  useRef,
+  type KeyboardEvent,
+  type ReactNode,
+  type Ref,
+} from "react";
 import { DiagramContext, type DiagramContextValue } from "./context";
 import { edgeTypes } from "./edges";
 import {
@@ -40,17 +53,28 @@ import {
 } from "./flow-model";
 import type { Box } from "./geometry";
 import { nodeTypes } from "./nodes";
-import { describeStep, flowSteps, type FlowStep } from "./steps";
+import { describeRoute, describeStep, diagramSteps, type FlowStep } from "./steps";
 import { isServiceDragData, type ServiceLookup, type SlotView } from "./types";
 import { useFlowPlayer, type FlowPlayer } from "./use-flow-player";
 import { useReducedMotion } from "./use-reduced-motion";
-import { initialView } from "./viewport";
+import { contentBox, initialView, revealViewport, steppedZoom } from "./viewport";
 
 export const MIN_ZOOM = 0.2;
-export const MAX_ZOOM = 2;
+/** At least 300 % for people with low vision (docs/design, problem 27). */
+export const MAX_ZOOM = 3;
 const FIT_PADDING = 0.04;
-/** Margin (px) a focused slot keeps from the edges of the board before it pans. */
-const REVEAL_MARGIN = 16;
+/** Screen pixels an arrow key pans the focused board. */
+export const ARROW_PAN = 64;
+
+/** What the app can ask of the board besides its props. */
+export interface DiagramHandle {
+  /** Starts the flow player from the first step (the "Reproducir flujo" action). */
+  playFlow: () => void;
+  /** Pans the board by screen pixels (positive: the content moves right/down). */
+  panBy: (dx: number, dy: number) => void;
+  /** The focusable board element (the `group` with the diagram), or null before it mounts. */
+  element: () => HTMLElement | null;
+}
 
 export interface DiagramProps {
   diagram: DiagramData;
@@ -75,16 +99,130 @@ export interface DiagramProps {
   slotHintAction?: ((slotId: string) => ReactNode) | undefined;
   /** Accessible name of the board. */
   label?: string | undefined;
-  /** Left side of the toolbar (e.g. the progress status of the game). */
-  toolbarStart?: ReactNode;
+  /**
+   * `strip`: the steps are listed under the board. `hidden`: the list is only the accessible
+   * description of the board (the app shows the steps elsewhere, e.g. in "Ver caso").
+   */
+  stepList?: "strip" | "hidden" | undefined;
+  /** Shows a floating "Reproducir flujo" button. Without it, the app starts the player (handle). */
+  playButton?: boolean | undefined;
+  /**
+   * Small, still picture: fitted to its box, no pan, zoom, controls nor player, slots drawn as
+   * empty boxes without text. For the brief before playing.
+   */
+  preview?: boolean | undefined;
+  /** Every change of zoom or position (pan, zoom, reveal, arrows). */
+  onViewportChange?: ((viewport: Viewport) => void) | undefined;
+  /**
+   * Width (px) of the left strip the app covers with its own panel (e.g. "Ver caso"). The floating
+   * controls move right of it and a slot reached with Tab is centered in the uncovered part.
+   */
+  insetLeft?: number | undefined;
   className?: string | undefined;
+  ref?: Ref<DiagramHandle> | undefined;
 }
 
 export function Diagram(props: DiagramProps) {
   return (
     <ReactFlowProvider>
-      <DiagramBoard {...props} />
+      {props.preview === true ? <DiagramPreview {...props} /> : <DiagramBoard {...props} />}
     </ReactFlowProvider>
+  );
+}
+
+function ArrowMarkers({ markers }: { markers: DiagramContextValue["markers"] }) {
+  return (
+    <svg aria-hidden="true" width="0" height="0" className="absolute">
+      <defs>
+        <ArrowMarker id={markers.idle} color="var(--muted-foreground)" />
+        <ArrowMarker id={markers.active} color="var(--primary)" />
+      </defs>
+    </svg>
+  );
+}
+
+const useMarkers = () => {
+  const markerId = useId();
+  return useMemo(() => ({ idle: `${markerId}-idle`, active: `${markerId}-active` }), [markerId]);
+};
+
+/** Read-only settings shared by the board and the preview: nothing is edited on the canvas. */
+const STILL_CANVAS = {
+  nodesDraggable: false,
+  nodesConnectable: false,
+  nodesFocusable: false,
+  edgesFocusable: false,
+  elementsSelectable: false,
+  disableKeyboardA11y: true,
+  deleteKeyCode: null,
+  selectionKeyCode: null,
+  multiSelectionKeyCode: null,
+  panActivationKeyCode: null,
+  zoomOnDoubleClick: false,
+  zIndexMode: "manual",
+} as const;
+
+function DiagramPreview({
+  diagram,
+  services,
+  label = "Vista previa del diagrama",
+  className,
+}: DiagramProps) {
+  const markers = useMarkers();
+  const layout = useMemo(() => layoutDiagram(diagram), [diagram]);
+  const nodes = useMemo(() => toFlowNodes(diagram, { services }), [diagram, services]);
+  const edges = useMemo(() => toFlowEdges(diagram, layout, null), [diagram, layout]);
+  const context = useMemo(
+    (): DiagramContextValue => ({
+      onSlotActivate: undefined,
+      slotHintAction: undefined,
+      droppable: false,
+      reveal: () => {},
+      preview: true,
+      animate: false,
+      markers,
+    }),
+    [markers],
+  );
+  const content = useMemo(() => contentBox(diagram), [diagram]);
+  return (
+    <DiagramContext.Provider value={context}>
+      <div
+        data-slot="diagram-preview"
+        role="img"
+        aria-label={label}
+        className={cn("relative overflow-hidden bg-canvas", className)}
+      >
+        {/* A picture: the canvas inside is inert, out of the Tab order and of the a11y tree. */}
+        <div inert className="absolute inset-0">
+          <ArrowMarkers markers={markers} />
+          <ReactFlow<FlowNode, StepFlowEdge>
+            {...STILL_CANVAS}
+            nodes={nodes}
+            edges={edges}
+            nodeTypes={nodeTypes}
+            edgeTypes={edgeTypes}
+            // The content, not the canvas: the canvas margins would only shrink the picture.
+            onInit={(instance) =>
+              void instance.fitBounds(
+                { x: content.x, y: content.y, width: content.w, height: content.h },
+                { padding: FIT_PADDING },
+              )
+            }
+            minZoom={0.02}
+            maxZoom={1}
+            panOnDrag={false}
+            panOnScroll={false}
+            zoomOnScroll={false}
+            zoomOnPinch={false}
+            preventScrolling={false}
+            className="pointer-events-none"
+          >
+            <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--border)" />
+          </ReactFlow>
+        </div>
+      </div>
+    </DiagramContext.Provider>
   );
 }
 
@@ -96,20 +234,21 @@ function DiagramBoard({
   onServiceDrop,
   slotHintAction,
   label = "Diagrama de la arquitectura",
-  toolbarStart,
+  stepList = "strip",
+  playButton = true,
+  onViewportChange,
+  insetLeft = 0,
   className,
+  ref,
 }: DiagramProps) {
   const reducedMotion = useReducedMotion();
   const flow = useReactFlow<FlowNode, StepFlowEdge>();
   const boardRef = useRef<HTMLDivElement>(null);
-  const stripId = useId();
-  const markerId = useId();
-  const markers = useMemo(
-    () => ({ idle: `${markerId}-idle`, active: `${markerId}-active` }),
-    [markerId],
-  );
+  const stepsId = useId();
+  const helpId = useId();
+  const markers = useMarkers();
 
-  const steps = useMemo(() => flowSteps(diagram.edges), [diagram.edges]);
+  const steps = useMemo(() => diagramSteps(diagram, services), [diagram, services]);
   const player = useFlowPlayer(steps.length, !reducedMotion);
   const currentStep = player.current === null ? null : (steps[player.current] ?? null);
 
@@ -123,6 +262,7 @@ function DiagramBoard({
     [diagram, layout, currentStep],
   );
 
+  const duration = (ms: number) => (reducedMotion ? 0 : ms);
   const { width, height } = diagram.canvas;
   const fit = useCallback(
     (instance: Pick<ReactFlowInstance, "fitBounds">, animated: boolean) =>
@@ -158,29 +298,64 @@ function DiagramBoard({
     [diagram, fit],
   );
 
+  const panBy = useCallback(
+    (dx: number, dy: number, ms = 0) => {
+      const { x, y, zoom } = flow.getViewport();
+      void flow.setViewport(
+        { x: x + dx, y: y + dy, zoom },
+        { duration: ms, interpolate: "linear" },
+      );
+    },
+    [flow],
+  );
+
+  useImperativeHandle(
+    ref,
+    () => ({
+      playFlow: player.start,
+      panBy: (dx, dy) => panBy(dx, dy, reducedMotion ? 0 : 200),
+      element: () => boardRef.current,
+    }),
+    [player.start, panBy, reducedMotion],
+  );
+
   const tabbing = useTabNavigation();
   const reveal = useCallback(
-    (box: Box) => {
+    (box: Box, renderedHeight?: number) => {
       const board = boardRef.current;
       // Only for Tab: a click lands on a slot already in view, and the focus the app moves back to
       // a slot after placing a service must not pan the board.
       if (board === null || !tabbing.current) return;
-      const { x, y, zoom } = flow.getViewport();
-      const left = box.x * zoom + x;
-      const top = box.y * zoom + y;
-      const inView =
-        left >= REVEAL_MARGIN &&
-        top >= REVEAL_MARGIN &&
-        left + box.w * zoom <= board.clientWidth - REVEAL_MARGIN &&
-        top + box.h * zoom <= board.clientHeight - REVEAL_MARGIN;
-      if (inView) return;
-      void flow.setCenter(box.x + box.w / 2, box.y + box.h / 2, {
-        zoom,
-        duration: reducedMotion ? 0 : 200,
-      });
+      const next = revealViewport(
+        box,
+        flow.getViewport(),
+        { width: board.clientWidth, height: board.clientHeight },
+        { renderedHeight, insetLeft },
+      );
+      // Linear: the default (smooth) transition zooms out and back in while it travels.
+      if (next !== null) {
+        void flow.setViewport(next, { duration: reducedMotion ? 0 : 200, interpolate: "linear" });
+      }
     },
-    [flow, reducedMotion, tabbing],
+    [flow, reducedMotion, tabbing, insetLeft],
   );
+
+  /** Arrows pan the board while the board itself (not a slot inside it) has the focus. */
+  const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
+    if (event.target !== event.currentTarget || event.altKey || event.ctrlKey || event.metaKey) {
+      return;
+    }
+    const delta: Record<string, [number, number]> = {
+      ArrowLeft: [ARROW_PAN, 0],
+      ArrowRight: [-ARROW_PAN, 0],
+      ArrowUp: [0, ARROW_PAN],
+      ArrowDown: [0, -ARROW_PAN],
+    };
+    const move = delta[event.key];
+    if (move === undefined) return;
+    event.preventDefault();
+    panBy(move[0], move[1]);
+  };
 
   const context = useMemo(
     (): DiagramContextValue => ({
@@ -188,75 +363,90 @@ function DiagramBoard({
       slotHintAction,
       droppable: onServiceDrop !== undefined,
       reveal,
+      preview: false,
       animate: !reducedMotion,
       markers,
     }),
     [onSlotActivate, slotHintAction, onServiceDrop, reveal, reducedMotion, markers],
   );
 
+  const describedBy = [steps.length > 0 ? stepsId : null, helpId].filter(Boolean).join(" ");
+
   return (
     <DiagramContext.Provider value={context}>
       {onServiceDrop !== undefined && <DropMonitor onServiceDrop={onServiceDrop} />}
       <div data-slot="diagram" className={cn("flex min-h-0 flex-col", className)}>
-        <div className="grid min-h-14 flex-none grid-cols-[1fr_auto_1fr] items-center gap-4 border-b bg-background px-4 text-[0.75rem] font-bold">
-          <div className="min-w-0">{toolbarStart}</div>
-          <ZoomControls onReset={() => fit(flow, true)} animate={!reducedMotion} />
-          <div className="flex justify-end">
-            <PlayerControls player={player} steps={steps} autoAdvance={!reducedMotion} />
+        <div className="relative min-h-0 flex-1">
+          <div
+            ref={boardRef}
+            role="group"
+            aria-roledescription="diagrama"
+            aria-label={label}
+            aria-describedby={describedBy}
+            // Focusable so the arrows can pan it (and so it can be scrolled with the keyboard).
+            tabIndex={0}
+            onKeyDown={onKeyDown}
+            // Tabbing to a slot makes the browser scroll this overflow:hidden box to show it, which
+            // shifts the board out of React Flow's control: pan with the viewport instead.
+            onScroll={(event) => {
+              event.currentTarget.scrollTop = 0;
+              event.currentTarget.scrollLeft = 0;
+            }}
+            className="absolute inset-0 overflow-hidden bg-canvas focus-visible:outline-3 focus-visible:-outline-offset-3 focus-visible:outline-ring/55"
+          >
+            <ArrowMarkers markers={markers} />
+            <ReactFlow<FlowNode, StepFlowEdge>
+              {...STILL_CANVAS}
+              nodes={nodes}
+              edges={edges}
+              nodeTypes={nodeTypes}
+              edgeTypes={edgeTypes}
+              onInit={open}
+              onMove={(_, viewport) => onViewportChange?.(viewport)}
+              minZoom={MIN_ZOOM}
+              maxZoom={MAX_ZOOM}
+              // Pan always, at any zoom (problem 29): dragging the background, the wheel or two
+              // fingers (Shift: horizontal). Zoom with the controls, Ctrl + wheel or a pinch.
+              panOnDrag
+              panOnScroll
+              panOnScrollMode={PanOnScrollMode.Free}
+              zoomOnScroll={false}
+              zoomOnPinch
+              preventScrolling
+            >
+              <Background
+                variant={BackgroundVariant.Dots}
+                gap={18}
+                size={1}
+                color="var(--border)"
+              />
+            </ReactFlow>
+          </div>
+          {/* One stack of floating controls, bottom-left: the player (while it runs) over the
+              zoom. The app keeps its own floating content clear of it (data-slot). */}
+          <div
+            data-slot="board-controls"
+            style={
+              insetLeft > 0
+                ? { left: insetLeft + 16, maxWidth: `calc(100% - ${insetLeft + 32}px)` }
+                : undefined
+            }
+            className="pointer-events-none absolute bottom-4 left-4 z-10 flex max-w-[calc(100%-2rem)] flex-col items-start gap-2 *:pointer-events-auto"
+          >
+            <FlowPlayerControls
+              player={player}
+              steps={steps}
+              current={currentStep}
+              autoAdvance={!reducedMotion}
+              playButton={playButton}
+            />
+            <ZoomControls onReset={() => fit(flow, true)} duration={duration(150)} />
           </div>
         </div>
-        <div
-          ref={boardRef}
-          role="group"
-          aria-roledescription="diagrama"
-          aria-label={label}
-          aria-describedby={steps.length > 0 ? stripId : undefined}
-          // Tabbing to a slot makes the browser scroll this overflow:hidden box to show it, which
-          // shifts the board out of React Flow's control: pan with the viewport instead.
-          onScroll={(event) => {
-            event.currentTarget.scrollTop = 0;
-            event.currentTarget.scrollLeft = 0;
-          }}
-          className="relative min-h-0 flex-1 overflow-hidden bg-canvas"
-        >
-          <svg aria-hidden="true" width="0" height="0" className="absolute">
-            <defs>
-              <ArrowMarker id={markers.idle} color="var(--muted-foreground)" />
-              <ArrowMarker id={markers.active} color="var(--primary)" />
-            </defs>
-          </svg>
-          <ReactFlow<FlowNode, StepFlowEdge>
-            nodes={nodes}
-            edges={edges}
-            nodeTypes={nodeTypes}
-            edgeTypes={edgeTypes}
-            zIndexMode="manual"
-            onInit={open}
-            minZoom={MIN_ZOOM}
-            maxZoom={MAX_ZOOM}
-            // Read-only canvas: nothing is dragged, connected, selected or deleted.
-            nodesDraggable={false}
-            nodesConnectable={false}
-            nodesFocusable={false}
-            edgesFocusable={false}
-            elementsSelectable={false}
-            disableKeyboardA11y
-            deleteKeyCode={null}
-            selectionKeyCode={null}
-            multiSelectionKeyCode={null}
-            panActivationKeyCode={null}
-            // Pan by dragging the background; zoom with the controls, pinch or Ctrl + wheel. The
-            // plain wheel scrolls the page instead of zooming by surprise.
-            panOnDrag
-            zoomOnScroll={false}
-            zoomOnPinch
-            zoomOnDoubleClick={false}
-            preventScrolling={false}
-          >
-            <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--border)" />
-          </ReactFlow>
-        </div>
-        <StepStrip id={stripId} steps={steps} current={currentStep} />
+        <StepList id={stepsId} steps={steps} current={currentStep} mode={stepList} />
+        <p id={helpId} hidden>
+          Flechas: desplazar el tablero. Ctrl + rueda o pellizco: zoom.
+        </p>
       </div>
     </DiagramContext.Provider>
   );
@@ -266,7 +456,7 @@ function DiagramBoard({
 function useTabNavigation() {
   const tabbing = useRef(false);
   useEffect(() => {
-    const onKey = (event: KeyboardEvent) => {
+    const onKey = (event: globalThis.KeyboardEvent) => {
       tabbing.current = event.key === "Tab";
     };
     const onPointer = () => {
@@ -322,44 +512,56 @@ function DropMonitor({
 
 const percent = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 0 });
 
-function ZoomControls({ onReset, animate }: { onReset: () => void; animate: boolean }) {
-  const { zoomIn, zoomOut } = useReactFlow();
+/** Floating card over the board, as .board-zoom in the prototype. */
+const FLOATING =
+  "rounded-md border bg-card shadow-[0_8px_24px_color-mix(in_oklab,var(--foreground)_10%,transparent)]";
+
+function ZoomControls({
+  onReset,
+  duration,
+  className,
+}: {
+  onReset: () => void;
+  duration: number;
+  className?: string;
+}) {
+  const { zoomTo } = useReactFlow();
   const zoom = useStore((s) => s.transform[2]);
-  const duration = animate ? 150 : 0;
   return (
     <div
       role="group"
       aria-label="Zoom"
-      className="flex items-center gap-[0.15rem] rounded-md border bg-card p-[0.15rem]"
+      className={cn("flex items-center gap-[0.15rem] p-[0.15rem]", FLOATING, className)}
     >
       <Button
         variant="ghost"
         size="icon"
-        className="size-8"
         aria-label="Alejar"
         disabled={zoom <= MIN_ZOOM + 0.001}
-        onClick={() => void zoomOut({ duration })}
+        onClick={() => void zoomTo(steppedZoom(zoom, -1, MIN_ZOOM, MAX_ZOOM), { duration })}
       >
         <MinusIcon />
       </Button>
-      <output aria-label="Nivel de zoom" className="min-w-12 text-center tabular-nums">
+      <output
+        aria-label="Nivel de zoom"
+        className="min-w-[3.5rem] text-center text-sm font-semibold tabular-nums"
+      >
         {percent.format(zoom)}
       </output>
       <Button
         variant="ghost"
         size="icon"
-        className="size-8"
         aria-label="Acercar"
         disabled={zoom >= MAX_ZOOM - 0.001}
-        onClick={() => void zoomIn({ duration })}
+        onClick={() => void zoomTo(steppedZoom(zoom, 1, MIN_ZOOM, MAX_ZOOM), { duration })}
       >
         <PlusIcon />
       </Button>
       <Button
         variant="ghost"
         size="icon"
-        className="size-8"
-        aria-label="Restablecer zoom (ajustar a la pantalla)"
+        aria-label="Ajustar a la pantalla"
+        title="Ajustar a la pantalla"
         onClick={onReset}
       >
         <RotateCcwIcon />
@@ -368,110 +570,158 @@ function ZoomControls({ onReset, animate }: { onReset: () => void; animate: bool
   );
 }
 
-function PlayerControls({
+/**
+ * Flow player (RF-PLAY-03). Stopped: an optional "Reproducir flujo" button. Playing: a floating
+ * card over the zoom controls with the current step and the controls. The live region is always
+ * mounted, so the first step is announced too.
+ */
+function FlowPlayerControls({
   player,
   steps,
+  current,
   autoAdvance,
+  playButton,
 }: {
   player: FlowPlayer;
   steps: readonly FlowStep[];
+  current: FlowStep | null;
   autoAdvance: boolean;
+  playButton: boolean;
 }) {
+  const live = (
+    <p aria-live="polite" className="sr-only">
+      {current !== null && describeStep(current, steps.length)}
+    </p>
+  );
   if (steps.length === 0) return null;
-  if (player.current === null) {
+  if (player.current === null || current === null) {
     return (
-      <Button variant="outline" onClick={player.start}>
-        <PlayIcon /> Reproducir flujo
-      </Button>
+      <>
+        {live}
+        {playButton && (
+          <Button variant="outline" onClick={player.start} className={FLOATING}>
+            <PlayIcon /> Reproducir flujo
+          </Button>
+        )}
+      </>
     );
   }
   const first = player.current === 0;
   const last = player.current === steps.length - 1;
   return (
-    <div role="group" aria-label="Reproductor de flujo" className="flex items-center gap-1">
-      <Button
-        variant="outline"
-        size="icon"
-        aria-label="Paso anterior"
-        disabled={first}
-        onClick={player.previous}
+    <>
+      {live}
+      <div
+        data-slot="flow-player"
+        className={cn("flex max-w-full flex-wrap items-center gap-x-3 gap-y-2 px-3 py-2", FLOATING)}
       >
-        <ChevronLeftIcon />
-      </Button>
-      {autoAdvance &&
-        (player.playing ? (
-          <Button variant="outline" size="icon" aria-label="Pausar" onClick={player.pause}>
-            <PauseIcon />
+        <p aria-hidden="true" className="min-w-0 text-base">
+          <strong className="mr-2 inline-grid size-6 place-items-center rounded-full bg-primary text-sm text-primary-foreground">
+            {current.step}
+          </strong>
+          {current.labels.join(" / ")}
+        </p>
+        <div role="group" aria-label="Reproductor de flujo" className="flex items-center gap-1">
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Paso anterior"
+            disabled={first}
+            onClick={player.previous}
+          >
+            <ChevronLeftIcon />
           </Button>
-        ) : (
-          <Button variant="outline" size="icon" aria-label="Reproducir" onClick={player.resume}>
-            <PlayIcon />
+          {autoAdvance &&
+            (player.playing ? (
+              <Button variant="outline" size="icon" aria-label="Pausar" onClick={player.pause}>
+                <PauseIcon />
+              </Button>
+            ) : (
+              <Button variant="outline" size="icon" aria-label="Reproducir" onClick={player.resume}>
+                <PlayIcon />
+              </Button>
+            ))}
+          <Button
+            variant="outline"
+            size="icon"
+            aria-label="Paso siguiente"
+            disabled={last}
+            onClick={player.next}
+          >
+            <ChevronRightIcon />
           </Button>
-        ))}
-      <Button
-        variant="outline"
-        size="icon"
-        aria-label="Paso siguiente"
-        disabled={last}
-        onClick={player.next}
-      >
-        <ChevronRightIcon />
-      </Button>
-      <Button variant="outline" size="icon" aria-label="Detener" onClick={player.stop}>
-        <SquareIcon />
-      </Button>
-    </div>
+          <Button variant="outline" size="icon" aria-label="Detener" onClick={player.stop}>
+            <SquareIcon />
+          </Button>
+        </div>
+      </div>
+    </>
   );
 }
 
-/** Lovable: .flow-steps. Also the text alternative of the board (aria-describedby). */
-function StepStrip({
+/**
+ * Steps of the flow: the text alternative of the board (aria-describedby), with the route of each
+ * step. `strip` also shows them under the board (Lovable: .flow-steps); `hidden` keeps them only
+ * as the description.
+ */
+function StepList({
   id,
   steps,
   current,
+  mode,
 }: {
   id: string;
   steps: readonly FlowStep[];
   current: FlowStep | null;
+  mode: "strip" | "hidden";
 }) {
   if (steps.length === 0) return null;
+  const items = steps.map((step) => {
+    const active = step === current;
+    const routes = step.routes.map(describeRoute).join("; ");
+    return (
+      <li
+        key={step.step}
+        data-step={step.step}
+        aria-current={active ? "step" : undefined}
+        title={[...step.descriptions, routes].filter(Boolean).join(" ") || undefined}
+        className={cn(
+          "flex items-center gap-[0.3rem] rounded-[5px] border bg-card px-[0.45rem] py-[0.3rem] text-sm text-muted-foreground",
+          active && "border-primary text-primary",
+        )}
+      >
+        <span
+          aria-hidden="true"
+          className={cn(
+            "grid size-6 flex-none place-items-center rounded-full bg-muted text-xs font-[850] text-foreground",
+            active && "bg-primary text-primary-foreground",
+          )}
+        >
+          {step.step}
+        </span>
+        <span className="sr-only">Paso {step.step}: </span>
+        {step.labels.join(" / ")}
+        {(step.descriptions.length > 0 || routes !== "") && (
+          <span className="sr-only">
+            {" "}
+            ({[routes, ...step.descriptions].filter(Boolean).join(". ")})
+          </span>
+        )}
+      </li>
+    );
+  });
+  if (mode === "hidden") {
+    return (
+      <ol id={id} hidden aria-label="Pasos del flujo">
+        {items}
+      </ol>
+    );
+  }
   return (
     <div className="flex-none border-t bg-background px-4 py-3">
       <ol id={id} aria-label="Pasos del flujo" className="flex flex-wrap gap-[0.35rem]">
-        {steps.map((step) => {
-          const active = step === current;
-          return (
-            <li
-              key={step.step}
-              data-step={step.step}
-              aria-current={active ? "step" : undefined}
-              title={step.descriptions.join(" ") || undefined}
-              className={cn(
-                "flex items-center gap-[0.3rem] rounded-[5px] border bg-card px-[0.45rem] py-[0.3rem] text-[0.65rem] text-muted-foreground",
-                active && "border-primary text-primary",
-              )}
-            >
-              <span
-                aria-hidden="true"
-                className={cn(
-                  "grid size-[16px] flex-none place-items-center rounded-full bg-muted text-[0.6rem] font-[850] text-foreground",
-                  active && "bg-primary text-primary-foreground",
-                )}
-              >
-                {step.step}
-              </span>
-              <span className="sr-only">Paso {step.step}: </span>
-              {step.labels.join(" / ")}
-              {step.descriptions.length > 0 && (
-                <span className="sr-only"> ({step.descriptions.join(" ")})</span>
-              )}
-            </li>
-          );
-        })}
+        {items}
       </ol>
-      <p aria-live="polite" className="mt-2 min-h-[1.2rem] text-[0.72rem] text-foreground">
-        {current !== null && describeStep(current, steps.length)}
-      </p>
     </div>
   );
 }

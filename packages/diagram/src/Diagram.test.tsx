@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { DndContext } from "@dnd-kit/core";
-import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
+import { act, cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
-import { Diagram } from "./Diagram";
-import { fakeServices, pdfScenario } from "./testing/fixtures";
+import { createRef } from "react";
+import { ARROW_PAN, Diagram, type DiagramHandle } from "./Diagram";
+import { nodeBox } from "./geometry";
+import { fakeServices, pdfScenario, staticWebsiteScenario } from "./testing/fixtures";
 
 // jsdom has no layout: the mocks React Flow documents for tests (reactflow.dev "Testing").
 beforeAll(() => {
@@ -51,6 +53,8 @@ const renderBoard = (props: Partial<Parameters<typeof Diagram>[0]> = {}) =>
     </div>,
   );
 
+const board = () => screen.getByRole("group", { name: "Diagrama de la arquitectura" });
+
 const slotButtons = () =>
   screen.getAllByRole("button").filter((b) => b.dataset.slot === "architecture-slot-main");
 
@@ -60,7 +64,7 @@ describe("Diagram slots", () => {
     const onSlotActivate = vi.fn();
     renderBoard({ onSlotActivate });
 
-    screen.getByRole("button", { name: "Reproducir flujo" }).focus();
+    board().focus();
     await user.tab();
     expect(document.activeElement).toBe(slotButtons()[0]);
     await user.keyboard("{Enter}");
@@ -99,9 +103,8 @@ describe("Diagram slots", () => {
 describe("Diagram text alternative", () => {
   it("describes the board with the step strip", () => {
     renderBoard();
-    const board = screen.getByRole("group", { name: "Diagrama de la arquitectura" });
     const strip = screen.getByRole("list", { name: "Pasos del flujo" });
-    expect(board.getAttribute("aria-describedby")).toBe(strip.id);
+    expect(board().getAttribute("aria-describedby")?.split(" ")).toContain(strip.id);
     const steps = new Set(pdfScenario.diagram.edges.map((e) => e.step));
     expect(within(strip).getAllByRole("listitem")).toHaveLength(steps.size);
     expect(strip.textContent).toContain("Paso 1: Pide subir un comprobante");
@@ -193,7 +196,7 @@ describe("Diagram viewport stability", () => {
     const user = userEvent.setup();
     renderBoard({ onSlotActivate: () => {} });
     const initial = await opened();
-    screen.getByRole("button", { name: "Reproducir flujo" }).focus();
+    board().focus();
     await user.tab();
     // jsdom has no layout: the board measures 0 × 0, so every slot is out of view.
     await waitFor(() => expect(transform()).not.toBe(initial));
@@ -224,5 +227,169 @@ describe("Diagram edges", () => {
     }
     expect(path(other)?.style.stroke).toBe("var(--muted-foreground)");
     expect(path(other)?.querySelector("animate")).toBeNull();
+  });
+});
+
+/** Viewport of the board read from React Flow's transform: translate(x, y) scale(zoom). */
+const viewport = () => {
+  const transform = document.querySelector<HTMLElement>(".react-flow__viewport")?.style.transform;
+  const match = /translate\(([-\d.e]+)px,\s*([-\d.e]+)px\) scale\(([\d.e]+)\)/.exec(
+    transform ?? "",
+  );
+  if (match === null) throw new Error(`no viewport in ${transform}`);
+  return { x: Number(match[1]), y: Number(match[2]), zoom: Number(match[3]) };
+};
+
+describe("Diagram zoom and pan", () => {
+  /** The board measures 1200 × 800, as in a browser (jsdom has no layout). */
+  const BOARD = { width: 1200, height: 800 };
+  const sized = (element: HTMLElement) =>
+    element.classList.contains("react-flow") || element.getAttribute("role") === "group";
+  beforeAll(() => {
+    const size = (dimension: "width" | "height") =>
+      function (this: HTMLElement) {
+        return sized(this) ? BOARD[dimension] : parseFloat(this.style[dimension]) || 1;
+      };
+    Object.defineProperties(HTMLElement.prototype, {
+      offsetWidth: { configurable: true, get: size("width") },
+      offsetHeight: { configurable: true, get: size("height") },
+      clientWidth: { configurable: true, get: size("width") },
+      clientHeight: { configurable: true, get: size("height") },
+    });
+  });
+
+  const zoomIn = async (user: ReturnType<typeof userEvent.setup>, times: number) => {
+    const plus = screen.getByRole("button", { name: "Acercar" });
+    for (let i = 0; i < times; i++) {
+      const before = viewport().zoom;
+      await user.click(plus);
+      await waitFor(() => expect(viewport().zoom).not.toBe(before));
+      // The button animates (150 ms): wait until it settles on the step.
+      await waitFor(() => expect((viewport().zoom * 4) % 1).toBeCloseTo(0, 5));
+    }
+  };
+
+  it("zooms in 25 % steps up to 300 %, then disables Acercar", async () => {
+    const user = userEvent.setup();
+    renderBoard({ onSlotActivate: () => {} });
+    await waitFor(() => expect(viewport().zoom).toBeGreaterThan(0));
+    const plus = screen.getByRole("button", { name: "Acercar" });
+    for (let i = 0; i < 20 && !plus.hasAttribute("disabled"); i++) await zoomIn(user, 1);
+    expect(viewport().zoom).toBe(3);
+    expect(screen.getByLabelText("Nivel de zoom").textContent).toMatch(/^300\s?%$/);
+    expect(plus.hasAttribute("disabled")).toBe(true);
+  });
+
+  it("pans with the arrows while the board has the focus, not while a slot has it", async () => {
+    const user = userEvent.setup();
+    renderBoard({ onSlotActivate: () => {} });
+    await waitFor(() => expect(viewport().zoom).toBeGreaterThan(0));
+    const start = viewport();
+    board().focus();
+    await user.keyboard("{ArrowRight}");
+    expect(viewport().x).toBeCloseTo(start.x - ARROW_PAN);
+    await user.keyboard("{ArrowDown}{ArrowDown}");
+    expect(viewport().y).toBeCloseTo(start.y - 2 * ARROW_PAN);
+    await user.keyboard("{ArrowLeft}{ArrowUp}");
+    expect(viewport()).toEqual({ ...start, x: start.x, y: start.y - ARROW_PAN });
+    const moved = viewport();
+    slotButtons()[0]?.focus();
+    await user.keyboard("{ArrowRight}");
+    expect(viewport()).toEqual(moved);
+  });
+
+  it("at 300 % reaches with Tab a slot that starts out of view, and shows it whole", async () => {
+    const user = userEvent.setup();
+    renderBoard({ diagram: staticWebsiteScenario.diagram, onSlotActivate: () => {} });
+    await waitFor(() => expect(viewport().zoom).toBeGreaterThan(0));
+    const plus = screen.getByRole("button", { name: "Acercar" });
+    for (let i = 0; i < 20 && !plus.hasAttribute("disabled"); i++) await zoomIn(user, 1);
+    expect(viewport().zoom).toBe(3);
+
+    const inView = (box: { x: number; y: number; w: number; h: number }) => {
+      const { x, y, zoom } = viewport();
+      const left = box.x * zoom + x;
+      const top = box.y * zoom + y;
+      return (
+        left >= 0 &&
+        top >= 0 &&
+        left + box.w * zoom <= BOARD.width &&
+        top + box.h * zoom <= BOARD.height
+      );
+    };
+    const slots = staticWebsiteScenario.diagram.nodes.filter((n) => n.type === "slot");
+    const last = slots.at(-1);
+    if (last === undefined) throw new Error("no slots");
+    expect(inView(nodeBox(last))).toBe(false);
+
+    board().focus();
+    for (const slot of slots) {
+      await user.tab();
+      expect(document.activeElement?.closest("[data-slot-id]")?.getAttribute("data-slot-id")).toBe(
+        slot.id,
+      );
+      await waitFor(() => expect(inView(nodeBox(slot))).toBe(true));
+      expect(viewport().zoom).toBe(3);
+    }
+  });
+});
+
+describe("Diagram left inset", () => {
+  it("moves the controls right of the inset and centers a tabbed slot in the free part", async () => {
+    const user = userEvent.setup();
+    renderBoard({ onSlotActivate: () => {}, insetLeft: 400 });
+    await waitFor(() => expect(viewport().zoom).toBeGreaterThan(0));
+    const controls = document.querySelector<HTMLElement>("[data-slot=board-controls]");
+    expect(controls?.style.left).toBe("416px");
+    board().focus();
+    await user.tab();
+    const first = pdfScenario.diagram.nodes.find((n) => n.id === slotIds[0]);
+    if (first === undefined) throw new Error("no slot");
+    const box = nodeBox(first);
+    // The board measures 1200 px (zoom and pan tests): the free part is 400–1200, centered at 800.
+    await waitFor(() => {
+      const { x, zoom } = viewport();
+      expect((box.x + box.w / 2) * zoom + x).toBeCloseTo(800, 0);
+    });
+  });
+});
+
+describe("Diagram handle", () => {
+  it("plays the flow and pans the board on request", async () => {
+    const ref = createRef<DiagramHandle>();
+    renderBoard({ ref, playButton: false, stepList: "hidden" });
+    expect(screen.queryByRole("button", { name: "Reproducir flujo" })).toBeNull();
+    await waitFor(() => expect(viewport().zoom).toBeGreaterThan(0));
+    act(() => ref.current?.playFlow());
+    expect(await screen.findByRole("group", { name: "Reproductor de flujo" })).toBeTruthy();
+    expect(document.querySelector("p[aria-live]")?.textContent).toMatch(/^Paso 1 de 9:/);
+
+    const start = viewport();
+    act(() => ref.current?.panBy(40, -30));
+    await waitFor(() => expect(viewport()).toEqual({ ...start, x: start.x + 40, y: start.y - 30 }));
+    expect(ref.current?.element()).toBe(board());
+  });
+
+  it("keeps the hidden step list as the description of the board", () => {
+    renderBoard({ stepList: "hidden" });
+    const list = document.getElementById(
+      board().getAttribute("aria-describedby")?.split(" ")[0] ?? "",
+    );
+    expect(list?.hidden).toBe(true);
+    expect(list?.textContent).toContain("Paso 1: Pide subir un comprobante");
+    // The route names the actor and the role, never a hidden service.
+    expect(list?.textContent).toContain(" → ");
+  });
+});
+
+describe("Diagram preview", () => {
+  it("is a still picture: no controls, no focusable slots, and slots without text", () => {
+    renderBoard({ preview: true, label: "Vista previa" });
+    const picture = screen.getByRole("img", { name: "Vista previa" });
+    expect(within(picture).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("group", { name: "Zoom" })).toBeNull();
+    const slots = picture.querySelectorAll('[data-slot="architecture-slot"]');
+    expect(slots).toHaveLength(slotIds.length);
+    for (const slot of slots) expect(slot.textContent).toBe("");
   });
 });

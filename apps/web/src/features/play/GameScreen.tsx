@@ -1,10 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Game screen (RF-PLAY-01..08, RF-PLAY-13), in its own chunk with React Flow and @dnd-kit
-// (ADR-0004, RNF-03). Fixed height, no page scroll: top bar, then the case, the board with the
-// feedback anchored at its foot, and the palette. Every gesture goes through the adapters of
+// (ADR-0004, RNF-03). Layout v2 (docs/design, capturas 12–17): the brief when it opens, then a
+// single bar instead of the global header, the board over the whole space with the feedback card
+// floating on it, and the collapsible palette. "Ver caso" shows the case on demand and focus mode
+// hides the bar. Fixed height, no page scroll. Every gesture goes through the adapters of
 // src/interaction (ADR-0008) and every grade, score, completion and unlock comes from game-engine.
-// Lovable: .game-shell, .game-layout, .game-topbar (src/styles.css).
-import { Diagram } from "@blueprint/diagram";
+// Lovable: GameScreen, .game-shell, .game-redesign, .game-layout (src/components/blueprint-app.tsx,
+// styles.css).
+import { Diagram, diagramSteps, type DiagramHandle } from "@blueprint/diagram";
 import {
   buildPalette,
   canApply,
@@ -15,32 +18,42 @@ import {
   slotNodes,
 } from "@blueprint/game-engine";
 import type { Scenario, Service } from "@blueprint/scenario-schema";
-import { Button } from "@blueprint/ui/components/button";
-import { LevelBadge } from "@blueprint/ui/components/level-badge";
-import { Progress } from "@blueprint/ui/components/progress";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { toast } from "@blueprint/ui/components/sonner";
-import { cn } from "@blueprint/ui/lib/utils";
-import { ArrowLeftIcon, FlagIcon, StarIcon } from "lucide-react";
-import { useCallback, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useNavigate } from "react-router";
+import { useNavigate } from "react-router";
+import { useImmersiveLayout } from "../../app/immersive";
 import type { ContentBundle } from "../../content/load-bundle";
 import { ServiceDndContext } from "../../interaction/drag";
 import { useProgressStore } from "../../progress/progress-store";
 import { serviceIconSrc } from "../../service-icons";
-import { StatusBadge } from "../catalog-browse/StatusBadge";
-import { CasePanel } from "./CasePanel";
 import { createServiceLookup, slotViews } from "./board";
-import { FeedbackPanel } from "./FeedbackPanel";
+import { CaseDrawer } from "./CaseDrawer";
+import { FeedbackCard, hasFeedback } from "./FeedbackCard";
 import { finishScenario, progressEventText, summaryState } from "./finish";
+import { FocusBar, GameBar, type GameProgress } from "./GameBar";
 import { HintAction, showsHintAction } from "./HintAction";
 import { Palette } from "./Palette";
 import { repositoryUrl, reportIssueUrl } from "./report-issue";
+import { ScenarioBrief } from "./ScenarioBrief";
 import { createSessionStore } from "./session-store";
+import { PALETTE_COLLAPSED_KEY, useFlagPreference } from "./ui-preferences";
+import { useFeedbackPlacement } from "./use-feedback-placement";
+import { useFocusMode } from "./use-focus-mode";
 import { useGameController, type Names } from "./use-game-controller";
 
 const REPOSITORY = repositoryUrl(import.meta.env.VITE_REPO_URL);
+/** A slot reached with Tab is in place once the board's reveal (200 ms) is over. */
+const REVEAL_SETTLE_MS = 250;
 
 export interface GameScreenProps {
   scenario: Scenario;
@@ -50,6 +63,7 @@ export interface GameScreenProps {
 export default function GameScreen({ scenario, bundle }: GameScreenProps) {
   const { t } = useTranslation();
   const navigate = useNavigate();
+  useImmersiveLayout();
   const { rules, catalog } = bundle;
   const [store] = useState(() => {
     const created = createSessionStore();
@@ -62,6 +76,10 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     [catalog],
   );
   const serviceLookup = useMemo(() => createServiceLookup(catalog.services), [catalog]);
+  const steps = useMemo(
+    () => diagramSteps(scenario.diagram, serviceLookup),
+    [scenario, serviceLookup],
+  );
   const nodes = useMemo(() => new Map(slotNodes(scenario).map((n) => [n.id, n])), [scenario]);
   const names = useMemo(
     (): Names => ({
@@ -83,25 +101,91 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
 
   const game = useGameController(store, names);
   const { session } = game;
-  const searchRef = useRef<HTMLInputElement>(null);
 
   const slots = useMemo(() => slotViews(session), [session]);
   const placed = useMemo(
     () => new Set(session.slots.flatMap((s) => (s.placed === null ? [] : [s.placed]))),
     [session],
   );
-  const resolved = session.slots.filter(isSlotResolved).length;
-  const { score } = scenarioResult(session);
+  const progress: GameProgress = {
+    resolved: session.slots.filter(isSlotResolved).length,
+    total: session.slots.length,
+    score: scenarioResult(session).score,
+    completed: session.completed,
+  };
+
+  // Layout v2: brief, "Ver caso", palette collapsed (a browser preference) and focus mode.
+  const [briefOpen, setBriefOpen] = useState(true);
+  const [caseOpen, setCaseOpen] = useState(false);
+  /** Width "Ver caso" covers over the left of the board (0 when closed). */
+  const [caseInset, setCaseInset] = useState(0);
+  const [paletteCollapsed, setPaletteCollapsed] = useFlagPreference(PALETTE_COLLAPSED_KEY);
+  const focus = useFocusMode();
+  const [layout, setLayout] = useState<HTMLDivElement | null>(null);
+  const diagramRef = useRef<DiagramHandle>(null);
+  const searchRef = useRef<HTMLInputElement>(null);
+  const focusModeRef = useRef<HTMLButtonElement>(null);
+  const exitFocusRef = useRef<HTMLButtonElement>(null);
+
+  // Entering or leaving focus mode unmounts the button that did it: its counterpart takes the
+  // focus (only after a change, not when the screen opens).
+  const focusChanged = useRef(false);
+  useEffect(() => {
+    if (!focusChanged.current) return;
+    (focus.active ? exitFocusRef : focusModeRef).current?.focus();
+  }, [focus.active]);
+  const toggleFocus = (enter: boolean) => {
+    focusChanged.current = true;
+    void (enter ? focus.enter() : focus.exit());
+  };
+
+  const boardArea = useRef<HTMLDivElement>(null);
+  const cardRef = useRef<HTMLElement>(null);
+  const panBoard = useCallback((dx: number, dy: number) => diagramRef.current?.panBy(dx, dy), []);
+  const showFeedback = hasFeedback(session, game.feedbackSlotId);
+  const placement = useFeedbackPlacement({
+    area: boardArea,
+    card: cardRef,
+    slotId: showFeedback ? game.feedbackSlotId : null,
+    openKey: game.announcement.key,
+    layoutKey: `${focus.active ? "focus" : "bar"}:${caseInset}`,
+    panBoard,
+  });
+
+  /**
+   * The focus must never land hidden (WCAG 2.4.11): when a slot reached with the keyboard ends up
+   * under the card of another slot, the card closes. It checks once the board has panned to the
+   * slot (the reveal animates for 200 ms).
+   */
+  const onBoardFocus = (event: FocusEvent<HTMLDivElement>) => {
+    const slot = event.target.closest<HTMLElement>("[data-slot-id]");
+    if (slot === null || slot.dataset.slotId === game.feedbackSlotId) return;
+    window.setTimeout(() => {
+      const card = cardRef.current;
+      if (card === null || !slot.isConnected) return;
+      const a = card.getBoundingClientRect();
+      const b = slot.getBoundingClientRect();
+      const covered = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      if (covered && slot.contains(document.activeElement)) game.closeFeedback();
+    }, REVEAL_SETTLE_MS);
+  };
 
   const focusSlot = (slotId: string) =>
     document
       .querySelector<HTMLElement>(`[data-slot-id="${slotId}"] [data-slot="architecture-slot-main"]`)
       ?.focus();
 
+  /** The palette takes the focus: its search box or, collapsed, its first service. */
+  const focusPalette = () =>
+    (
+      searchRef.current ??
+      document.querySelector<HTMLElement>("[data-palette] [data-palette-service]")
+    )?.focus();
+
   const onSlotActivate = (slotId: string) => {
     const slotFirst = game.pendingServiceId === null;
     game.activateSlot(slotId);
-    if (slotFirst) searchRef.current?.focus();
+    if (slotFirst) focusPalette();
   };
 
   const onChoose = (serviceId: string) => {
@@ -112,13 +196,18 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
 
   const onRetry = (slotId: string) => {
     game.retry(slotId);
-    searchRef.current?.focus();
+    focusPalette();
   };
 
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Escape") return;
-    // Esc inside a popover or dialog closes it; it does not cancel the selection too.
-    if (event.target instanceof Element && event.target.closest("[role=dialog]") !== null) return;
+    // Esc inside a popover, dialog or menu closes it; it does not cancel the selection too.
+    if (
+      event.target instanceof Element &&
+      event.target.closest("[role=dialog], [role=menu]") !== null
+    ) {
+      return;
+    }
     if (game.cancel()) event.preventDefault();
   };
 
@@ -147,10 +236,11 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
   const [finishing, setFinishing] = useState(false);
   const onFinish = async () => {
     setFinishing(true);
-    const { progress, replace } = useProgressStore.getState();
+    await focus.exit();
+    const { progress: stored, replace } = useProgressStore.getState();
     const outcome = await finishScenario({
       session,
-      progress,
+      progress: stored,
       rules,
       scenarios: bundle.index.scenarios,
       save: replace,
@@ -167,82 +257,57 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     void navigate(`/escenarios/${scenario.id}/resumen`, { state: summaryState(outcome) });
   };
 
-  const areaNames = scenario.areas
-    .map((id) => bundle.index.areas.find((a) => a.id === id)?.name ?? id)
-    .join(" · ");
-  const reportSlot = session.selectedSlotId ?? game.feedbackSlotId;
+  const areaNames = scenario.areas.map(
+    (id) => bundle.index.areas.find((a) => a.id === id)?.name ?? id,
+  );
+  const reportUrl = reportIssueUrl(REPOSITORY, {
+    scenarioId: scenario.id,
+    version: scenario.version,
+    slotId: session.selectedSlotId ?? game.feedbackSlotId,
+  });
+  const caseOpener = useRef<HTMLElement | null>(null);
+  const actions = {
+    caseOpen,
+    onViewCase: () => {
+      caseOpener.current =
+        document.activeElement instanceof HTMLElement ? document.activeElement : null;
+      setCaseOpen(true);
+    },
+    finishing,
+    onFinish: () => void onFinish(),
+  };
 
   return (
     <div
       onKeyDown={onKeyDown}
-      className="grid h-[calc(100dvh-68px)] grid-rows-[auto_minmax(0,1fr)] overflow-hidden"
+      data-focus-mode={focus.active ? "" : undefined}
+      className="flex min-h-0 flex-1 flex-col overflow-hidden bg-canvas"
     >
-      <header className="flex flex-wrap items-center gap-x-6 gap-y-2 border-b bg-card px-4 py-2">
-        <Button asChild variant="ghost" size="icon">
-          <Link to="/escenarios" aria-label={t("play.back")}>
-            <ArrowLeftIcon aria-hidden />
-          </Link>
-        </Button>
-        <div className="min-w-0 flex-1">
-          <div className="flex flex-wrap items-center gap-3">
-            <LevelBadge level={scenario.level} variant="solid" />
-            <StatusBadge status={scenario.status} />
-            <h1 className="truncate text-[1.05rem] font-bold">{scenario.title}</h1>
-          </div>
-          <p className="mt-[0.15rem] text-[0.75rem] text-muted-foreground">
-            <span className="sr-only">{t("scenarios.areas")}: </span>
-            {areaNames}
-          </p>
-        </div>
-        <div className="flex items-center gap-3 text-[0.78rem] text-muted-foreground">
-          <span>{t("play.top.slots", { resolved, total: session.slots.length })}</span>
-          <Progress
-            value={session.slots.length === 0 ? 100 : (resolved / session.slots.length) * 100}
-            aria-label={t("play.top.progress")}
-            className="w-28"
-          />
-        </div>
-        <p className="flex items-center gap-2">
-          <StarIcon aria-hidden className="size-5 text-warning" />
-          <span className="flex flex-col leading-tight">
-            <span className="text-[0.62rem] font-semibold text-muted-foreground uppercase">
-              {t("play.top.score")}
-            </span>
-            <strong className="text-[1.05rem] text-warning tabular-nums">{score}</strong>
-          </span>
-        </p>
-        <a
-          href={reportIssueUrl(REPOSITORY, {
-            scenarioId: scenario.id,
-            version: scenario.version,
-            slotId: reportSlot,
-          })}
-          target="_blank"
-          rel="noreferrer"
-          className="inline-flex items-center gap-1 text-[0.78rem] text-primary underline-offset-4 hover:underline"
-        >
-          <FlagIcon aria-hidden className="size-4" />
-          {t("play.top.report")}
-          <span className="sr-only">{t("about.external")}</span>
-        </a>
-        <Button
-          variant="outline"
-          disabled={!session.completed || finishing}
-          title={session.completed ? undefined : t("play.top.finishHint")}
-          onClick={() => void onFinish()}
-        >
-          {t("play.top.finish")}
-        </Button>
-      </header>
+      {!focus.active && (
+        <GameBar
+          scenario={scenario}
+          progress={progress}
+          {...actions}
+          onFocusMode={() => toggleFocus(true)}
+          onPlayFlow={() => diagramRef.current?.playFlow()}
+          reportUrl={reportUrl}
+          focusModeRef={focusModeRef}
+        />
+      )}
       <ServiceDndContext
         serviceName={names.serviceName}
         slotRole={names.slotRole}
         renderOverlay={(serviceId) => <DragChip service={services.get(serviceId)} id={serviceId} />}
       >
-        <div className="grid min-h-0 grid-cols-[240px_minmax(0,1fr)_270px]">
-          <CasePanel scenario={scenario} />
-          <div className="flex min-h-0 min-w-0 flex-col">
+        <div ref={setLayout} className="relative flex min-h-0 flex-1">
+          <div
+            ref={boardArea}
+            data-slot="board-area"
+            onFocus={onBoardFocus}
+            className="relative min-h-0 min-w-0 flex-1"
+          >
             <Diagram
+              ref={diagramRef}
               diagram={scenario.diagram}
               services={serviceLookup}
               slots={slots}
@@ -250,18 +315,47 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
               onServiceDrop={game.drop}
               slotHintAction={slotHintAction}
               label={t("play.board.label", { title: scenario.title })}
-              toolbarStart={<BoardStatus completed={session.completed} />}
-              className="min-h-0 flex-1"
+              stepList="hidden"
+              playButton={false}
+              onViewportChange={placement.onViewportChange}
+              insetLeft={caseInset}
+              className="h-full"
             />
-            <FeedbackPanel
-              session={session}
-              slotId={game.feedbackSlotId}
-              services={services}
-              announcement={game.announcement}
-              onAccept={game.accept}
-              onRetry={onRetry}
-              onClose={game.closeFeedback}
-            />
+            {focus.active && (
+              <FocusBar
+                title={scenario.title}
+                progress={progress}
+                {...actions}
+                onExit={() => toggleFocus(false)}
+                exitRef={exitFocusRef}
+              />
+            )}
+            {/* The live region of the screen: placements, selections, hints and rejections are
+                announced here, and the card that appears inside it is read too. */}
+            <div
+              aria-live="polite"
+              data-slot="feedback-layer"
+              // Clear of "Ver caso" while it is open: the card stays usable beside it.
+              style={caseInset > 0 ? { left: caseInset } : undefined}
+              className="pointer-events-none absolute inset-0 z-20"
+            >
+              <p key={game.announcement.key} className="sr-only">
+                {game.announcement.text}
+              </p>
+              {showFeedback && (
+                <FeedbackCard
+                  ref={cardRef}
+                  session={session}
+                  slotId={game.feedbackSlotId}
+                  services={services}
+                  side={placement.side}
+                  gap={placement.gap}
+                  onAccept={game.accept}
+                  onRetry={onRetry}
+                  onClose={game.closeFeedback}
+                />
+              )}
+            </div>
           </div>
           <Palette
             serviceIds={palette.services}
@@ -273,31 +367,37 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
               session.selectedSlotId === null ? null : names.slotRole(session.selectedSlotId)
             }
             onChoose={onChoose}
+            collapsed={paletteCollapsed}
+            onCollapsedChange={setPaletteCollapsed}
             searchRef={searchRef}
           />
         </div>
       </ServiceDndContext>
-    </div>
-  );
-}
-
-function BoardStatus({ completed }: { completed: boolean }) {
-  const { t } = useTranslation();
-  return (
-    <span className="inline-flex items-center gap-2">
-      <span
-        aria-hidden
-        className={cn("size-2 rounded-full", completed ? "bg-success" : "bg-primary")}
+      <ScenarioBrief
+        scenario={scenario}
+        areaNames={areaNames}
+        services={serviceLookup}
+        open={briefOpen}
+        onStart={() => setBriefOpen(false)}
+        onClosed={() => diagramRef.current?.element()?.focus()}
       />
-      {completed ? t("play.board.completed") : t("play.board.inProgress")}
-    </span>
+      <CaseDrawer
+        scenario={scenario}
+        steps={steps}
+        open={caseOpen}
+        onOpenChange={setCaseOpen}
+        container={layout}
+        returnFocus={() => caseOpener.current?.focus()}
+        onWidthChange={setCaseInset}
+      />
+    </div>
   );
 }
 
 function DragChip({ service, id }: { service: Service | undefined; id: string }) {
   const name = service?.name ?? id;
   return (
-    <span className="flex w-[240px] items-center gap-[0.6rem] rounded-md border border-primary bg-card p-[0.45rem] text-[0.75rem] font-semibold shadow-lg">
+    <span className="flex w-[15rem] items-center gap-[0.6rem] rounded-md border border-primary bg-card p-[0.45rem] text-sm font-semibold shadow-lg">
       <ServiceIcon
         src={serviceIconSrc(id)}
         name={name}

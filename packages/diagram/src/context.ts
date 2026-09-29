@@ -9,8 +9,13 @@ export interface DiagramContextValue {
   slotHintAction: ((slotId: string) => ReactNode) | undefined;
   /** Slots are @dnd-kit drop targets (the board got onServiceDrop). */
   droppable: boolean;
-  /** Pans the board so the box (canvas units) is in view when a slot is reached with Tab. */
-  reveal: (box: Box) => void;
+  /**
+   * Pans the board so the box (canvas units) is in view when a slot is reached with Tab. With the
+   * rendered height (screen px) of a slot that grew past its box, the whole slot.
+   */
+  reveal: (box: Box, renderedHeight?: number) => void;
+  /** Read-only preview (the brief): slots are drawn as empty boxes, without text. */
+  preview: boolean;
   /** Animate the active edges (false with prefers-reduced-motion). */
   animate: boolean;
   /** Ids of the arrow markers (defs rendered once by the board). */

@@ -1,5 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-export { Diagram, MAX_ZOOM, MIN_ZOOM, type DiagramProps } from "./Diagram";
+export {
+  ARROW_PAN,
+  Diagram,
+  MAX_ZOOM,
+  MIN_ZOOM,
+  type DiagramHandle,
+  type DiagramProps,
+} from "./Diagram";
 export {
   isServiceDragData,
   type ServiceDragData,
@@ -8,4 +15,12 @@ export {
   type SlotGrade,
   type SlotView,
 } from "./types";
-export { flowSteps, describeStep, type FlowStep } from "./steps";
+export {
+  describeRoute,
+  describeStep,
+  diagramSteps,
+  flowSteps,
+  nodeName,
+  type FlowStep,
+  type StepRoute,
+} from "./steps";
