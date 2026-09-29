@@ -5,10 +5,20 @@
 import * as z from "zod";
 import { CategoriesFileSchema, ConfusionGroupsFileSchema, ServicesFileSchema } from "./catalog.js";
 import { AreasFileSchema } from "./game.js";
-import { ScenarioSchema } from "./scenario.js";
+import { ScenarioSchema, type Scenario } from "./scenario.js";
 
 /** Format version of index.json. Bump it when the bundle changes shape. */
 export const BUNDLE_SCHEMA_VERSION = 1;
+
+/**
+ * Statuses shown in the game's listing (index.json). Retired scenarios are never listed; drafts
+ * only in local development. content:build writes the index with it and the game filters it
+ * again when loading the bundle.
+ */
+export const listedStatuses = (includeDrafts: boolean): ReadonlySet<Scenario["status"]> =>
+  new Set<Scenario["status"]>(
+    includeDrafts ? ["draft", "beta", "published"] : ["beta", "published"],
+  );
 
 /** Listing data of a scenario: what the cards need without loading the whole scenario. */
 export const BundleIndexEntrySchema = ScenarioSchema.pick({

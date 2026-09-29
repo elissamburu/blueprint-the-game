@@ -15,6 +15,11 @@ export interface ProgressState {
   /** null until onboarding creates it. */
   readonly progress: PlayerProgress | null;
   readonly notice: ProgressNotice | null;
+  /**
+   * The stored progress comes from a newer version of the game. It is not loaded nor
+   * overwritten; the player is asked to reload while this lasts.
+   */
+  readonly incompatible: boolean;
   hydrate: () => Promise<void>;
   /** Replaces the progress with one computed by game-engine and saves it. */
   replace: (progress: PlayerProgress) => Promise<void>;
@@ -27,6 +32,7 @@ export const createProgressStore = (repository: ProgressRepository) =>
     status: "idle",
     progress: null,
     notice: null,
+    incompatible: false,
     hydrate: async () => {
       if (get().status !== "idle") return;
       set({ status: "loading" });
@@ -35,10 +41,13 @@ export const createProgressStore = (repository: ProgressRepository) =>
         status: "ready",
         progress: result.status === "loaded" ? result.progress : null,
         notice: result.status === "discarded" ? "discarded" : get().notice,
+        incompatible: result.status === "incompatible",
       });
     },
     replace: async (progress) => {
       set({ progress });
+      // The repository refuses too; not trying avoids a "save failed" on top of the banner.
+      if (get().incompatible) return;
       try {
         await repository.save(progress);
       } catch {
@@ -48,6 +57,7 @@ export const createProgressStore = (repository: ProgressRepository) =>
     },
     reset: async () => {
       set({ progress: null });
+      if (get().incompatible) return;
       await repository.clear();
     },
     dismissNotice: () => set({ notice: null }),

@@ -54,12 +54,20 @@ const EnvelopeSchema = z.object({ schemaVersion: z.int().nonnegative(), progress
 
 export type MigrationResult =
   | { readonly ok: true; readonly progress: PlayerProgress; readonly migratedFrom: number | null }
-  | { readonly ok: false; readonly reason: string };
+  /** Unreadable data: corrupt, edited by hand or without a migration path. */
+  | { readonly ok: false; readonly kind: "invalid"; readonly reason: string }
+  /**
+   * Written by a newer version of the game (e.g. before a rollback of the deploy). It is valid
+   * data this version cannot read, so it must be kept as is.
+   */
+  | { readonly ok: false; readonly kind: "newer"; readonly storedVersion: number };
 
 export interface MigrationOptions {
   readonly currentVersion: number;
   readonly migrations: Readonly<Record<number, ProgressMigration>>;
 }
+
+const invalid = (reason: string): MigrationResult => ({ ok: false, kind: "invalid", reason });
 
 /** Migrates stored data to the current version and validates it. Never throws. */
 export const readStoredProgress = (
@@ -70,23 +78,21 @@ export const readStoredProgress = (
   },
 ): MigrationResult => {
   const envelope = EnvelopeSchema.safeParse(raw);
-  if (!envelope.success) return { ok: false, reason: "not a progress envelope" };
+  if (!envelope.success) return invalid("not a progress envelope");
   const from = envelope.data.schemaVersion;
-  if (from > options.currentVersion) {
-    return { ok: false, reason: `schemaVersion ${from} is newer than ${options.currentVersion}` };
-  }
+  if (from > options.currentVersion) return { ok: false, kind: "newer", storedVersion: from };
   let progress = envelope.data.progress;
   try {
     for (let version = from; version < options.currentVersion; version++) {
       const migrate = options.migrations[version];
-      if (migrate === undefined) return { ok: false, reason: `no migration from ${version}` };
+      if (migrate === undefined) return invalid(`no migration from ${version}`);
       progress = migrate(progress);
     }
   } catch (error) {
-    return { ok: false, reason: `migration failed: ${String(error)}` };
+    return invalid(`migration failed: ${String(error)}`);
   }
   const parsed = PlayerProgressSchema.safeParse(progress);
-  if (!parsed.success) return { ok: false, reason: z.prettifyError(parsed.error) };
+  if (!parsed.success) return invalid(z.prettifyError(parsed.error));
   return {
     ok: true,
     progress: parsed.data,

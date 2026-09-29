@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Guest progress in localStorage (ADR-0010). Reads migrate and validate the stored data; if it
-// is corrupt it is removed with a warning instead of breaking the app.
+// is corrupt it is copied to a backup key and removed with a warning instead of breaking the
+// app. Data written by a newer version of the game is never touched: see `incompatible`.
 import type { PlayerProgress } from "@blueprint/game-engine";
 import type { ProgressLoad, ProgressRepository } from "./progress-repository";
 import {
@@ -11,6 +12,17 @@ import {
 } from "./progress-schema";
 
 export const PROGRESS_STORAGE_KEY = "blueprint.progress";
+
+/** Suffix of the key that keeps the last discarded text, so it can be recovered by hand. */
+export const PROGRESS_BACKUP_SUFFIX = ".backup";
+
+/** save() after an `incompatible` load. */
+export class IncompatibleProgressError extends Error {
+  constructor(readonly storedVersion: number) {
+    super(`Stored progress has schemaVersion ${storedVersion}, newer than this app; not saving`);
+    this.name = "IncompatibleProgressError";
+  }
+}
 
 export interface LocalStorageProgressRepositoryOptions extends Partial<MigrationOptions> {
   /**
@@ -27,6 +39,8 @@ export class LocalStorageProgressRepository implements ProgressRepository {
   readonly #key: string;
   readonly #migration: MigrationOptions;
   readonly #warn: (message: string) => void;
+  /** Set when the stored data is newer than this app: writes are blocked until a reload. */
+  #newerVersion: number | null = null;
 
   constructor(options: LocalStorageProgressRepositoryOptions = {}) {
     this.#storage = options.storage ?? (() => window.localStorage);
@@ -39,6 +53,7 @@ export class LocalStorageProgressRepository implements ProgressRepository {
   }
 
   load(): Promise<ProgressLoad> {
+    this.#newerVersion = null;
     let text: string | null;
     try {
       text = this.#storage().getItem(this.#key);
@@ -52,15 +67,25 @@ export class LocalStorageProgressRepository implements ProgressRepository {
     try {
       raw = JSON.parse(text);
     } catch {
-      return Promise.resolve(this.#discard("not valid JSON"));
+      return Promise.resolve(this.#discard(text, "not valid JSON"));
     }
     const result = readStoredProgress(raw, this.#migration);
-    if (!result.ok) return Promise.resolve(this.#discard(result.reason));
+    if (!result.ok && result.kind === "newer") {
+      this.#newerVersion = result.storedVersion;
+      this.#warn(
+        `Stored progress kept (${this.#key}): schemaVersion ${result.storedVersion} is newer than ${this.#migration.currentVersion}`,
+      );
+      return Promise.resolve({ status: "incompatible", storedVersion: result.storedVersion });
+    }
+    if (!result.ok) return Promise.resolve(this.#discard(text, result.reason));
     if (result.migratedFrom !== null) this.#write(result.progress);
     return Promise.resolve({ status: "loaded", progress: result.progress });
   }
 
   save(progress: PlayerProgress): Promise<void> {
+    if (this.#newerVersion !== null) {
+      return Promise.reject(new IncompatibleProgressError(this.#newerVersion));
+    }
     try {
       this.#write(progress);
       return Promise.resolve();
@@ -70,6 +95,7 @@ export class LocalStorageProgressRepository implements ProgressRepository {
   }
 
   clear(): Promise<void> {
+    if (this.#newerVersion !== null) return Promise.resolve();
     try {
       this.#storage().removeItem(this.#key);
     } catch {
@@ -83,8 +109,14 @@ export class LocalStorageProgressRepository implements ProgressRepository {
     this.#storage().setItem(this.#key, JSON.stringify(stored));
   }
 
-  #discard(reason: string): ProgressLoad {
+  #discard(text: string, reason: string): ProgressLoad {
     this.#warn(`Stored progress discarded (${this.#key}): ${reason}`);
+    try {
+      // A single copy: the last discarded text replaces the previous one.
+      this.#storage().setItem(this.#key + PROGRESS_BACKUP_SUFFIX, text);
+    } catch {
+      // No room for the backup (quota): still remove the data so the app can start.
+    }
     try {
       this.#storage().removeItem(this.#key);
     } catch {

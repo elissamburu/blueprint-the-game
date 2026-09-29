@@ -67,6 +67,17 @@ describe("routes", () => {
     expect(warn).toHaveBeenCalled();
   });
 
+  it("asks to reload and keeps the progress saved by a newer version of the game", async () => {
+    const newer = JSON.stringify({ schemaVersion: 2, progress: { xp: 5000 } });
+    localStorage.setItem(PROGRESS_STORAGE_KEY, newer);
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    renderAt("/");
+    const alert = await screen.findByRole("alert");
+    expect(alert.textContent).toContain("versión más nueva del juego; recargá la página");
+    expect(within(alert).getByRole("button", { name: "Recargar" })).toBeTruthy();
+    expect(localStorage.getItem(PROGRESS_STORAGE_KEY)).toBe(newer);
+  });
+
   it("shows a not found page for unknown paths", async () => {
     renderAt("/no-existe");
     expect(

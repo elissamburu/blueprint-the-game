@@ -2,10 +2,13 @@
 import type { PlayerProgress } from "@blueprint/game-engine";
 import { beforeEach, describe, expect, it, vi } from "vitest";
 import {
+  IncompatibleProgressError,
   LocalStorageProgressRepository,
   PROGRESS_STORAGE_KEY,
   type LocalStorageProgressRepositoryOptions,
 } from "./local-storage-progress-repository";
+
+const BACKUP_KEY = `${PROGRESS_STORAGE_KEY}.backup`;
 
 class MemoryStorage implements Storage {
   readonly #items = new Map<string, string>();
@@ -97,16 +100,62 @@ describe("LocalStorageProgressRepository", () => {
         { schemaVersion: 1, progress: { ...progress, unlocked: [{ area: "x", level: 150 }] } },
       ],
       ["unknown fields", { schemaVersion: 1, progress: { ...progress, streak: 4 } }],
-      ["a version newer than the app", { schemaVersion: 99, progress }],
-    ])("discards %s with a warning and removes it", async (_case, value) => {
+    ])("discards %s with a warning, backs it up and removes it", async (_case, value) => {
       store(value);
+      const original = storage.getItem(PROGRESS_STORAGE_KEY);
       const result = await repository().load();
       expect(result.status).toBe("discarded");
       expect(warn).toHaveBeenCalledOnce();
       expect(storage.getItem(PROGRESS_STORAGE_KEY)).toBeNull();
+      expect(storage.getItem(BACKUP_KEY)).toBe(original);
       // The next visit starts clean, without warning again.
       expect(await repository().load()).toEqual({ status: "empty" });
       expect(warn).toHaveBeenCalledOnce();
+    });
+
+    it("keeps a single backup: the last discarded text replaces the previous one", async () => {
+      store("{first");
+      await repository().load();
+      store("{second");
+      await repository().load();
+      expect(storage.getItem(BACKUP_KEY)).toBe("{second");
+      expect(storage.length).toBe(1);
+    });
+
+    it("still removes the data when the backup does not fit", async () => {
+      store("{not json");
+      const setItem = vi.spyOn(storage, "setItem").mockImplementation(() => {
+        throw new DOMException("full", "QuotaExceededError");
+      });
+      expect((await repository().load()).status).toBe("discarded");
+      setItem.mockRestore();
+      expect(storage.getItem(PROGRESS_STORAGE_KEY)).toBeNull();
+    });
+  });
+
+  describe("data from a newer version of the game", () => {
+    // Stored by the game with schemaVersion 2, read by this app, still on version 1.
+    const newer = JSON.stringify({ schemaVersion: 2, progress: { ...progress, streak: 4 } });
+
+    it("is not loaded and stays intact after load and a save attempt", async () => {
+      storage.setItem(PROGRESS_STORAGE_KEY, newer);
+      const repo = repository();
+      expect(await repo.load()).toEqual({ status: "incompatible", storedVersion: 2 });
+      await expect(repo.save(progress)).rejects.toBeInstanceOf(IncompatibleProgressError);
+      await repo.clear();
+      expect(storage.getItem(PROGRESS_STORAGE_KEY)).toBe(newer);
+      expect(storage.getItem(BACKUP_KEY)).toBeNull();
+      expect(warn).toHaveBeenCalledOnce();
+    });
+
+    it("unblocks writes when a later load finds data it can read", async () => {
+      storage.setItem(PROGRESS_STORAGE_KEY, newer);
+      const repo = repository();
+      await repo.load();
+      storage.removeItem(PROGRESS_STORAGE_KEY);
+      expect(await repo.load()).toEqual({ status: "empty" });
+      await repo.save(progress);
+      expect(stored()).toEqual({ schemaVersion: 1, progress });
     });
   });
 

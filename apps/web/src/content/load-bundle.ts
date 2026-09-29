@@ -3,6 +3,7 @@
 // imported into the JS, and every file is validated with the scenario-schema schemas before
 // the game uses it.
 import {
+  listedStatuses,
   parseBundleCatalog,
   parseBundleIndex,
   parseGameRules,
@@ -44,11 +45,6 @@ export interface LoadOptions {
    */
   readonly includeDrafts: boolean;
 }
-
-type Status = Scenario["status"];
-
-export const listedStatuses = (includeDrafts: boolean): ReadonlySet<Status> =>
-  new Set<Status>(includeDrafts ? ["draft", "beta", "published"] : ["beta", "published"]);
 
 const fetchJson = async (
   file: string,

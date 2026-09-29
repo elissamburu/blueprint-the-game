@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Layout of every game screen: skip link, header, the route page and a footer with the link
 // to "Acerca de". Starts loading the content bundle and the stored progress.
+import { Button } from "@blueprint/ui/components/button";
 import { Toaster, toast } from "@blueprint/ui/components/sonner";
 import { Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
@@ -31,6 +32,7 @@ export function AppLayout() {
         {t("app.skipToContent")}
       </a>
       <AppHeader />
+      <IncompatibleProgressBanner />
       <main id={MAIN_ID} tabIndex={-1} className="flex-1 outline-none">
         <ErrorBoundary>
           <Suspense fallback={<Loading label={t("app.loading")} />}>
@@ -62,4 +64,25 @@ function ProgressNotices() {
     dismiss();
   }, [notice, dismiss, t]);
   return null;
+}
+
+/**
+ * Shown while the stored progress comes from a newer version of the game (e.g. after a rollback
+ * of the deploy): it is neither loaded nor overwritten until the page is reloaded.
+ */
+function IncompatibleProgressBanner() {
+  const { t } = useTranslation();
+  const incompatible = useProgressStore((s) => s.incompatible);
+  if (!incompatible) return null;
+  return (
+    <div
+      role="alert"
+      className="flex flex-wrap items-center justify-center gap-3 border-b bg-warning-soft px-4 py-3 text-center text-sm"
+    >
+      <span>{t("progress.incompatible")}</span>
+      <Button size="sm" variant="outline" onClick={() => window.location.reload()}>
+        {t("progress.reload")}
+      </Button>
+    </div>
+  );
 }
