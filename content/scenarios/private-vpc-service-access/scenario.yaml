@@ -49,50 +49,50 @@ objectives:
     text: "Si una zona de disponibilidad falla, las instancias de la otra siguen llegando a todos los servicios."
 
 diagram:
-  canvas: { width: 1400, height: 1140 }
+  canvas: { width: 1400, height: 1180 }
   groups:
     - id: region
       kind: region
       label: "Región"
-      rect: { x: 40, y: 40, w: 1320, h: 1060 }
+      rect: { x: 40, y: 40, w: 1320, h: 1100 }
       parent: null
     - id: vpc
       kind: vpc
       label: "Red privada de la aplicación"
-      rect: { x: 80, y: 90, w: 760, h: 990 }
+      rect: { x: 80, y: 90, w: 760, h: 1030 }
       parent: region
     - id: az-a
       kind: az
       label: "Zona de disponibilidad A"
-      rect: { x: 110, y: 140, w: 300, h: 420 }
+      rect: { x: 110, y: 140, w: 300, h: 440 }
       parent: vpc
     - id: subnet-a
       kind: subnet-private
       label: "Subred privada A"
-      rect: { x: 130, y: 190, w: 260, h: 340 }
+      rect: { x: 130, y: 190, w: 260, h: 360 }
       parent: az-a
     - id: az-b
       kind: az
       label: "Zona de disponibilidad B"
-      rect: { x: 110, y: 610, w: 300, h: 420 }
+      rect: { x: 110, y: 630, w: 300, h: 440 }
       parent: vpc
     - id: subnet-b
       kind: subnet-private
       label: "Subred privada B"
-      rect: { x: 130, y: 660, w: 260, h: 340 }
+      rect: { x: 130, y: 680, w: 260, h: 360 }
       parent: az-b
 
   nodes:
     - id: app-a
       type: fixed
       service: ec2
-      position: { x: 180, y: 320 }
+      position: { x: 180, y: 430 }
       group: subnet-a
 
     - id: app-b
       type: fixed
       service: ec2
-      position: { x: 180, y: 790 }
+      position: { x: 180, y: 720 }
       group: subnet-b
 
     - id: objects
@@ -104,25 +104,25 @@ diagram:
     - id: results
       type: fixed
       service: dynamodb
-      position: { x: 1000, y: 370 }
+      position: { x: 1000, y: 380 }
       group: region
 
     - id: secrets
       type: fixed
       service: secrets-manager
-      position: { x: 1000, y: 560 }
+      position: { x: 1000, y: 580 }
       group: region
 
     - id: logs
       type: fixed
       service: cloudwatch
-      position: { x: 1000, y: 940 }
+      position: { x: 1000, y: 980 }
       group: region
 
     - id: objects-access
       type: slot
       role: "Acceso privado desde ambas subredes al almacenamiento de objetos; por acá pasa la mayor parte del volumen diario."
-      position: { x: 620, y: 140 }
+      position: { x: 660, y: 140 }
       group: vpc
       answers:
         - service: vpc-gateway-endpoint
@@ -163,7 +163,7 @@ diagram:
     - id: results-access
       type: slot
       role: "Acceso privado desde ambas subredes a la base NoSQL donde se guardan los resultados."
-      position: { x: 620, y: 330 }
+      position: { x: 660, y: 340 }
       group: vpc
       answers:
         - service: vpc-gateway-endpoint
@@ -198,7 +198,7 @@ diagram:
     - id: secrets-access
       type: slot
       role: "Acceso privado desde ambas subredes al almacén de secretos, que la aplicación consulta al arrancar."
-      position: { x: 620, y: 520 }
+      position: { x: 660, y: 540 }
       group: vpc
       answers:
         - service: vpc-interface-endpoint
@@ -225,7 +225,7 @@ diagram:
     - id: jobs-queue
       type: slot
       role: "Cola administrada donde otro sistema deja trabajos pendientes; el servicio los toma a su ritmo y los borra al terminarlos."
-      position: { x: 1000, y: 710 }
+      position: { x: 1000, y: 740 }
       group: region
       answers:
         - service: sqs
@@ -267,7 +267,7 @@ diagram:
     - id: jobs-access
       type: slot
       role: "Acceso privado desde ambas subredes a la API de la cola de trabajos pendientes."
-      position: { x: 620, y: 710 }
+      position: { x: 660, y: 740 }
       group: vpc
       answers:
         - service: vpc-interface-endpoint
@@ -295,7 +295,7 @@ diagram:
     - id: logs-access
       type: slot
       role: "Acceso privado desde ambas subredes para enviar los logs de la aplicación al servicio de monitoreo."
-      position: { x: 620, y: 900 }
+      position: { x: 660, y: 940 }
       group: vpc
       answers:
         - service: vpc-interface-endpoint
