@@ -488,6 +488,13 @@ describe('"Ver caso"', () => {
     const user = await open();
     await user.click(screen.getByRole("button", { name: "Ver caso" }));
     await screen.findByRole("dialog");
+    // The zoom controls and the feedback card keep clear of the panel.
+    await waitFor(() =>
+      expect(
+        document.querySelector<HTMLElement>("[data-slot=board-controls]")?.style.left,
+      ).not.toBe(""),
+    );
+    expect(live().style.left).not.toBe("");
 
     // Slot first with the keyboard, and service first with clicks, with the panel open.
     await press(user, slotButton("upload-store"));
@@ -505,6 +512,10 @@ describe('"Ver caso"', () => {
     await user.keyboard("{Escape}");
     expect(slotButton("url-signer").getAttribute("aria-pressed")).toBe("false");
     expect(screen.getByRole("dialog")).toBeTruthy();
+
+    // Closed, the board gets its whole width back.
+    await user.click(screen.getByRole("button", { name: "Cerrar el caso" }));
+    await waitFor(() => expect(live().style.left).toBe(""));
   });
 });
 
@@ -633,16 +644,27 @@ describe("focus mode", () => {
 
 describe("feedback card position", () => {
   /** Board 1200 × 800; each slot where the test puts it (others out of view); card 760 × 180. */
-  const layout = (slots: Record<string, { x: number; y: number }>) => {
+  let cardAt: { x: number; y: number } | null = null;
+  const layout = (
+    slots: Record<string, { x: number; y: number }>,
+    card: { x: number; y: number } | null = null,
+  ) => {
+    cardAt = card;
     const rect = (x: number, y: number, w: number, h: number) =>
       ({ x, y, left: x, top: y, width: w, height: h, right: x + w, bottom: y + h }) as DOMRect;
     vi.spyOn(Element.prototype, "getBoundingClientRect").mockImplementation(function (
       this: Element,
     ) {
       if (!(this instanceof HTMLElement)) return rect(0, 0, 0, 0);
-      if (this.dataset.slot === "board-area") return rect(0, 0, 1200, 800);
+      if (this.dataset.slot === "board-area" || this.dataset.slot === "feedback-layer") {
+        return rect(0, 0, 1200, 800);
+      }
       // The zoom controls, bottom-left: the card at the bottom floats above them.
       if (this.dataset.slot === "board-controls") return rect(16, 740, 170, 44);
+      // The card, where the test says it is.
+      if (this.dataset.slotFeedback !== undefined) {
+        return cardAt === null ? rect(-500, -500, 10, 10) : rect(cardAt.x, cardAt.y, 760, 180);
+      }
       const at = this.dataset.slotId === undefined ? undefined : slots[this.dataset.slotId];
       return at === undefined ? rect(-500, -500, 10, 10) : rect(at.x, at.y, 160, 160);
     });
@@ -681,6 +703,25 @@ describe("feedback card position", () => {
     await waitFor(() => expect(card().dataset.slotFeedback).toBe("upload-store"));
     await waitFor(() => expect(card().dataset.side).toBe("top"));
     expect(card().style.top).toBe("16px");
+  });
+
+  it("closes when a slot reached with the keyboard would be hidden under it", async () => {
+    const user = await open();
+    // The card of api-entry sits over upload-store (a small board, a large zoom).
+    layout(
+      { "api-entry": { x: 40, y: 40 }, "upload-store": { x: 520, y: 560 } },
+      { x: 220, y: 540 },
+    );
+    await press(user, slotButton("api-entry"));
+    await user.click(paletteButton("alb"));
+    expect(card().dataset.slotFeedback).toBe("api-entry");
+    // Its own slot keeps it open.
+    slotButton("api-entry").focus();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(document.querySelector("[data-slot-feedback]")).not.toBeNull();
+    // Another slot under it closes it.
+    slotButton("upload-store").focus();
+    await waitFor(() => expect(document.querySelector("[data-slot-feedback]")).toBeNull());
   });
 
   it("appears when a resolved slot is activated and closes with its X", async () => {

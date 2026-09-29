@@ -27,6 +27,8 @@ export interface CaseDrawerProps {
   container: HTMLElement | null;
   /** Where the focus goes back when it closes (the "Ver caso" that opened it). */
   returnFocus: () => void;
+  /** Width (px) the panel covers from the left, 0 when closed: the board keeps clear of it. */
+  onWidthChange: (width: number) => void;
 }
 
 export function CaseDrawer({
@@ -36,6 +38,7 @@ export function CaseDrawer({
   onOpenChange,
   container,
   returnFocus,
+  onWidthChange,
 }: CaseDrawerProps) {
   const { t } = useTranslation();
   const titleId = useId();
@@ -46,6 +49,18 @@ export function CaseDrawer({
   useEffect(() => {
     if (open) panelRef.current?.focus();
   }, [open, container]);
+
+  // The width it covers, as it changes (browser zoom, font size, window).
+  useEffect(() => {
+    const panel = panelRef.current;
+    if (!open || panel === null) return;
+    const observer = new ResizeObserver(() => onWidthChange(panel.offsetWidth));
+    observer.observe(panel);
+    return () => {
+      observer.disconnect();
+      onWidthChange(0);
+    };
+  }, [open, container, onWidthChange]);
 
   if (!open || container === null) return null;
 

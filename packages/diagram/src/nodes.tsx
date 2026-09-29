@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Custom React Flow nodes, one per diagram type (ADR-0005), plus the groups as parent nodes.
+// Custom React Flow nodes, one per diagram type (ADR-0005), plus the groups as parent nodes. Sizes
+// are in px: on the board, text scales with the board zoom, not with the browser font (the nodes
+// have fixed canvas sizes; docs/design, problem 28).
 // Lovable: .diagram-group + .group-*, .diagram-fixed-node, .diagram-actor (src/styles.css).
 import type { ActorNode as ActorSchemaNode, GroupKind } from "@blueprint/scenario-schema";
 import { ArchitectureSlot } from "@blueprint/ui/components/architecture-slot";
@@ -60,7 +62,7 @@ export function GroupNode({ data }: NodeProps<GroupFlowNode>) {
       className={cn("size-full rounded-[9px]", GROUP_STYLES[group.kind])}
     >
       {/* Size and offset match GROUP_LABEL (geometry.ts), which step circles avoid. */}
-      <span className="absolute top-[6px] left-[8px] flex h-[18px] items-center rounded-[4px] bg-card px-[0.35rem] text-[0.6rem] leading-none font-[850] whitespace-nowrap text-primary uppercase">
+      <span className="absolute top-[6px] left-[8px] flex h-[18px] items-center rounded-[4px] bg-card px-[5.6px] text-[9.6px] leading-none font-[850] whitespace-nowrap text-primary uppercase">
         {group.label}
       </span>
     </div>
@@ -85,13 +87,13 @@ export function ActorNode({ data }: NodeProps<ActorFlowNode>) {
       <div
         data-node-type={node.type}
         className={cn(
-          "flex size-full flex-col items-center justify-center gap-[0.3rem] rounded-[7px] border bg-card p-2 text-center shadow-[0_5px_14px_color-mix(in_oklab,var(--foreground)_7%,transparent)]",
+          "flex size-full flex-col items-center justify-center gap-[4.8px] rounded-[7px] border bg-card p-[8px] text-center shadow-[0_5px_14px_color-mix(in_oklab,var(--foreground)_7%,transparent)]",
           // An external system is not one of the actors: dashed, over the muted background.
           node.type === "external" && "border-dashed border-slot-border bg-muted",
         )}
       >
-        <Icon aria-hidden="true" className="size-5 shrink-0 text-muted-foreground" />
-        <strong className="line-clamp-2 text-[0.68rem] leading-tight">{node.label}</strong>
+        <Icon aria-hidden="true" className="size-[20px] shrink-0 text-muted-foreground" />
+        <strong className="line-clamp-2 text-[10.88px] leading-tight">{node.label}</strong>
       </div>
     </>
   );
@@ -105,7 +107,7 @@ export function FixedNode({ data }: NodeProps<FixedFlowNode>) {
       <HiddenHandles />
       <div
         data-node-type="fixed"
-        className="grid size-full grid-cols-[auto_1fr] items-center gap-2 rounded-[7px] border bg-card p-[0.6rem] shadow-[0_5px_14px_color-mix(in_oklab,var(--foreground)_7%,transparent)]"
+        className="grid size-full grid-cols-[auto_1fr] items-center gap-[8px] rounded-[7px] border bg-card p-[9.6px] shadow-[0_5px_14px_color-mix(in_oklab,var(--foreground)_7%,transparent)]"
       >
         <ServiceIcon
           src={service?.iconSrc}
@@ -113,7 +115,7 @@ export function FixedNode({ data }: NodeProps<FixedFlowNode>) {
           category={service?.category ?? ""}
           decorative
         />
-        <strong className="line-clamp-2 text-[0.7rem] leading-tight">{name}</strong>
+        <strong className="line-clamp-2 text-[11.2px] leading-tight">{name}</strong>
       </div>
     </>
   );
@@ -172,7 +174,7 @@ export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
       onActivate={onSlotActivate === undefined ? undefined : () => onSlotActivate(node.id)}
       emptyText={onSlotActivate === undefined ? "" : undefined}
       hintAction={hintAction}
-      onFocus={() => reveal(box)}
+      onFocus={(event) => reveal(box, event.currentTarget.getBoundingClientRect().height)}
       // React Flow turns pointer events off on nodes that are neither selectable nor draggable;
       // the slot is a button (and holds the hint button), so it takes them back. At least the node
       // box, taller when a larger browser font needs it: the role is never cut.

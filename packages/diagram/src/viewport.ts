@@ -111,3 +111,41 @@ export const steppedZoom = (
       : (Math.ceil(zoom / ZOOM_STEP - EPSILON) - 1) * ZOOM_STEP;
   return Math.min(maxZoom, Math.max(minZoom, next));
 };
+
+/** Margin (px) a slot reached with Tab keeps from the edges of the board before it pans. */
+export const REVEAL_MARGIN = 16;
+
+/**
+ * Viewport that shows a slot reached with Tab, or null when it is already in view. The zoom never
+ * changes. `renderedHeight` (screen px) is the height of a slot that a larger browser font made
+ * grow past its NODE_SIZE box: the whole slot is shown. `insetLeft` (px) is a strip on the left
+ * covered by the app (e.g. "Ver caso"): the slot is centered in the rest. A slot taller than the
+ * board shows its top, where the grade and the role are.
+ */
+export const revealViewport = (
+  nominal: Box,
+  view: Viewport,
+  board: Size,
+  options: { renderedHeight?: number | undefined; insetLeft?: number | undefined } = {},
+): Viewport | null => {
+  const { zoom } = view;
+  const box =
+    options.renderedHeight === undefined
+      ? nominal
+      : { ...nominal, h: Math.max(nominal.h, options.renderedHeight / zoom) };
+  const visibleLeft = Math.min(options.insetLeft ?? 0, board.width);
+  const left = box.x * zoom + view.x;
+  const top = box.y * zoom + view.y;
+  const inView =
+    left >= visibleLeft + REVEAL_MARGIN &&
+    top >= REVEAL_MARGIN &&
+    left + box.w * zoom <= board.width - REVEAL_MARGIN &&
+    top + box.h * zoom <= board.height - REVEAL_MARGIN;
+  if (inView) return null;
+  const tall = box.h * zoom > board.height - 2 * REVEAL_MARGIN;
+  return {
+    x: (visibleLeft + board.width) / 2 - (box.x + box.w / 2) * zoom,
+    y: tall ? REVEAL_MARGIN - box.y * zoom : board.height / 2 - (box.y + box.h / 2) * zoom,
+    zoom,
+  };
+};

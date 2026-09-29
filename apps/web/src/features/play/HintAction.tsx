@@ -41,7 +41,7 @@ export function HintAction({ role, revealed, total, cost, canReveal, onReveal }:
         : t("play.hints.none");
 
   return (
-    <span className="mt-auto flex items-center justify-between gap-1 pt-[0.25rem] text-[0.55rem]">
+    <span className="mt-auto flex items-center justify-between gap-[4px] pt-[4px] text-[8.8px]">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button
@@ -49,9 +49,9 @@ export function HintAction({ role, revealed, total, cost, canReveal, onReveal }:
             onClick={() => {
               if (!open && revealed.length === 0) onReveal();
             }}
-            className="inline-flex min-w-0 cursor-pointer items-center gap-[0.25rem] rounded-[3px] font-semibold text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
+            className="inline-flex min-w-0 cursor-pointer items-center gap-[4px] rounded-[3px] font-semibold text-foreground hover:underline focus-visible:ring-2 focus-visible:ring-ring focus-visible:outline-none"
           >
-            <CircleHelpIcon aria-hidden className="size-3 shrink-0" />
+            <CircleHelpIcon aria-hidden className="size-[12px] shrink-0" />
             <span className="truncate">{label}</span>
           </button>
         </PopoverTrigger>
@@ -61,16 +61,16 @@ export function HintAction({ role, revealed, total, cost, canReveal, onReveal }:
           align="start"
           className="w-80 border-warning"
         >
-          <h3 id={titleId} className="flex items-center gap-2 text-[0.85rem] font-bold">
+          <h3 id={titleId} className="flex items-center gap-2 text-sm font-bold">
             <LightbulbIcon aria-hidden className="size-4 shrink-0 text-warning" />
             {t("play.hints.title", { role })}
           </h3>
           <ol className="mt-3 flex flex-col gap-2">
             {revealed.map((hint, i) => (
-              <li key={i} className="flex gap-2 text-[0.8rem]">
+              <li key={i} className="flex gap-2 text-base">
                 <span
                   aria-hidden
-                  className="grid size-5 shrink-0 place-items-center rounded-full bg-warning-soft text-[0.7rem] font-bold text-warning"
+                  className="grid size-6 shrink-0 place-items-center rounded-full bg-warning-soft text-sm font-bold text-warning"
                 >
                   {i + 1}
                 </span>
@@ -82,12 +82,12 @@ export function HintAction({ role, revealed, total, cost, canReveal, onReveal }:
             ))}
           </ol>
           {remaining > 0 && canReveal ? (
-            <Button size="sm" variant="outline" className="mt-3" onClick={onReveal}>
+            <Button size="sm" variant="outline" className="mt-3 text-sm" onClick={onReveal}>
               {t("play.hints.another", { cost })}
             </Button>
           ) : (
             remaining === 0 && (
-              <p className="mt-3 text-[0.75rem] text-muted-foreground">{t("play.hints.none")}</p>
+              <p className="mt-3 text-sm text-muted-foreground">{t("play.hints.none")}</p>
             )
           )}
         </PopoverContent>

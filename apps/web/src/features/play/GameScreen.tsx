@@ -20,7 +20,15 @@ import {
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { toast } from "@blueprint/ui/components/sonner";
-import { useCallback, useEffect, useMemo, useRef, useState, type KeyboardEvent } from "react";
+import {
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+  type FocusEvent,
+  type KeyboardEvent,
+} from "react";
 import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { useImmersiveLayout } from "../../app/immersive";
@@ -44,6 +52,8 @@ import { useFocusMode } from "./use-focus-mode";
 import { useGameController, type Names } from "./use-game-controller";
 
 const REPOSITORY = repositoryUrl(import.meta.env.VITE_REPO_URL);
+/** A slot reached with Tab is in place once the board's reveal (200 ms) is over. */
+const REVEAL_SETTLE_MS = 250;
 
 export interface GameScreenProps {
   scenario: Scenario;
@@ -107,6 +117,8 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
   // Layout v2: brief, "Ver caso", palette collapsed (a browser preference) and focus mode.
   const [briefOpen, setBriefOpen] = useState(true);
   const [caseOpen, setCaseOpen] = useState(false);
+  /** Width "Ver caso" covers over the left of the board (0 when closed). */
+  const [caseInset, setCaseInset] = useState(0);
   const [paletteCollapsed, setPaletteCollapsed] = useFlagPreference(PALETTE_COLLAPSED_KEY);
   const focus = useFocusMode();
   const [layout, setLayout] = useState<HTMLDivElement | null>(null);
@@ -136,9 +148,27 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     card: cardRef,
     slotId: showFeedback ? game.feedbackSlotId : null,
     openKey: game.announcement.key,
-    layoutKey: focus.active ? "focus" : "bar",
+    layoutKey: `${focus.active ? "focus" : "bar"}:${caseInset}`,
     panBoard,
   });
+
+  /**
+   * The focus must never land hidden (WCAG 2.4.11): when a slot reached with the keyboard ends up
+   * under the card of another slot, the card closes. It checks once the board has panned to the
+   * slot (the reveal animates for 200 ms).
+   */
+  const onBoardFocus = (event: FocusEvent<HTMLDivElement>) => {
+    const slot = event.target.closest<HTMLElement>("[data-slot-id]");
+    if (slot === null || slot.dataset.slotId === game.feedbackSlotId) return;
+    window.setTimeout(() => {
+      const card = cardRef.current;
+      if (card === null || !slot.isConnected) return;
+      const a = card.getBoundingClientRect();
+      const b = slot.getBoundingClientRect();
+      const covered = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
+      if (covered && slot.contains(document.activeElement)) game.closeFeedback();
+    }, REVEAL_SETTLE_MS);
+  };
 
   const focusSlot = (slotId: string) =>
     document
@@ -270,7 +300,12 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
         renderOverlay={(serviceId) => <DragChip service={services.get(serviceId)} id={serviceId} />}
       >
         <div ref={setLayout} className="relative flex min-h-0 flex-1">
-          <div ref={boardArea} data-slot="board-area" className="relative min-h-0 min-w-0 flex-1">
+          <div
+            ref={boardArea}
+            data-slot="board-area"
+            onFocus={onBoardFocus}
+            className="relative min-h-0 min-w-0 flex-1"
+          >
             <Diagram
               ref={diagramRef}
               diagram={scenario.diagram}
@@ -283,6 +318,7 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
               stepList="hidden"
               playButton={false}
               onViewportChange={placement.onViewportChange}
+              insetLeft={caseInset}
               className="h-full"
             />
             {focus.active && (
@@ -299,6 +335,8 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
             <div
               aria-live="polite"
               data-slot="feedback-layer"
+              // Clear of "Ver caso" while it is open: the card stays usable beside it.
+              style={caseInset > 0 ? { left: caseInset } : undefined}
               className="pointer-events-none absolute inset-0 z-20"
             >
               <p key={game.announcement.key} className="sr-only">
@@ -350,6 +388,7 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
         onOpenChange={setCaseOpen}
         container={layout}
         returnFocus={() => caseOpener.current?.focus()}
+        onWidthChange={setCaseInset}
       />
     </div>
   );

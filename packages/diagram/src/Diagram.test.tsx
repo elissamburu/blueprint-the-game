@@ -334,6 +334,26 @@ describe("Diagram zoom and pan", () => {
   });
 });
 
+describe("Diagram left inset", () => {
+  it("moves the controls right of the inset and centers a tabbed slot in the free part", async () => {
+    const user = userEvent.setup();
+    renderBoard({ onSlotActivate: () => {}, insetLeft: 400 });
+    await waitFor(() => expect(viewport().zoom).toBeGreaterThan(0));
+    const controls = document.querySelector<HTMLElement>("[data-slot=board-controls]");
+    expect(controls?.style.left).toBe("416px");
+    board().focus();
+    await user.tab();
+    const first = pdfScenario.diagram.nodes.find((n) => n.id === slotIds[0]);
+    if (first === undefined) throw new Error("no slot");
+    const box = nodeBox(first);
+    // The board measures 1200 px (zoom and pan tests): the free part is 400–1200, centered at 800.
+    await waitFor(() => {
+      const { x, zoom } = viewport();
+      expect((box.x + box.w / 2) * zoom + x).toBeCloseTo(800, 0);
+    });
+  });
+});
+
 describe("Diagram handle", () => {
   it("plays the flow and pans the board on request", async () => {
     const ref = createRef<DiagramHandle>();

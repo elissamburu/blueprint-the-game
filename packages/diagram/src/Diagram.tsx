@@ -57,14 +57,12 @@ import { describeRoute, describeStep, diagramSteps, type FlowStep } from "./step
 import { isServiceDragData, type ServiceLookup, type SlotView } from "./types";
 import { useFlowPlayer, type FlowPlayer } from "./use-flow-player";
 import { useReducedMotion } from "./use-reduced-motion";
-import { contentBox, initialView, steppedZoom } from "./viewport";
+import { contentBox, initialView, revealViewport, steppedZoom } from "./viewport";
 
 export const MIN_ZOOM = 0.2;
 /** At least 300 % for people with low vision (docs/design, problem 27). */
 export const MAX_ZOOM = 3;
 const FIT_PADDING = 0.04;
-/** Margin (px) a focused slot keeps from the edges of the board before it pans. */
-const REVEAL_MARGIN = 16;
 /** Screen pixels an arrow key pans the focused board. */
 export const ARROW_PAN = 64;
 
@@ -115,6 +113,11 @@ export interface DiagramProps {
   preview?: boolean | undefined;
   /** Every change of zoom or position (pan, zoom, reveal, arrows). */
   onViewportChange?: ((viewport: Viewport) => void) | undefined;
+  /**
+   * Width (px) of the left strip the app covers with its own panel (e.g. "Ver caso"). The floating
+   * controls move right of it and a slot reached with Tab is centered in the uncovered part.
+   */
+  insetLeft?: number | undefined;
   className?: string | undefined;
   ref?: Ref<DiagramHandle> | undefined;
 }
@@ -234,6 +237,7 @@ function DiagramBoard({
   stepList = "strip",
   playButton = true,
   onViewportChange,
+  insetLeft = 0,
   className,
   ref,
 }: DiagramProps) {
@@ -317,32 +321,23 @@ function DiagramBoard({
 
   const tabbing = useTabNavigation();
   const reveal = useCallback(
-    (box: Box) => {
+    (box: Box, renderedHeight?: number) => {
       const board = boardRef.current;
       // Only for Tab: a click lands on a slot already in view, and the focus the app moves back to
       // a slot after placing a service must not pan the board.
       if (board === null || !tabbing.current) return;
-      const { x, y, zoom } = flow.getViewport();
-      const left = box.x * zoom + x;
-      const top = box.y * zoom + y;
-      const inView =
-        left >= REVEAL_MARGIN &&
-        top >= REVEAL_MARGIN &&
-        left + box.w * zoom <= board.clientWidth - REVEAL_MARGIN &&
-        top + box.h * zoom <= board.clientHeight - REVEAL_MARGIN;
-      if (inView) return;
-      // Centered in the board as measured here, at the same zoom. Linear: the default (smooth)
-      // transition zooms out and back in while it travels.
-      void flow.setViewport(
-        {
-          x: board.clientWidth / 2 - (box.x + box.w / 2) * zoom,
-          y: board.clientHeight / 2 - (box.y + box.h / 2) * zoom,
-          zoom,
-        },
-        { duration: reducedMotion ? 0 : 200, interpolate: "linear" },
+      const next = revealViewport(
+        box,
+        flow.getViewport(),
+        { width: board.clientWidth, height: board.clientHeight },
+        { renderedHeight, insetLeft },
       );
+      // Linear: the default (smooth) transition zooms out and back in while it travels.
+      if (next !== null) {
+        void flow.setViewport(next, { duration: reducedMotion ? 0 : 200, interpolate: "linear" });
+      }
     },
-    [flow, reducedMotion, tabbing],
+    [flow, reducedMotion, tabbing, insetLeft],
   );
 
   /** Arrows pan the board while the board itself (not a slot inside it) has the focus. */
@@ -431,6 +426,11 @@ function DiagramBoard({
               zoom. The app keeps its own floating content clear of it (data-slot). */}
           <div
             data-slot="board-controls"
+            style={
+              insetLeft > 0
+                ? { left: insetLeft + 16, maxWidth: `calc(100% - ${insetLeft + 32}px)` }
+                : undefined
+            }
             className="pointer-events-none absolute bottom-4 left-4 z-10 flex max-w-[calc(100%-2rem)] flex-col items-start gap-2 *:pointer-events-auto"
           >
             <FlowPlayerControls

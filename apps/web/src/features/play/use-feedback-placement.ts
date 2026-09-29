@@ -57,8 +57,11 @@ export const useFeedbackPlacement = ({
     const cardElement = card.current;
     if (areaElement === null || cardElement === null || slotId === null) return;
     let opening = true;
+    // The card floats over its layer, which may leave a strip free on the left ("Ver caso"): the
+    // geometry is relative to the layer, and slots under that strip count as out of view.
+    const layer = cardElement.parentElement ?? areaElement;
     const measure = () => {
-      const origin = areaElement.getBoundingClientRect();
+      const origin = layer.getBoundingClientRect();
       const relative = (element: Element): Rect => {
         const r = element.getBoundingClientRect();
         return { x: r.left - origin.left, y: r.top - origin.top, w: r.width, h: r.height };
