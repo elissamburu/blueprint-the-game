@@ -107,7 +107,7 @@ function Listing({ bundle }: { bundle: ContentBundle }) {
       ) : (
         <ul className="grid gap-4 md:grid-cols-2 lg:grid-cols-3">
           {visible.map((scenario) => (
-            <li key={scenario.id}>
+            <li key={scenario.id} className={CARD_ROWS}>
               <ScenarioCard
                 scenario={scenario}
                 areaNames={scenario.areas.map(areaName)}
@@ -299,6 +299,14 @@ function Filters({
   );
 }
 
+/**
+ * The card spans six rows of the listing grid and shares them through subgrid (the li and the
+ * article), so the title, summary, tags and footer of the cards in a row start at the same
+ * height: top (badges and icon), title, summary, tags, duration and action. Each row is as tall
+ * as the tallest card needs, which also makes the cards of a row equally tall.
+ */
+const CARD_ROWS = "row-span-6 grid grid-rows-subgrid gap-y-0";
+
 function ScenarioCard({
   scenario,
   areaNames,
@@ -325,45 +333,48 @@ function ScenarioCard({
     <article
       aria-labelledby={titleId}
       className={cn(
-        "flex h-full min-h-[340px] flex-col rounded-lg border p-[1.3rem]",
+        CARD_ROWS,
+        "rounded-lg border p-[1.3rem]",
         lock === null
           ? "bg-card transition-[transform,box-shadow] duration-200 hover:-translate-y-[3px] hover:shadow-[0_15px_35px_color-mix(in_oklab,var(--foreground)_8%,transparent)]"
           : "bg-muted",
       )}
     >
-      <div className="flex flex-wrap items-center justify-between gap-3">
-        <span className="flex flex-wrap items-center gap-2">
-          <LevelBadge level={scenario.level} className="text-sm" />
-          <StatusBadge status={scenario.status} className="text-sm" />
-        </span>
-        <span className="flex flex-wrap items-center gap-2">
-          {best !== undefined && <BestScore best={best} />}
-          {lock !== null ? (
-            <span className="text-muted-foreground">
-              <LockIcon aria-hidden className="size-[17px]" />
-              <span className="sr-only">{t("scenarios.locked")}</span>
-            </span>
-          ) : (
-            status !== null && <ProgressBadge status={status} />
-          )}
-        </span>
+      <div>
+        <div className="flex flex-wrap items-center justify-between gap-3">
+          <span className="flex flex-wrap items-center gap-2">
+            <LevelBadge level={scenario.level} className="text-sm" />
+            <StatusBadge status={scenario.status} className="text-sm" />
+          </span>
+          <span className="flex flex-wrap items-center gap-2">
+            {best !== undefined && <BestScore best={best} />}
+            {lock !== null ? (
+              <span className="text-muted-foreground">
+                <LockIcon aria-hidden className="size-[17px]" />
+                <span className="sr-only">{t("scenarios.locked")}</span>
+              </span>
+            ) : (
+              status !== null && <ProgressBadge status={status} />
+            )}
+          </span>
+        </div>
+        {Icon !== undefined && (
+          <span
+            aria-hidden="true"
+            className={cn(
+              "mt-[1.3rem] grid size-[42px] place-items-center rounded-[7px]",
+              lock === null ? "bg-blueprint-soft text-primary" : "bg-card text-muted-foreground",
+            )}
+          >
+            <Icon className="size-5" />
+          </span>
+        )}
       </div>
-      {Icon !== undefined && (
-        <span
-          aria-hidden="true"
-          className={cn(
-            "mt-[1.3rem] grid size-[42px] place-items-center rounded-[7px]",
-            lock === null ? "bg-blueprint-soft text-primary" : "bg-card text-muted-foreground",
-          )}
-        >
-          <Icon className="size-5" />
-        </span>
-      )}
       <h2 id={titleId} className="mt-[0.8rem] text-[1.12rem] leading-[1.35]">
         {scenario.title}
       </h2>
       <p className="mt-[0.55rem] leading-[1.55] text-muted-foreground">{scenario.summary}</p>
-      <ul aria-label={t("scenarios.areas")} className="mt-4 flex flex-wrap gap-[0.4rem]">
+      <ul aria-label={t("scenarios.areas")} className="mt-4 flex flex-wrap gap-[0.4rem] self-start">
         {areaNames.map((name) => (
           <li key={name}>
             <Badge variant="secondary" className="text-sm">
@@ -372,14 +383,16 @@ function ScenarioCard({
           </li>
         ))}
       </ul>
-      <div className="mt-auto flex flex-wrap items-center justify-between gap-3 border-t pt-4 text-sm text-muted-foreground">
+      {/* The duration and, below it, the action or the lock reason: two rows of the subgrid, so
+          the separator and both lines line up across the cards of a row. */}
+      <div className="row-span-2 mt-4 grid grid-rows-subgrid gap-y-3 border-t pt-4 text-sm text-muted-foreground">
         <span>{t("scenarios.minutes", { count: scenario.estimatedMinutes })}</span>
         {lock !== null ? (
-          <p className="text-right font-semibold text-foreground">
+          <p className="font-semibold text-foreground">
             <LockReasonText lock={lock} areaName={lockAreaName} />
           </p>
         ) : (
-          <Button asChild variant="outline">
+          <Button asChild variant="outline" className="justify-self-start">
             <Link
               to={`/escenarios/${scenario.id}`}
               aria-label={t(completed ? "scenarios.replayLabel" : "scenarios.playLabel", {
