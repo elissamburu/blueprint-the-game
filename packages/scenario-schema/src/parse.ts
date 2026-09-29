@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import type * as z from "zod";
 import {
+  BundleCatalogSchema,
+  BundleIndexSchema,
+  type BundleCatalog,
+  type BundleIndex,
+} from "./bundle.js";
+import {
   CategoriesFileSchema,
   ConfusionGroupsFileSchema,
   ServicesFileSchema,
@@ -42,3 +48,7 @@ export const parseAreas: (input: unknown) => ParseResult<Area[]> = parseWith(Are
 export const parseGameRules: (input: unknown) => ParseResult<GameRules> =
   parseWith(GameRulesSchema);
 export const parseBadges: (input: unknown) => ParseResult<Badge[]> = parseWith(BadgesFileSchema);
+export const parseBundleIndex: (input: unknown) => ParseResult<BundleIndex> =
+  parseWith(BundleIndexSchema);
+export const parseBundleCatalog: (input: unknown) => ParseResult<BundleCatalog> =
+  parseWith(BundleCatalogSchema);

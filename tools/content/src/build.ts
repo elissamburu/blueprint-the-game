@@ -2,7 +2,12 @@
 // content:build (RF-CNT-04, ADR-0006): the JSON bundle the game consumes, in dist/content/.
 import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
-import type { Area, Scenario } from "@blueprint/scenario-schema";
+import {
+  BUNDLE_SCHEMA_VERSION,
+  type BundleIndex,
+  type BundleIndexEntry,
+  type Scenario,
+} from "@blueprint/scenario-schema";
 import { inspectContent, type ValidationReport } from "./validate.js";
 
 export interface BuildOptions {
@@ -24,7 +29,7 @@ export interface BuildResult {
   excludedDrafts: number;
 }
 
-export const BUNDLE_SCHEMA_VERSION = 1;
+export { BUNDLE_SCHEMA_VERSION, type BundleIndex };
 
 type Status = Scenario["status"];
 
@@ -42,25 +47,7 @@ const listedStatuses = (includeDrafts: boolean): ReadonlySet<Status> =>
 export const scenarioBundleFile = (scenario: Pick<Scenario, "id" | "version">): string =>
   `${scenario.id}.v${scenario.version}.json`;
 
-export interface IndexEntry {
-  id: string;
-  version: number;
-  status: Scenario["status"];
-  level: Scenario["level"];
-  areas: string[];
-  title: string;
-  summary: string;
-  estimatedMinutes: number;
-  file: string;
-}
-
-export interface BundleIndex {
-  schemaVersion: number;
-  areas: Area[];
-  scenarios: IndexEntry[];
-}
-
-const indexEntry = (scenario: Scenario): IndexEntry => ({
+const indexEntry = (scenario: Scenario): BundleIndexEntry => ({
   id: scenario.id,
   version: scenario.version,
   status: scenario.status,

@@ -1,29 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Page scaffolding of the catalog. Lovable: .page-shell, .page-heading, .review-heading and
-// .profile-section (src/styles.css). Headings keep the body weight, as in Lovable.
+// Section scaffolding of the catalog. Lovable: .review-heading and .profile-section
+// (src/styles.css). The page shell and heading are the app ones (src/app/page.tsx).
 import type * as React from "react";
 
-export function PageShell({ children }: { children: React.ReactNode }) {
-  return <div className="mx-auto max-w-[1180px] px-8 pt-[4.5rem] pb-24">{children}</div>;
-}
-
-export function PageHeading({
-  kicker,
-  title,
-  description,
-}: {
-  kicker: string;
-  title: string;
-  description: string;
-}) {
-  return (
-    <header className="mb-8">
-      <span className="section-kicker">{kicker}</span>
-      <h1 className="mt-[0.35rem] text-[2.6rem]">{title}</h1>
-      <p className="mt-2 text-muted-foreground">{description}</p>
-    </header>
-  );
-}
+export { PageHeading, PageShell } from "../app/page";
 
 export function Section({
   id,

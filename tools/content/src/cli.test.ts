@@ -2,6 +2,7 @@
 // End-to-end tests of the three commands against a temporary copy of fixtures/content.
 import { readdir, readFile, stat } from "node:fs/promises";
 import path from "node:path";
+import { parseBundleCatalog, parseBundleIndex } from "@blueprint/scenario-schema";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import type { BundleIndex } from "./build.js";
 import { createWorkspace, type Workspace } from "./testing/fixture.js";
@@ -318,6 +319,8 @@ describe("content build", () => {
       "index.json",
     ]);
     const index = await readIndex();
+    // The game validates index.json with this same schema when it loads the bundle.
+    expect(parseBundleIndex(index).success).toBe(true);
     expect(index.scenarios.map((s) => [s.id, s.status, s.file])).toEqual([
       ["club-photos", "beta", "club-photos.v1.json"],
     ]);
@@ -325,6 +328,7 @@ describe("content build", () => {
       services: unknown[];
     };
     expect(catalog.services).toHaveLength(8);
+    expect(parseBundleCatalog(catalog).success).toBe(true);
   });
 
   it("bundles and lists drafts with --include-drafts", async () => {

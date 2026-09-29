@@ -10,8 +10,8 @@
     "node": ">=24"
   },
   "scripts": {
-    "dev": "turbo run dev",
-    "dev:web": "pnpm --filter @blueprint/web dev",
+    "dev": "pnpm content:dev && turbo run dev",
+    "dev:web": "pnpm content:dev && pnpm --filter @blueprint/web dev",
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
@@ -24,6 +24,7 @@
     "content:validate": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts validate",
     "content:gen": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts gen",
     "content:build": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts build",
+    "content:dev": "pnpm content:build --include-drafts --out dist/content-dev",
     "icons:prepare": "turbo run build --filter=@blueprint/tools-icons-fetch... --output-logs=errors-only 1>&2",
     "icons:fetch": "pnpm --reporter=silent icons:prepare && pnpm --reporter=silent --dir tools/icons-fetch exec tsx src/bin.ts"
   },

@@ -3,6 +3,7 @@ export { CONCRETE_PALETTE_MODES, KEBAB_CASE, LEVELS, MAX_LENGTH } from "./common
 export * from "./scenario.js";
 export * from "./catalog.js";
 export * from "./game.js";
+export * from "./bundle.js";
 export { formatIssues, type SchemaIssue } from "./errors.js";
 export * from "./parse.js";
 export * from "./palette.js";
