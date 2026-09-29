@@ -27,7 +27,13 @@ import {
   PlayIcon,
   StarIcon,
 } from "lucide-react";
-import type { Ref } from "react";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@blueprint/ui/components/tooltip";
+import { useId, useState, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
 
@@ -218,6 +224,11 @@ function ViewCaseButton({
   );
 }
 
+/**
+ * "Finalizar". While slots are missing it is aria-disabled instead of disabled: it stays in the
+ * tab order and its description says how many are left, for keyboard and screen reader users
+ * too; the tooltip shows the same text on hover and focus.
+ */
 function FinishButton({
   progress,
   finishing,
@@ -230,15 +241,39 @@ function FinishButton({
   size?: "sm";
 }) {
   const { t } = useTranslation();
+  const id = useId();
+  const missing = progress.total - progress.resolved;
+  const blocked = !progress.completed || finishing;
+  const reason = progress.completed ? null : t("play.top.finishMissing", { count: missing });
+  const [tooltipOpen, setTooltipOpen] = useState(false);
+  // The tooltip stays mounted so the button keeps its element (and the focus) when it enables.
   return (
-    <Button
-      size={size}
-      className="text-sm"
-      disabled={!progress.completed || finishing}
-      title={progress.completed ? undefined : t("play.top.finishHint")}
-      onClick={onFinish}
-    >
-      {t("play.top.finish")}
-    </Button>
+    <>
+      <TooltipProvider>
+        <Tooltip open={reason !== null && tooltipOpen} onOpenChange={setTooltipOpen}>
+          <TooltipTrigger asChild>
+            <Button
+              size={size}
+              className="text-sm aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
+              aria-disabled={blocked}
+              aria-describedby={reason === null ? undefined : `${id}-reason`}
+              onClick={() => {
+                if (!blocked) onFinish();
+              }}
+            >
+              {t("play.top.finish")}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent aria-hidden="true" className="text-sm">
+            {reason}
+          </TooltipContent>
+        </Tooltip>
+      </TooltipProvider>
+      {reason !== null && (
+        <span id={`${id}-reason`} className="sr-only">
+          {reason}
+        </span>
+      )}
+    </>
   );
 }

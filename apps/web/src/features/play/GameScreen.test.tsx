@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The game screen through the real routes, against the content bundle served by a fake fetch.
-import { slotNodes } from "@blueprint/game-engine";
+import { createProgress, slotNodes } from "@blueprint/game-engine";
+import type { Experience } from "@blueprint/scenario-schema";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
@@ -12,6 +13,8 @@ import { bundleFiles, fetchFrom } from "../../content/testing/bundle-fixture";
 import "../../i18n";
 import { PROGRESS_STORAGE_KEY } from "../../progress/local-storage-progress-repository";
 import { PALETTE_COLLAPSED_KEY } from "./ui-preferences";
+import { PROGRESS_SCHEMA_VERSION } from "../../progress/progress-schema";
+import { storedProgress } from "../../testing/progress-fixture";
 import { useProgressStore } from "../../progress/progress-store";
 import { mockReactFlowLayout } from "../../testing/react-flow-mocks";
 import { bundle, pdfScenario, slotOf, staticWebsiteScenario } from "./testing/game-fixture";
@@ -87,14 +90,51 @@ const role = (slotId: string) => slotOf(pdfScenario, slotId).role;
 const roleOf = (scenario: typeof pdfScenario, slotId: string) =>
   slotOf(scenario, slotId).role.replace(/\.+$/, "");
 
-const withProgress = () =>
+/** A stored player who opened levels 100 and 200 (the PDF scenario is level 200). */
+const withProgress = (experience: Experience = "aws-user") =>
   localStorage.setItem(
     PROGRESS_STORAGE_KEY,
     JSON.stringify({
-      schemaVersion: 1,
-      progress: { experience: "beginner", xp: 0, best: {}, unlocked: [] },
+      schemaVersion: PROGRESS_SCHEMA_VERSION,
+      progress: createProgress(
+        { experience, interests: ["serverless"] },
+        bundle.index.scenarios,
+        bundle.rules,
+      ),
     }),
   );
+
+describe("access", () => {
+  it("shows why a locked scenario cannot be played, instead of its brief", async () => {
+    withProgress("beginner");
+    render(
+      <MemoryRouter initialEntries={[`/escenarios/${pdfScenario.id}`]}>
+        <AppRoutes />
+      </MemoryRouter>,
+    );
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Escenario bloqueado" }),
+    ).toBeTruthy();
+    expect(screen.getByText("Completá escenarios de nivel 100 en Almacenamiento.")).toBeTruthy();
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(screen.getByRole("link", { name: "Volver a escenarios" })).toBeTruthy();
+    const results = await axe.run(document.body, {
+      resultTypes: ["violations"],
+      rules: { "color-contrast": { enabled: false } },
+    });
+    expect(results.violations).toEqual([]);
+  });
+
+  it("marks the scenario as started with the first placement", async () => {
+    withProgress();
+    const user = await open();
+    const slot = slotNodes(pdfScenario)[0];
+    if (slot === undefined) throw new Error("no slots");
+    await press(user, slotButton(slot.id));
+    await user.click(paletteButton(slot.answers[0]?.service ?? ""));
+    await waitFor(() => expect(storedProgress()?.started).toEqual([pdfScenario.id]));
+  });
+});
 
 describe("game screen layout", () => {
   it("replaces the global header with the game bar: progress, score, actions and menu", async () => {
@@ -106,7 +146,9 @@ describe("game screen layout", () => {
     expect(screen.getByRole("link", { name: "Volver a escenarios" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Ver caso" })).toBeTruthy();
     expect(screen.getByRole("button", { name: "Modo foco" })).toBeTruthy();
-    expect(screen.getByRole("button", { name: "Finalizar" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Finalizar" }).getAttribute("aria-disabled")).toBe(
+      "true",
+    );
 
     const palette = screen.getByRole("complementary", { name: "Paleta de servicios" });
     expect(within(palette).getByRole("searchbox", { name: "Buscar servicio" })).toBeTruthy();
@@ -249,7 +291,8 @@ describe("finishing", () => {
     const user = await open();
     const finish = screen.getByRole("button", { name: "Finalizar" });
     await solveAll(user);
-    await waitFor(() => expect(finish.hasAttribute("disabled")).toBe(false));
+    await waitFor(() => expect(finish.getAttribute("aria-disabled")).toBe("false"));
+    expect(finish.getAttribute("aria-describedby")).toBeNull();
     await act(() => user.click(finish));
 
     expect(
@@ -265,6 +308,34 @@ describe("finishing", () => {
       progress?: { xp?: number };
     };
     expect(stored.progress?.xp).toBe(xp);
+  });
+
+  it("«Finalizar» stays focusable while slots are missing and says how many, also by keyboard", async () => {
+    withProgress();
+    const user = await open();
+    const finish = screen.getByRole("button", { name: "Finalizar" });
+    const slots = slotNodes(pdfScenario);
+    const describedBy = () =>
+      document.getElementById(finish.getAttribute("aria-describedby") ?? "")?.textContent;
+    expect(finish.hasAttribute("disabled")).toBe(false);
+    expect(finish.getAttribute("aria-disabled")).toBe("true");
+    expect(describedBy()).toBe(`Faltan ${slots.length} casilleros`);
+
+    finish.focus();
+    expect(document.activeElement).toBe(finish);
+    // Enter and Space do nothing yet: the game stays open.
+    await user.keyboard("{Enter}");
+    await user.keyboard(" ");
+    expect(screen.getByRole("heading", { level: 1, name: pdfScenario.title })).toBeTruthy();
+    expect(screen.queryByRole("heading", { name: "Escenario completado" })).toBeNull();
+
+    // One slot solved: one less.
+    const first = slots[0];
+    const optimal = first?.answers.find((a) => a.grade === "optimal");
+    if (first === undefined || optimal === undefined) throw new Error("no optimal answer");
+    await press(user, slotButton(first.id));
+    await user.click(paletteButton(optimal.service));
+    await waitFor(() => expect(describedBy()).toBe(`Faltan ${slots.length - 1} casilleros`));
   });
 
   it("without progress, plays anyway and warns that the result is not saved", async () => {

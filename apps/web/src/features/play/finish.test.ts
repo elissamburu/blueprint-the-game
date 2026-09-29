@@ -26,7 +26,7 @@ const t = i18n.t.bind(i18n);
 describe("finishScenario", () => {
   it("applies the result to the progress, saves it and returns the engine events", async () => {
     const progress: PlayerProgress = createProgress(
-      "beginner",
+      { experience: "beginner", interests: [] },
       bundle.index.scenarios,
       bundle.rules,
     );

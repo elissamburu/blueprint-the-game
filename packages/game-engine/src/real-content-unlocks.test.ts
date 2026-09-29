@@ -36,13 +36,21 @@ const playable = (progress: PlayerProgress) =>
 
 describe("beginner path through the real scenarios", () => {
   it("starts with only level 100 open in every area", () => {
-    const progress = createProgress("beginner", realScenarios, gameRules);
+    const progress = createProgress(
+      { experience: "beginner", interests: [] },
+      realScenarios,
+      gameRules,
+    );
     expect(progress.unlocked).toEqual(pairs(areas, [100]));
     expect(playable(progress)).toEqual([staticWebsiteScenario.id]);
   });
 
   it("opens 200 after the level-100 scenario and 300 after the level-200 one, never 400", () => {
-    const start = createProgress("beginner", realScenarios, gameRules);
+    const start = createProgress(
+      { experience: "beginner", interests: [] },
+      realScenarios,
+      gameRules,
+    );
 
     const afterStatic = complete(start, staticWebsiteScenario);
     // networking and storage count their own scenario; the other areas have no level-100

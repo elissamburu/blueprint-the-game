@@ -13,6 +13,7 @@ import {
   canApply,
   commands,
   isSlotResolved,
+  markScenarioStarted,
   revealedHints,
   scenarioResult,
   slotNodes,
@@ -113,6 +114,17 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     score: scenarioResult(session).score,
     completed: session.completed,
   };
+
+  // The first placement makes the scenario "en curso" in the listing (RF-NAV-01). Without
+  // progress nothing is saved, as with the result.
+  const started = session.slots.some((slot) => slot.placements > 0);
+  useEffect(() => {
+    if (!started) return;
+    const { progress: stored, replace } = useProgressStore.getState();
+    if (stored === null) return;
+    const next = markScenarioStarted(stored, scenario.id);
+    if (next !== stored) void replace(next);
+  }, [started, scenario.id]);
 
   // Layout v2: brief, "Ver caso", palette collapsed (a browser preference) and focus mode.
   const [briefOpen, setBriefOpen] = useState(true);

@@ -6,9 +6,11 @@ import { createProgressStore } from "./progress-store";
 
 const progress: PlayerProgress = {
   experience: "beginner",
+  interests: ["serverless"],
   xp: 0,
   best: {},
   unlocked: [{ area: "serverless", level: 100 }],
+  started: [],
 };
 
 const fakeRepository = (load: ProgressLoad, saveFails = false) => {
