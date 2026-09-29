@@ -114,7 +114,7 @@ describe("renderReadme", () => {
     const readme = renderReadme(fresh(), catalog);
     expect(readme).toContain("### Casillero `thumbnailer`");
     expect(readme).toContain(
-      "| AWS Fargate (`fargate`) | 🟠 Aceptable | `no-servers` | Contenedores sin servidores, pero con arranque más lento. |",
+      "| AWS Fargate (`fargate`) | 🟠 Aceptable | `low-cost` | Contenedores sin servidores, pero con arranque más lento. |",
     );
     expect(readme).toContain(
       "| Amazon EC2 (`ec2`) | 🔴 Incorrecto | viola `no-servers` | Hay que administrar instancias. |",

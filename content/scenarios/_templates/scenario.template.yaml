@@ -49,7 +49,7 @@ diagram:
       answers:
         - service: todo-servicio  # id de content/catalog/services.yaml
           grade: optimal
-          objectives: [ejemplo-restriccion]
+          objectives: [ejemplo-restriccion]  # optimal: los que cumple; acceptable: metas soft a medias (L020)
           rationale: "TODO: por qué es óptimo, citando los objetivos"
           references: []          # docs.aws.amazon.com
       incorrect: []               # { service, rationale, violates? }; sin explicación ⇒ palette.extra

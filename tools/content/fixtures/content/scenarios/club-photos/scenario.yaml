@@ -67,7 +67,7 @@ diagram:
             - https://docs.aws.amazon.com/lambda/latest/dg/welcome.html
         - service: fargate
           grade: acceptable
-          objectives: [no-servers]
+          objectives: [low-cost]
           rationale: "Contenedores sin servidores, pero con arranque más lento."
       incorrect:
         - service: ec2

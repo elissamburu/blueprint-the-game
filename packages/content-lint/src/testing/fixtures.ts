@@ -189,7 +189,7 @@ export const baseScenario = (): Scenario => ({
           {
             service: "fargate",
             grade: "acceptable",
-            objectives: ["no-servers"],
+            objectives: ["low-cost"],
             rationale: "Contenedores sin servidores, pero con arranque más lento.",
             references: [],
           },

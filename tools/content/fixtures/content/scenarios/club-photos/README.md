@@ -70,5 +70,5 @@ Pistas:
 | Servicio | Grado | Objetivos | Justificación | Referencias |
 |---|---|---|---|---|
 | AWS Lambda (`lambda`) | 🟢 Óptimo | `no-servers`, `low-cost` | Cómputo por evento que no cobra sin uso. | [1](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html) |
-| AWS Fargate (`fargate`) | 🟠 Aceptable | `no-servers` | Contenedores sin servidores, pero con arranque más lento. |  |
+| AWS Fargate (`fargate`) | 🟠 Aceptable | `low-cost` | Contenedores sin servidores, pero con arranque más lento. |  |
 | Amazon EC2 (`ec2`) | 🔴 Incorrecto | viola `no-servers` | Hay que administrar instancias. |  |
