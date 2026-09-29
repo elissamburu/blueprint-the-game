@@ -539,6 +539,66 @@
   ssmNamespaces: [guardduty]
   icon: Arch_Amazon-GuardDuty_48
   status: active
+- id: security-hub
+  name: AWS Security Hub
+  category: security-identity
+  aliases: [security hub, hallazgos de seguridad, postura de seguridad]
+  leakPatterns: ["Security Hub", "SecurityHub"]
+  short: "Reúne hallazgos de seguridad de varias cuentas y servicios de AWS en una vista central para priorizarlos."
+  docs: https://docs.aws.amazon.com/securityhub/
+  ssmNamespaces: []
+  icon: Arch_AWS-Security-Hub_48
+  status: active
+- id: inspector
+  name: Amazon Inspector
+  category: security-identity
+  aliases: [inspector, vulnerabilidades, escaneo de vulnerabilidades, cve]
+  leakPatterns: ["Amazon Inspector", "AWS Inspector", "Inspector2"]
+  short: "Evalúa automáticamente los recursos en busca de vulnerabilidades y genera hallazgos priorizados por severidad."
+  docs: https://docs.aws.amazon.com/inspector/
+  ssmNamespaces: []
+  icon: Arch_Amazon-Inspector_48
+  status: active
+- id: macie
+  name: Amazon Macie
+  category: security-identity
+  aliases: [macie, datos sensibles, pii, datos personales]
+  leakPatterns: ["Macie"]
+  short: "Descubre, monitorea y protege datos sensibles guardados en Amazon S3."
+  docs: https://docs.aws.amazon.com/macie/
+  ssmNamespaces: []
+  icon: Arch_Amazon-Macie_48
+  status: active
+- id: network-firewall
+  name: AWS Network Firewall
+  category: security-identity
+  aliases: [network firewall, firewall de red, ids, ips, detección de intrusiones]
+  leakPatterns: ["Network Firewall"]
+  short: "Firewall de red administrado y con estado, con detección y prevención de intrusiones para la VPC."
+  docs: https://docs.aws.amazon.com/network-firewall/
+  ssmNamespaces: []
+  icon: Arch_AWS-Network-Firewall_48
+  status: active
+- id: iam-identity-center
+  name: AWS IAM Identity Center
+  category: security-identity
+  aliases: [identity center, sso, inicio de sesión único, acceso de la fuerza laboral]
+  leakPatterns: ["IAM Identity Center", "Identity Center", "AWS SSO", "AWS Single Sign-On"]
+  short: "Crea o conecta usuarios de la fuerza laboral y administra en un solo lugar su acceso a cuentas y aplicaciones de AWS."
+  docs: https://docs.aws.amazon.com/singlesignon/
+  ssmNamespaces: []
+  icon: Arch_AWS-IAM-Identity-Center_48
+  status: active
+- id: detective
+  name: Amazon Detective
+  category: security-identity
+  aliases: [detective, investigación de seguridad, causa raíz]
+  leakPatterns: ["Amazon Detective", "AWS Detective"]
+  short: "Analiza e investiga hallazgos de seguridad y actividad sospechosa para identificar su causa raíz."
+  docs: https://docs.aws.amazon.com/detective/
+  ssmNamespaces: []
+  icon: Arch_Amazon-Detective_48
+  status: active
 
 # ── Inteligencia artificial ──────────────────────────────────────────────────────────────────
 - id: bedrock
@@ -735,6 +795,16 @@
   docs: https://docs.aws.amazon.com/cloudformation/
   ssmNamespaces: [cloudformation]
   icon: Arch_AWS-CloudFormation_48
+  status: active
+- id: organizations
+  name: AWS Organizations
+  category: management-tools
+  aliases: [organizations, multicuenta, varias cuentas, scp]
+  leakPatterns: ["AWS Organizations", "Service Control Policy", "Service Control Policies", "SCP", "SCPs"]
+  short: "Administra de forma centralizada varias cuentas de AWS agrupadas en una organización."
+  docs: https://docs.aws.amazon.com/organizations/
+  ssmNamespaces: []
+  icon: Arch_AWS-Organizations_48
   status: active
 
 # ── Herramientas para desarrolladores ────────────────────────────────────────────────────────

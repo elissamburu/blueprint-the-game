@@ -63,3 +63,12 @@
 - id: ci-cd
   services: [codepipeline, codebuild, codedeploy]
   note: "Orquestar el pipeline vs compilar y probar vs desplegar."
+- id: security-findings
+  services: [guardduty, security-hub, inspector, macie, detective, config]
+  note: "Detección de amenazas vs agregador de hallazgos vs vulnerabilidades vs datos sensibles vs investigación vs cumplimiento de configuración."
+- id: perimeter-protection
+  services: [waf, shield, network-firewall]
+  note: "Filtrado en capa 7 vs mitigación de DDoS vs firewall de red de la VPC."
+- id: identity-access
+  services: [iam, iam-identity-center, cognito, organizations]
+  note: "Permisos de la cuenta vs acceso de la fuerza laboral vs usuarios finales de la app vs gobierno multicuenta."
