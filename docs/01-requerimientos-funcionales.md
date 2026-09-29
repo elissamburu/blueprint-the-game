@@ -188,7 +188,7 @@
 | RF-GAM-07 | **Insignias secretas** (ocultas hasta obtenerlas). | C | F4 |
 | RF-GAM-08 | **Perfil público opcional** con insignias y rango, e **imagen compartible** (p. ej. para LinkedIn) al ganar una insignia. | C | F7 |
 | RF-GAM-09 | **Leaderboard** por comunidad (opt-in). | W | v2 |
-| RF-GAM-10 | Notificación in-app (toast) al ganar XP, subir de rango o desbloquear insignia/nivel. | M | F1 / F4 |
+| RF-GAM-10 | Notificación in-app al ganar XP, subir de rango o desbloquear un nivel: al finalizar un escenario se muestra en la **pantalla de resumen** y se anuncia con `aria-live="polite"`, **sin toast**, para que los lectores de pantalla no lo lean dos veces. Un nivel desbloqueado al cambiar la experiencia en el perfil (RF-ONB-03), donde no hay resumen, se avisa con un toast. La notificación de insignias es F4. | M | F1 / F4 |
 
 **Principios (no negociables)**: nunca se pierde progreso ni XP; sin temporizadores de presión; sin monedas compradas; las rachas no castigan.
 
