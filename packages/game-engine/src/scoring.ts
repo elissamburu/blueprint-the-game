@@ -3,7 +3,7 @@
 // comes from content/game-rules.yaml.
 import type { GameRules, Scenario } from "@blueprint/scenario-schema";
 import type { EvaluationGrade } from "./evaluate.js";
-import { slotStatus, type SessionState, type SlotState } from "./session.js";
+import { slotNodes, slotStatus, type SessionState, type SlotState } from "./session.js";
 
 export type Level = Scenario["level"];
 
@@ -60,6 +60,15 @@ export const slotPoints = (slot: SlotState, scoring: GameRules["scoring"]): numb
   return Math.max(0, base - scoring.hintCost * slot.hintsRevealed);
 };
 
+/**
+ * Highest score the scenario allows: every slot green at the first attempt with no hints
+ * (`firstTryGreen` × slots). Points never carry the level multiplier; XP does.
+ */
+export const scenarioMaxScore = (
+  scenario: Pick<Scenario, "diagram">,
+  rules: Pick<GameRules, "scoring">,
+): number => rules.scoring.firstTryGreen * slotNodes(scenario).length;
+
 export const levelMultiplier = (level: Level, rules: Pick<GameRules, "levelMultipliers">) =>
   rules.levelMultipliers[`${level}`];
 
@@ -85,7 +94,7 @@ export const scenarioResult = (state: SessionState): ScenarioResult => {
     areas: scenario.areas,
     completed: state.completed,
     score,
-    maxScore: rules.scoring.firstTryGreen * slots.length,
+    maxScore: scenarioMaxScore(scenario, rules),
     multiplier,
     xp: Math.round(score * multiplier),
     hintsUsed: slots.reduce((sum, slot) => sum + slot.hintsUsed, 0),

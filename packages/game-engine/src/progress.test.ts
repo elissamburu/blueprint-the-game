@@ -2,10 +2,14 @@
 import { describe, expect, it } from "vitest";
 import {
   applyScenarioResult,
+  compareWithBest,
   createProgress,
   markScenarioStarted,
   rankForXp,
+  rankProgress,
   refreshUnlocks,
+  unlockedLevelsByArea,
+  updatePreferences,
   type PlayerProgress,
 } from "./progress.js";
 import type { ScenarioResult } from "./scoring.js";
@@ -230,5 +234,168 @@ describe("refreshUnlocks", () => {
       { type: "levelUnlocked", level: 200, areas: ["ml"] },
     ]);
     expect(refreshUnlocks(next, withNewArea, gameRules).events).toEqual([]);
+  });
+});
+
+describe("compareWithBest", () => {
+  const withBest = (xp: number) =>
+    applyScenarioResult(
+      createProgress({ experience: "beginner", interests: [] }, scenarios, gameRules),
+      result({ xp }),
+      gameRules,
+      scenarios,
+    ).progress;
+
+  it("counts all the XP of a first result", () => {
+    expect(compareWithBest({ best: {} }, result({ xp: 300 }))).toEqual({
+      kind: "first",
+      gained: 300,
+    });
+  });
+
+  it("counts only the improvement over the best", () => {
+    expect(compareWithBest(withBest(200), result({ xp: 300 }))).toEqual({
+      kind: "improved",
+      gained: 100,
+      previousXp: 200,
+    });
+  });
+
+  it("adds nothing when the best was equal or higher", () => {
+    expect(compareWithBest(withBest(300), result({ xp: 300 }))).toEqual({
+      kind: "equal",
+      gained: 0,
+      previousXp: 300,
+    });
+    expect(compareWithBest(withBest(400), result({ xp: 300 }))).toEqual({
+      kind: "lower",
+      gained: 0,
+      previousXp: 400,
+    });
+  });
+
+  it("agrees with applyScenarioResult", () => {
+    const before = withBest(200);
+    const update = applyScenarioResult(before, result({ xp: 350 }), gameRules, scenarios);
+    expect(update.progress.xp - before.xp).toBe(
+      compareWithBest(before, result({ xp: 350 })).gained,
+    );
+  });
+});
+
+describe("rankProgress", () => {
+  it("measures the way from the current rank to the next one, from game-rules", () => {
+    expect(rankProgress(0, gameRules)).toMatchObject({
+      rank: { id: "aprendiz" },
+      next: { id: "constructor", minXp: 1000 },
+      remaining: 1000,
+      percent: 0,
+    });
+    expect(rankProgress(1840, gameRules)).toMatchObject({
+      rank: { id: "constructor" },
+      next: { id: "arquitecto", minXp: 5000 },
+      remaining: 3160,
+      // (1840 − 1000) / (5000 − 1000) = 21 %.
+      percent: 21,
+    });
+    expect(rankProgress(4999, gameRules).percent).toBe(99);
+    expect(rankProgress(5000, gameRules)).toMatchObject({ rank: { id: "arquitecto" }, percent: 0 });
+  });
+
+  it("has no next rank at the top", () => {
+    expect(rankProgress(52000, gameRules)).toEqual({
+      rank: { id: "principal", name: "Principal", minXp: 40000 },
+      next: null,
+      xp: 52000,
+      remaining: 0,
+      percent: 100,
+    });
+  });
+});
+
+describe("updatePreferences", () => {
+  const start = createProgress(
+    { experience: "aws-user", interests: ["serverless"] },
+    scenarios,
+    gameRules,
+  );
+
+  it("replaces the areas of interest, without repeats", () => {
+    const { progress } = updatePreferences(
+      start,
+      { experience: "aws-user", interests: ["data", "ml", "data"] },
+      scenarios,
+      gameRules,
+    );
+    expect(progress.interests).toEqual(["data", "ml"]);
+    expect(progress.unlocked).toEqual(start.unlocked);
+  });
+
+  it("opens the levels of a higher experience in every area and says so", () => {
+    const update = updatePreferences(
+      start,
+      { experience: "architect", interests: ["serverless"] },
+      scenarios,
+      gameRules,
+    );
+    expect(update.progress.experience).toBe("architect");
+    expect(update.progress.unlocked).toContainEqual({ area: "data", level: 300 });
+    expect(update.progress.unlocked).toContainEqual({ area: "serverless", level: 300 });
+    expect(update.events).toEqual([
+      { type: "levelUnlocked", level: 300, areas: ["data", "serverless"] },
+    ]);
+  });
+
+  it("never closes a level with a lower experience", () => {
+    const update = updatePreferences(
+      start,
+      { experience: "beginner", interests: ["serverless"] },
+      scenarios,
+      gameRules,
+    );
+    expect(update.progress.experience).toBe("beginner");
+    expect(update.progress.unlocked).toEqual(start.unlocked);
+    expect(update.progress.unlocked).toContainEqual({ area: "serverless", level: 200 });
+    expect(update.events).toEqual([]);
+  });
+
+  it("keeps XP, best results and started scenarios", () => {
+    const played = applyScenarioResult(
+      markScenarioStarted(start, "s-100"),
+      result(),
+      gameRules,
+      scenarios,
+    ).progress;
+    const { progress } = updatePreferences(
+      played,
+      { experience: "expert", interests: [] },
+      scenarios,
+      gameRules,
+    );
+    expect(progress.xp).toBe(played.xp);
+    expect(progress.best).toEqual(played.best);
+    expect(progress.started).toEqual(played.started);
+  });
+});
+
+describe("unlockedLevelsByArea", () => {
+  it("groups the open levels by area in the given order, sorted and without repeats", () => {
+    expect(
+      unlockedLevelsByArea(
+        [
+          { area: "serverless", level: 200 },
+          { area: "data", level: 100 },
+          { area: "serverless", level: 100 },
+          { area: "serverless", level: 100 },
+          { area: "ml", level: 100 },
+        ],
+        ["serverless", "networking", "data"],
+      ),
+    ).toEqual([
+      { area: "serverless", levels: [100, 200] },
+      { area: "data", levels: [100] },
+      // Areas missing from the list (e.g. removed from areas.yaml) go last.
+      { area: "ml", levels: [100] },
+    ]);
   });
 });

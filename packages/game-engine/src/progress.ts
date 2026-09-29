@@ -113,6 +113,33 @@ export const refreshUnlocks = (
 };
 
 /**
+ * How a completed result compares with the best one already kept for the scenario (RF-PLAY-10):
+ * - `first`: no previous best; all its XP counts.
+ * - `improved`: more XP than the best; only the difference counts.
+ * - `equal` / `lower`: the best stays and no XP is added.
+ */
+export type BestComparison =
+  | { readonly kind: "first"; readonly gained: number }
+  | { readonly kind: "improved"; readonly gained: number; readonly previousXp: number }
+  | { readonly kind: "equal" | "lower"; readonly gained: 0; readonly previousXp: number };
+
+export const compareWithBest = (
+  progress: Pick<PlayerProgress, "best">,
+  result: Pick<ScenarioResult, "scenarioId" | "xp">,
+): BestComparison => {
+  const previous = progress.best[result.scenarioId];
+  if (previous === undefined) return { kind: "first", gained: result.xp };
+  if (result.xp > previous.xp) {
+    return { kind: "improved", gained: result.xp - previous.xp, previousXp: previous.xp };
+  }
+  return {
+    kind: result.xp === previous.xp ? "equal" : "lower",
+    gained: 0,
+    previousXp: previous.xp,
+  };
+};
+
+/**
  * Applies a scenario result. An unfinished result changes nothing. A completed one replaces
  * the best result of the scenario when it has more XP, and adds only that improvement.
  * Events come in toast order: `xpGained`, `rankUp`, then one `levelUnlocked` per level.
@@ -125,10 +152,10 @@ export const applyScenarioResult = (
 ): ProgressUpdate => {
   if (!result.completed) return { progress, events: [] };
 
-  const previous = progress.best[result.scenarioId];
-  const gained = Math.max(0, result.xp - (previous?.xp ?? 0));
+  const comparison = compareWithBest(progress, result);
+  const gained = comparison.gained;
   const best: Record<string, BestResult> =
-    previous !== undefined && previous.xp >= result.xp
+    comparison.kind === "equal" || comparison.kind === "lower"
       ? { ...progress.best }
       : {
           ...progress.best,
@@ -168,3 +195,56 @@ const unlockEvents = (
     areas: added.filter((u) => u.level === level).map((u) => u.area),
   }));
 };
+
+/** Where the player stands between their rank and the next one (RF-GAM-01). */
+export interface RankProgress {
+  readonly rank: Rank;
+  /** null at the highest rank. */
+  readonly next: Rank | null;
+  readonly xp: number;
+  /** XP still missing for `next` (0 at the highest rank). */
+  readonly remaining: number;
+  /** Share of the way from `rank.minXp` to `next.minXp`, 0–100, rounded down (100 at the top). */
+  readonly percent: number;
+}
+
+export const rankProgress = (xp: number, rules: Pick<GameRules, "ranks">): RankProgress => {
+  const rank = rankForXp(xp, rules);
+  const next =
+    [...rules.ranks].sort((a, b) => a.minXp - b.minXp).find((r) => r.minXp > rank.minXp) ?? null;
+  if (next === null) return { rank, next, xp, remaining: 0, percent: 100 };
+  const span = next.minXp - rank.minXp;
+  return {
+    rank,
+    next,
+    xp,
+    remaining: next.minXp - xp,
+    percent: Math.floor(((xp - rank.minXp) / span) * 100),
+  };
+};
+
+/**
+ * Changes the areas of interest and the experience from the profile (RF-ONB-03). Unlocks are
+ * permanent (CA RF-NAV-03): a higher experience opens its levels in every area, a lower one
+ * closes nothing. Emits `levelUnlocked` for the new pairs.
+ */
+export const updatePreferences = (
+  progress: PlayerProgress,
+  { experience, interests }: OnboardingChoices,
+  scenarios: readonly ScenarioInfo[],
+  rules: Pick<GameRules, "unlock">,
+): ProgressUpdate =>
+  refreshUnlocks({ ...progress, experience, interests: [...new Set(interests)] }, scenarios, rules);
+
+/** Open levels of each area, in the order of `areas` (areas with none are left out). */
+export const unlockedLevelsByArea = (
+  unlocked: readonly LevelUnlock[],
+  areas: readonly string[],
+): { readonly area: string; readonly levels: readonly Level[] }[] =>
+  [...new Set([...areas, ...unlocked.map((u) => u.area)])].flatMap((area) => {
+    const levels = unlocked
+      .filter((u) => u.area === area)
+      .map((u) => u.level)
+      .sort((a, b) => a - b);
+    return levels.length === 0 ? [] : [{ area, levels: [...new Set(levels)] }];
+  });
