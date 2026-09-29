@@ -30,6 +30,15 @@ module.exports = {
       to: { path: "(^|/)(@blueprint/game-engine|packages/game-engine)(/|$)" },
     },
     {
+      name: "diagram-not-to-game-logic",
+      severity: "error",
+      comment:
+        "packages/diagram draws the board: slot states come in by props and it only emits events " +
+        "(ADR-0008). It must not import game-engine; the app translates its events into commands.",
+      from: { path: "^packages/diagram/" },
+      to: { path: "(^|/)(@blueprint/game-engine|packages/game-engine)(/|$)" },
+    },
+    {
       name: "pure-packages-no-node-builtins",
       severity: "error",
       comment:

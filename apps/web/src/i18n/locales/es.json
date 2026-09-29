@@ -64,7 +64,11 @@
       "title": "Escenario no encontrado",
       "description": "No hay ningún escenario disponible con el id «{{id}}»."
     },
-    "underConstruction": "La pantalla de juego está en construcción.",
+    "underConstruction": "Vista previa del tablero: la paleta de servicios y la evaluación todavía están en construcción.",
+    "board": {
+      "label": "Diagrama de «{{title}}»",
+      "loading": "Cargando el tablero…"
+    },
     "back": "Volver a escenarios",
     "feedback": {
       "undeclared": "{{short}} No cumple el rol: {{role}}"
