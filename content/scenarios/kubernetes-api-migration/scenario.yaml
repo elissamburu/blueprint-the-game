@@ -94,7 +94,7 @@ diagram:
 
     - id: orchestrator
       type: slot
-      role: "Plano de control de Kubernetes administrado por AWS: recibe los charts de Helm de siempre y agenda los pods."
+      role: "Plano de control del clúster: recibe los charts de Helm de siempre y agenda los pods."
       position: { x: 560, y: 100 }
       group: region
       answers:
@@ -212,10 +212,10 @@ diagram:
           grade: acceptable
           objectives: [path-routing]
           rationale: >
-            Llega a los pods y funciona como entrada, pero balancea en capa 4: no ve la ruta
-            HTTP. Para separar `/pagos` de `/clientes` necesitás un balanceador por servicio o
-            instalar y operar un controlador de Ingress propio detrás. Conviene para tráfico
-            TCP/UDP, no para enrutar HTTP.
+            Llega a los pods y funciona como entrada, pero pierde en el enrutamiento por ruta:
+            balancea en capa 4 y no ve la ruta HTTP. Para separar `/pagos` de `/clientes`
+            necesitás un balanceador por servicio o instalar y operar un controlador de
+            Ingress propio detrás. Conviene para tráfico TCP/UDP, no para enrutar HTTP.
           references:
             - https://docs.aws.amazon.com/eks/latest/userguide/network-load-balancing.html
             - https://docs.aws.amazon.com/elasticloadbalancing/latest/network/introduction.html
@@ -238,13 +238,16 @@ diagram:
           grade: optimal
           objectives: [no-plaintext-credentials, managed-rotation]
           rationale: >
-            Guarda la contraseña cifrada, y la base puede delegarle su contraseña maestra, que
-            se rota cada siete días por defecto. En capacidad sin servidores no corre el
-            driver CSI (es un DaemonSet) ni Pod Identity: el pod la lee con el SDK usando IRSA
-            y la vuelve a leer si cambia. Nada queda en los valores de Helm.
+            Guarda la contraseña cifrada. La API usa un usuario propio, no el maestro, y para
+            él hay plantillas de rotación de PostgreSQL que la consola despliega sin programar;
+            con usuarios alternados, la credencial anterior sigue valiendo. En capacidad sin
+            servidores no corre el driver CSI (es un DaemonSet) ni Pod Identity: el pod lee el
+            secreto con el SDK usando IRSA y un cliente con caché que lo refresca.
           references:
-            - https://docs.aws.amazon.com/AmazonRDS/latest/UserGuide/rds-secrets-manager.html
-            - https://docs.aws.amazon.com/secretsmanager/latest/userguide/retrieving-secrets.html
+            - https://docs.aws.amazon.com/secretsmanager/latest/userguide/reference_available-rotation-templates.html
+            - https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotate-secrets_turn-on-for-db.html
+            - https://docs.aws.amazon.com/secretsmanager/latest/userguide/rotation-strategy.html
+            - https://docs.aws.amazon.com/secretsmanager/latest/userguide/best-practices.html
             - https://docs.aws.amazon.com/eks/latest/userguide/iam-roles-for-service-accounts.html
             - https://docs.aws.amazon.com/eks/latest/userguide/manage-secrets.html
         - service: systems-manager
@@ -252,8 +255,8 @@ diagram:
           objectives: [managed-rotation]
           rationale: >
             Un parámetro SecureString guarda la contraseña cifrada y el pod la lee igual, con
-            el SDK e IRSA: cumple la restricción. Pero no rota credenciales; habría que
-            programar y operar la rotación. Su propia documentación recomienda otro servicio
+            el SDK e IRSA: cumple la restricción. Pero pierde en la rotación administrada: no
+            rota credenciales, así que habría que programar y operar la rotación. Su propia documentación recomienda otro servicio
             para credenciales de bases de datos.
           references:
             - https://docs.aws.amazon.com/systems-manager/latest/userguide/systems-manager-parameter-store.html
