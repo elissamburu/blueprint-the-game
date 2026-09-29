@@ -10,6 +10,7 @@ import { bundleFiles, fetchFrom } from "../content/testing/bundle-fixture";
 import "../i18n";
 import { PROGRESS_STORAGE_KEY } from "../progress/local-storage-progress-repository";
 import { useProgressStore } from "../progress/progress-store";
+import { mockReactFlowLayout } from "../testing/react-flow-mocks";
 import { AppRoutes } from "./App";
 
 const renderAt = (path: string) =>
@@ -25,6 +26,7 @@ beforeEach(() => {
   useContentStore.setState(useContentStore.getInitialState(), true);
   useProgressStore.setState(useProgressStore.getInitialState(), true);
   localStorage.clear();
+  mockReactFlowLayout();
   serve(bundleFiles(["published", "beta", "draft"]));
 });
 

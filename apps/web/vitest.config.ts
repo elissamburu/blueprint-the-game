@@ -9,6 +9,9 @@ export default mergeConfig(
     test: {
       include: ["src/**/*.test.{ts,tsx}"],
       environment: "jsdom",
+      setupFiles: ["src/testing/setup.ts"],
+      // Rendering the whole game screen takes seconds in jsdom (see src/testing/setup.ts).
+      testTimeout: 30_000,
     },
   }),
 );

@@ -9,6 +9,7 @@ import { RootRedirect } from "./RootRedirect";
 const WelcomePage = lazy(() => import("../features/onboarding/WelcomePage"));
 const ScenariosPage = lazy(() => import("../features/catalog-browse/ScenariosPage"));
 const PlayPage = lazy(() => import("../features/play/PlayPage"));
+const SummaryPage = lazy(() => import("../features/play/SummaryPage"));
 const ProfilePage = lazy(() => import("../features/profile/ProfilePage"));
 const AboutPage = lazy(() => import("../features/about/AboutPage"));
 const NotFoundPage = lazy(() => import("./NotFoundPage"));
@@ -30,6 +31,7 @@ export function AppRoutes() {
         <Route path="bienvenida" element={<WelcomePage />} />
         <Route path="escenarios" element={<ScenariosPage />} />
         <Route path="escenarios/:id" element={<PlayPage />} />
+        <Route path="escenarios/:id/resumen" element={<SummaryPage />} />
         <Route path="perfil" element={<ProfilePage />} />
         <Route path="acerca" element={<AboutPage />} />
         {DiagramPlayground !== null && <Route path="_diagrama" element={<DiagramPlayground />} />}

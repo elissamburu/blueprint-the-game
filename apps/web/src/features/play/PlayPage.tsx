@@ -1,33 +1,28 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Game screen. For now it loads and validates the scenario and shows its heading and its board,
-// read-only; the palette and the feedback arrive with RF-PLAY-04..08.
+// /escenarios/:id: loads and validates the scenario, then hands it to the game screen.
 import { Button } from "@blueprint/ui/components/button";
-import { LevelBadge } from "@blueprint/ui/components/level-badge";
 import { ArrowLeftIcon } from "lucide-react";
 import { lazy, Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router";
 import { PageHeading, PageShell, usePageTitle } from "../../app/page";
 import { useContentStore, type ScenarioLookup } from "../../content/content-store";
+import type { ContentBundle } from "../../content/load-bundle";
 import { ContentErrorView, Loading, RequireContent } from "../../content/RequireContent";
-import { StatusBadge } from "../catalog-browse/StatusBadge";
-import type { BundleCatalog } from "@blueprint/scenario-schema";
 
-/** React Flow is heavy: the board is its own chunk (ADR-0004, RNF-03). */
-const ScenarioBoard = lazy(() => import("./ScenarioBoard"));
+/** React Flow and @dnd-kit are heavy: the game screen is its own chunk (ADR-0004, RNF-03). */
+const GameScreen = lazy(() => import("./GameScreen"));
 
 export default function PlayPage() {
   const { id = "" } = useParams();
   return (
-    <PageShell>
-      <RequireContent>
-        {(bundle) => <ScenarioLoader key={id} id={id} catalog={bundle.catalog} />}
-      </RequireContent>
-    </PageShell>
+    <RequireContent>
+      {(bundle) => <ScenarioLoader key={id} id={id} bundle={bundle} />}
+    </RequireContent>
   );
 }
 
-function ScenarioLoader({ id, catalog }: { id: string; catalog: BundleCatalog }) {
+function ScenarioLoader({ id, bundle }: { id: string; bundle: ContentBundle }) {
   const { t } = useTranslation();
   const loadScenario = useContentStore((s) => s.loadScenario);
   const [lookup, setLookup] = useState<ScenarioLookup | null>(null);
@@ -45,41 +40,28 @@ function ScenarioLoader({ id, catalog }: { id: string; catalog: BundleCatalog })
   if (lookup === null) return <Loading label={t("play.loading")} />;
   switch (lookup.status) {
     case "error":
-      return <ContentErrorView error={lookup.error} />;
+      return (
+        <PageShell>
+          <ContentErrorView error={lookup.error} />
+        </PageShell>
+      );
     case "not-found":
       return (
-        <>
+        <PageShell>
           <PageHeading
             kicker="404"
             title={t("play.notFound.title")}
             description={t("play.notFound.description", { id })}
           />
           <BackLink />
-        </>
+        </PageShell>
       );
-    case "ready": {
-      const { scenario } = lookup;
+    case "ready":
       return (
-        <>
-          <div className="mb-3 flex items-center gap-3">
-            <LevelBadge level={scenario.level} variant="solid" />
-            <StatusBadge status={scenario.status} />
-          </div>
-          <PageHeading
-            kicker={t("nav.scenarios")}
-            title={scenario.title}
-            description={scenario.summary}
-          />
-          <p className="mb-4 text-muted-foreground">{t("play.underConstruction")}</p>
-          <div className="mb-6">
-            <Suspense fallback={<Loading label={t("play.board.loading")} />}>
-              <ScenarioBoard scenario={scenario} catalog={catalog} />
-            </Suspense>
-          </div>
-          <BackLink />
-        </>
+        <Suspense fallback={<Loading label={t("play.board.loading")} />}>
+          <GameScreen scenario={lookup.scenario} bundle={bundle} />
+        </Suspense>
       );
-    }
   }
 }
 
