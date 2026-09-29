@@ -1,0 +1,27 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// Lovable: src/components/ui/separator.tsx (mismas clases: bg-border, 1px).
+import * as React from "react";
+import { cn } from "@blueprint/ui/lib/utils";
+import { Separator as SeparatorPrimitive } from "radix-ui";
+
+function Separator({
+  className,
+  orientation = "horizontal",
+  decorative = true,
+  ...props
+}: React.ComponentProps<typeof SeparatorPrimitive.Root>) {
+  return (
+    <SeparatorPrimitive.Root
+      data-slot="separator"
+      decorative={decorative}
+      orientation={orientation}
+      className={cn(
+        "shrink-0 bg-border data-[orientation=horizontal]:h-px data-[orientation=horizontal]:w-full data-[orientation=vertical]:h-full data-[orientation=vertical]:w-px",
+        className,
+      )}
+      {...props}
+    />
+  );
+}
+
+export { Separator };

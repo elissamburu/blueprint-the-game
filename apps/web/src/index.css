@@ -1,0 +1,5 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+@import "@blueprint/ui/globals.css";
+
+/* Tailwind no escanea node_modules: los componentes compartidos se agregan a mano. */
+@source "../../../packages/ui/src";

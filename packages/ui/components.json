@@ -1,0 +1,20 @@
+{
+  "$schema": "https://ui.shadcn.com/schema.json",
+  "style": "new-york",
+  "rsc": false,
+  "tsx": true,
+  "tailwind": {
+    "config": "",
+    "css": "src/styles/globals.css",
+    "baseColor": "slate",
+    "cssVariables": true
+  },
+  "iconLibrary": "lucide",
+  "aliases": {
+    "components": "@blueprint/ui/components",
+    "utils": "@blueprint/ui/lib/utils",
+    "hooks": "@blueprint/ui/hooks",
+    "lib": "@blueprint/ui/lib",
+    "ui": "@blueprint/ui/components"
+  }
+}

@@ -11,6 +11,9 @@
  *  - --slot-border nuevo: el borde punteado del casillero vacío necesita 3:1 contra el fondo (WCAG 1.4.11);
  *    --border (1,43:1) queda para separadores decorativos.
  *  - Sin tema oscuro en v1: el bloque .dark del prototipo es el default de shadcn, no se diseñó.
+ *  - --font-sans: fuente del sistema. El prototipo declaraba Manrope pero nunca la cargaba, así que
+ *    se veía en Segoe UI, que es la fuente aprobada. En Mac y Linux se usa la fuente del sistema
+ *    (system-ui / -apple-system, con Helvetica Neue y Arial de respaldo). Sin descargas de fuentes.
  *
  * Contrastes medidos (texto / fondo):
  *   foreground / background ........ 15,84
@@ -24,7 +27,7 @@
  */
 
 @theme inline {
-  --font-sans: "Manrope", "Segoe UI", sans-serif;
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif; /* AJUSTE: original "Manrope", "Segoe UI", sans-serif */
 
   --radius-sm: calc(var(--radius) - 4px);
   --radius-md: calc(var(--radius) - 2px);

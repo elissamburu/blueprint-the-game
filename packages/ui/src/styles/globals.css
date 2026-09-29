@@ -1,0 +1,128 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/*
+ * CSS global de Blueprint (ADR-0021): Tailwind v4 + tokens de diseño.
+ *
+ * Los bloques @theme inline y :root son los de docs/design/tokens.css, que es la fuente de verdad
+ * visual (incluye los AJUSTE de contraste). Si cambia un token, se cambia primero ahí.
+ * Solo tema claro en v1: no hay bloque .dark.
+ *
+ * Tipografía: fuente del sistema, sin descargas (Segoe UI en Windows; la del sistema en Mac y
+ * Linux). Ver docs/design/README.md.
+ *
+ * Las apps que usan este CSS agregan su propio @source hacia packages/ui/src para que Tailwind
+ * genere las clases de los componentes compartidos.
+ */
+@import "tailwindcss";
+@import "tw-animate-css";
+
+@theme inline {
+  --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;
+
+  --radius-sm: calc(var(--radius) - 4px);
+  --radius-md: calc(var(--radius) - 2px);
+  --radius-lg: var(--radius);
+  --radius-xl: calc(var(--radius) + 4px);
+
+  /* shadcn base */
+  --color-background: var(--background);
+  --color-foreground: var(--foreground);
+  --color-card: var(--card);
+  --color-card-foreground: var(--card-foreground);
+  --color-popover: var(--popover);
+  --color-popover-foreground: var(--popover-foreground);
+  --color-primary: var(--primary);
+  --color-primary-foreground: var(--primary-foreground);
+  --color-secondary: var(--secondary);
+  --color-secondary-foreground: var(--secondary-foreground);
+  --color-muted: var(--muted);
+  --color-muted-foreground: var(--muted-foreground);
+  --color-accent: var(--accent);
+  --color-accent-foreground: var(--accent-foreground);
+  --color-destructive: var(--destructive);
+  --color-destructive-foreground: var(--destructive-foreground);
+  --color-border: var(--border);
+  --color-input: var(--input);
+  --color-ring: var(--ring);
+
+  /* semánticos del juego */
+  --color-success: var(--success); /* óptimo */
+  --color-success-soft: var(--success-soft);
+  --color-warning: var(--warning); /* aceptable, pistas, XP */
+  --color-warning-soft: var(--warning-soft);
+  --color-danger-soft: var(--danger-soft); /* incorrecto (texto: destructive) */
+  --color-blueprint: var(--blueprint); /* bandas destacadas */
+  --color-blueprint-soft: var(--blueprint-soft);
+  --color-canvas: var(--canvas); /* fondo del tablero */
+  --color-slot-border: var(--slot-border);
+}
+
+:root {
+  --radius: 0.5rem;
+
+  --background: oklch(0.982 0.006 246);
+  --foreground: oklch(0.235 0.035 255);
+  --card: oklch(1 0 0);
+  --card-foreground: oklch(0.129 0.042 264.695);
+  --popover: oklch(1 0 0);
+  --popover-foreground: oklch(0.129 0.042 264.695);
+  --primary: oklch(0.48 0.15 250);
+  --primary-foreground: oklch(0.984 0.003 247.858);
+  --secondary: oklch(0.94 0.022 247);
+  --secondary-foreground: oklch(0.208 0.042 265.755);
+  --muted: oklch(0.955 0.01 247);
+  --muted-foreground: oklch(0.49 0.035 255);
+  --accent: oklch(0.92 0.04 245);
+  --accent-foreground: oklch(0.208 0.042 265.755);
+  --destructive: oklch(0.53 0.2 27.325); /* AJUSTE: original oklch(0.577 0.245 27.325) */
+  --destructive-foreground: oklch(0.984 0.003 247.858);
+  --border: oklch(0.88 0.018 250);
+  --input: oklch(0.88 0.018 250);
+  --ring: oklch(0.56 0.16 250);
+
+  --success: oklch(0.49 0.13 157);
+  --success-soft: oklch(0.955 0.045 154);
+  --warning: oklch(0.53 0.13 67); /* AJUSTE: original oklch(0.61 0.15 67) */
+  --warning-soft: oklch(0.965 0.06 77);
+  --danger-soft: oklch(0.96 0.045 25);
+  --blueprint: oklch(0.42 0.14 251);
+  --blueprint-soft: oklch(0.95 0.035 248);
+  --canvas: oklch(0.97 0.012 243);
+  --slot-border: oklch(0.64 0.03 250); /* AJUSTE: nuevo */
+}
+
+/* Base de Lovable (src/styles.css, @layer base), traducida. */
+@layer base {
+  * {
+    @apply border-border;
+  }
+
+  body {
+    @apply bg-background text-foreground min-w-[320px] font-sans tracking-normal;
+  }
+
+  /*
+   * Foco visible de Lovable: 3px de --ring al 55 % con 2px de separación. En Lovable lo anulaba el
+   * focus-visible:outline-none de cada componente; acá los componentes no lo anulan, así el foco
+   * se ve también con teclado sobre los controles de Radix (botones, radios, toggles, select).
+   */
+  button:focus-visible,
+  input:focus-visible,
+  select:focus-visible,
+  [role="button"]:focus-visible {
+    outline: 3px solid color-mix(in oklab, var(--ring) 55%, transparent);
+    outline-offset: 2px;
+  }
+}
+
+/*
+ * .section-kicker de Lovable: rótulo sobre los títulos. Lovable escribía el texto en mayúsculas;
+ * acá se escribe normal y se pasa a mayúsculas por CSS, para que los lectores de pantalla no lo
+ * deletreen.
+ */
+@utility section-kicker {
+  color: var(--primary);
+  font-size: 0.69rem;
+  font-weight: 800;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+}

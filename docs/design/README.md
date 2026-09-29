@@ -23,7 +23,8 @@ Capturas y tokens del prototipo hecho en Lovable (28/09/2026). Es **referencia v
 ## Qué se toma y qué no
 
 **Se toma**
-- Paleta, tipografía (Manrope), radios y el formato de tokens.
+- Paleta, radios y el formato de tokens.
+- Tipografía: **fuente del sistema** (`--font-sans` en [tokens.css](tokens.css)). El prototipo declaraba Manrope, pero nunca la cargaba (no había `@font-face`, link ni paquete de fuente), así que se veía y se capturó en **Segoe UI**, que es la fuente aprobada. En Mac y Linux se usa la fuente del sistema correspondiente (`system-ui` / `-apple-system`, con Helvetica Neue y Arial de respaldo). No se descargan fuentes.
 - Layout de juego en tres columnas (caso · tablero · paleta) y el patrón de estados del casillero (borde y fondo suave por color, etiqueta arriba, "Ver pista (−15 pts)" abajo).
 - Separación visual entre **Restricciones** (duras) y **Metas** (blandas) en el panel del caso (RF-PLAY-01).
 - Paleta agrupada por categoría con buscador; tira de pasos del flujo debajo del tablero (RF-PLAY-03).

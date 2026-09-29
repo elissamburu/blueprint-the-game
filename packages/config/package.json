@@ -8,7 +8,9 @@
   "exports": {
     "./tsconfig.base.json": "./tsconfig.base.json",
     "./tsconfig.node.json": "./tsconfig.node.json",
+    "./tsconfig.react.json": "./tsconfig.react.json",
     "./eslint": "./eslint.js",
+    "./eslint-react": "./eslint-react.js",
     "./prettier": "./prettier.js",
     "./vitest": {
       "types": "./vitest.d.ts",
@@ -18,7 +20,9 @@
   "files": [
     "tsconfig.base.json",
     "tsconfig.node.json",
+    "tsconfig.react.json",
     "eslint.js",
+    "eslint-react.js",
     "prettier.js",
     "vitest.js",
     "vitest.d.ts"
@@ -26,6 +30,7 @@
   "dependencies": {
     "@eslint/js": "catalog:",
     "eslint-config-prettier": "catalog:",
+    "eslint-plugin-react-hooks": "catalog:",
     "globals": "catalog:",
     "typescript-eslint": "catalog:"
   },
