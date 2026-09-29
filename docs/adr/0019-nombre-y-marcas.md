@@ -8,7 +8,7 @@
 
 ## Decisión (provisoria)
 - Mientras no haya aprobación: el nombre **no** incluye "AWS" ni "Amazon"; la descripción puede decir "para aprender arquitecturas en AWS" (uso descriptivo).
-- Aviso de no afiliación en `TRADEMARKS.md`, README y página "Acerca de".
+- Aviso de no afiliación en [TRADEMARKS.md](../../TRADEMARKS.md), README y página "Acerca de".
 - Revisar las [AWS Trademark Guidelines](https://aws.amazon.com/trademark-guidelines/) antes de elegir el nombre definitivo y el dominio.
 
 ## Pendiente

@@ -1,7 +1,7 @@
 # Blueprint · documentos de requerimientos
 
 > Nombre de trabajo. Juego web para aprender a diseñar arquitecturas en AWS completando diagramas.
-> **Código disponible, no comercial** (ver [ADR-0016](docs/adr/0016-licenciamiento.md)). No afiliado a Amazon Web Services.
+> **Código disponible, no comercial** (ver [ADR-0016](docs/adr/0016-licenciamiento.md)). No afiliado a Amazon Web Services (ver [TRADEMARKS.md](TRADEMARKS.md)).
 
 Este paquete es el punto de partida del repositorio: se copia en la raíz del repo nuevo y Claude Code lo usa como especificación.
 
@@ -11,6 +11,7 @@ Este paquete es el punto de partida del repositorio: se copia en la raíz del re
 |---|---|
 | [CLAUDE.md](CLAUDE.md) | Reglas para Claude Code (leer primero) |
 | [CONTRIBUTING.md](CONTRIBUTING.md) | Cómo preparar el entorno, flujo de ramas, DCO y checks de CI |
+| [TRADEMARKS.md](TRADEMARKS.md) | Aviso de no afiliación con AWS y uso de los íconos de arquitectura |
 | [docs/00-vision-y-alcance.md](docs/00-vision-y-alcance.md) | Visión, alcance, glosario, principios |
 | [docs/01-requerimientos-funcionales.md](docs/01-requerimientos-funcionales.md) | RF por módulo, prioridad, fase y criterios de aceptación |
 | [docs/02-requerimientos-no-funcionales.md](docs/02-requerimientos-no-funcionales.md) | RNF verificables |

@@ -9,7 +9,7 @@ La página oficial de íconos de arquitectura indica que AWS permite a clientes 
 ## Decisión
 - Los íconos **no se commitean**. `pnpm icons:fetch` descarga el paquete oficial vigente en build (local y CI) y genera `apps/web/public/icons/` (gitignored) y un mapeo `id → archivo` a partir del campo `icon` del catálogo.
 - Los íconos se usan **sin modificar** y solo para representar servicios en diagramas.
-- `TRADEMARKS.md` y la página "Acerca de" aclaran que el proyecto no está afiliado ni avalado por AWS.
+- [TRADEMARKS.md](../../TRADEMARKS.md) y la página "Acerca de" aclaran que el proyecto no está afiliado ni avalado por AWS.
 - Fallback: si el ícono no existe o la descarga falla, se renderiza un ícono genérico por categoría con el nombre del servicio.
 
 ## Alternativas consideradas
