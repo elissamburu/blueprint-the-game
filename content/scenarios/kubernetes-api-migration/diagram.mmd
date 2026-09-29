@@ -1,0 +1,30 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: kubernetes-api-migration v1
+flowchart LR
+  n_platform_team(["Equipo de plataforma"])
+  n_clients(["Comercios y apps"])
+  subgraph g_region["Región"]
+    subgraph g_vpc["Red de la API de pagos"]
+      subgraph g_public_subnets["Subredes públicas"]
+        n_http_entry["Application Load Balancer"]
+      end
+      subgraph g_private_subnets["Subredes privadas"]
+        n_pod_capacity["AWS Fargate"]
+        n_payments_db["Amazon RDS"]
+      end
+    end
+    n_orchestrator["Amazon EKS"]
+    n_image_registry["Amazon ECR"]
+    n_db_credentials["AWS Secrets Manager"]
+  end
+  n_platform_team --o|"1. Instala los mismos charts de Helm"| n_orchestrator
+  n_orchestrator --o|"2. Agenda los pods"| n_pod_capacity
+  n_orchestrator --o|"2. Crea la entrada desde el Ingress"| n_http_entry
+  n_pod_capacity ==>|"3. Descarga las imágenes"| n_image_registry
+  n_pod_capacity -->|"4. Lee la contraseña de la base"| n_db_credentials
+  n_clients -->|"5. HTTPS a /pagos y /clientes"| n_http_entry
+  n_http_entry -->|"6. Enruta por ruta al servicio"| n_pod_capacity
+  n_pod_capacity ==>|"7. Registra el pago"| n_payments_db
+  n_db_credentials --o|"8. Rota la contraseña periódicamente"| n_payments_db
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_orchestrator,n_pod_capacity,n_image_registry,n_http_entry,n_db_credentials slot
