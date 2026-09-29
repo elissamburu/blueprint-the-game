@@ -10,6 +10,7 @@ import {
   fitZoom,
   initialView,
   MIN_INITIAL_ZOOM,
+  steppedZoom,
   type Size,
 } from "./viewport";
 
@@ -104,4 +105,26 @@ describe("initialView", () => {
       expect((anchor.y + anchor.h) * zoom + y).toBeLessThanOrEqual(size.height);
     },
   );
+});
+
+describe("steppedZoom", () => {
+  it("goes to the next 25 % step and stops at the limits", () => {
+    expect(steppedZoom(0.8, 1, 0.2, 3)).toBe(1);
+    expect(steppedZoom(0.8, -1, 0.2, 3)).toBe(0.75);
+    expect(steppedZoom(1, 1, 0.2, 3)).toBe(1.25);
+    expect(steppedZoom(0.7499999, 1, 0.2, 3)).toBe(1);
+    expect(steppedZoom(2.75, 1, 0.2, 3)).toBe(3);
+    expect(steppedZoom(3, 1, 0.2, 3)).toBe(3);
+    expect(steppedZoom(0.25, -1, 0.2, 3)).toBe(0.2);
+  });
+
+  it("reaches 300 % from the opening zoom in whole steps", () => {
+    let zoom = 0.8;
+    const seen: number[] = [];
+    while (zoom < 3) {
+      zoom = steppedZoom(zoom, 1, 0.2, 3);
+      seen.push(zoom);
+    }
+    expect(seen).toEqual([1, 1.25, 1.5, 1.75, 2, 2.25, 2.5, 2.75, 3]);
+  });
 });

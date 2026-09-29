@@ -66,9 +66,7 @@
     },
     "board": {
       "label": "Diagrama de «{{title}}»",
-      "loading": "Cargando el tablero…",
-      "inProgress": "Arquitectura en progreso",
-      "completed": "Arquitectura completa"
+      "loading": "Cargando el tablero…"
     },
     "back": "Volver a escenarios",
     "top": {
@@ -77,13 +75,20 @@
       "score": "Puntaje",
       "report": "Reportar un problema",
       "finish": "Finalizar",
-      "finishHint": "Completá todos los casilleros (verdes o naranjas aceptados) para finalizar."
+      "finishHint": "Completá todos los casilleros (verdes o naranjas aceptados) para finalizar.",
+      "viewCase": "Ver caso",
+      "focusMode": "Modo foco",
+      "exitFocus": "Salir del foco",
+      "more": "Más acciones",
+      "playFlow": "Reproducir flujo"
     },
     "case": {
-      "label": "El caso",
       "kicker": "El caso",
       "restrictions": "Restricciones",
-      "goals": "Metas"
+      "goals": "Metas",
+      "close": "Cerrar el caso",
+      "steps": "Pasos del flujo",
+      "step": "Paso {{step}}:"
     },
     "palette": {
       "label": "Paleta de servicios",
@@ -94,11 +99,14 @@
       "search": "Buscar servicio",
       "searchPlaceholder": "Buscar por nombre o alias",
       "noResults": "Ningún servicio coincide con la búsqueda.",
-      "placed": "En uso"
+      "placed": "En uso",
+      "kicker": "Paleta",
+      "collapse": "Colapsar la paleta",
+      "expand": "Expandir la paleta",
+      "placedName": "{{service}} (en uso)"
     },
     "feedback": {
       "label": "Explicación",
-      "empty": "Colocá un servicio para ver la explicación.",
       "objectives": "Objetivos",
       "acceptedNote": "Te quedaste con esta",
       "accept": "Me quedo con esta",
@@ -161,6 +169,15 @@
       "xpGained": "{{xp}} XP (+{{gained}} a tu total)",
       "xpNotSaved": "{{xp}} XP (no se guardó)",
       "replay": "Volver a jugar"
+    },
+    "brief": {
+      "kicker": "Nuevo desafío",
+      "minutes": "{{count}} min",
+      "minutesLabel": "Duración estimada",
+      "tip": "Leé las condiciones antes de tomar decisiones.",
+      "start": "Empezar a diseñar",
+      "preview": "Vista previa",
+      "previewLabel": "Vista previa del diagrama con los casilleros vacíos"
     }
   },
   "profile": {

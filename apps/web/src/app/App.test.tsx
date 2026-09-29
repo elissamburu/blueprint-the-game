@@ -126,13 +126,10 @@ describe("scenario listing", () => {
 });
 
 describe("scenario page", () => {
-  it("loads and validates the scenario", async () => {
+  it("loads and validates the scenario, and opens it with its brief", async () => {
     renderAt("/escenarios/serverless-pdf-processing");
     expect(
-      await screen.findByRole("heading", {
-        level: 1,
-        name: "Comprobantes en PDF para un estudio contable",
-      }),
+      await screen.findByRole("dialog", { name: "Comprobantes en PDF para un estudio contable" }),
     ).toBeTruthy();
   });
 

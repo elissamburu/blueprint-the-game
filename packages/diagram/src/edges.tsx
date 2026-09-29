@@ -57,7 +57,15 @@ export function StepEdge({ id, data }: EdgeProps<StepFlowEdge>) {
           />
         )}
       </path>
-      <g aria-hidden="true">
+      {/* The number shows its step on hover (docs/design, layout v2). Hidden from assistive
+          technologies: the step list of the board already says it. */}
+      <g
+        aria-hidden="true"
+        data-step-label
+        className="cursor-help"
+        style={{ pointerEvents: "all" }}
+      >
+        <title>{`Paso ${edge.step}: ${edge.label}`}</title>
         <circle
           cx={label.x}
           cy={label.y}

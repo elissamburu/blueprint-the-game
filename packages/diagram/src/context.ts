@@ -11,6 +11,8 @@ export interface DiagramContextValue {
   droppable: boolean;
   /** Pans the board so the box (canvas units) is in view when a slot is reached with Tab. */
   reveal: (box: Box) => void;
+  /** Read-only preview (the brief): slots are drawn as empty boxes, without text. */
+  preview: boolean;
   /** Animate the active edges (false with prefers-reduced-motion). */
   animate: boolean;
   /** Ids of the arrow markers (defs rendered once by the board). */

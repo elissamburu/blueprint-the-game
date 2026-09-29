@@ -101,7 +101,7 @@
 
 | ID | Requisito | P | Fase |
 |---|---|---|---|
-| RF-PLAY-01 | La pantalla de juego muestra: **contexto** del caso, **objetivos** (con distinción visual entre restricciones duras y metas), **diagrama** y **paleta**. | M | F1 |
+| RF-PLAY-01 | La pantalla de juego muestra el **diagrama** y la **paleta**. El **contexto** del caso y los **objetivos** (con distinción visual entre restricciones duras y metas) se muestran **al entrar** (brief) y **a demanda** ("Ver caso"), en lugar de todos a la vez. | M | F1 |
 | RF-PLAY-02 | El diagrama muestra **actores, grupos (Cloud, Región, VPC, AZ, subredes), nodos fijos y casilleros en blanco** con su **rol** visible. | M | F1 |
 | RF-PLAY-03 | **Reproductor de flujo**: el jugador puede reproducir paso a paso el flujo de datos (aristas numeradas y animadas con su etiqueta y descripción). | M | F1 |
 | RF-PLAY-04 | Colocar un servicio en un casillero mediante **drag & drop** (desktop). | M | F1 |
@@ -114,6 +114,12 @@
 | RF-PLAY-11 | Zoom/pan del diagrama y **ajuste automático a pantalla**. | M | F1 |
 | RF-PLAY-12 | **Modo examen** (opcional, niveles 300–400): el feedback de colores se muestra al enviar todo, no por casillero. | C | F7 |
 | RF-PLAY-13 | Botón **"Reportar un problema en este escenario"** que abre un issue de GitHub pre-cargado (id, versión, casillero, comentario). | S | F1 |
+
+**CA RF-PLAY-01**
+- Al entrar a cada escenario se abre el **brief**: nivel, áreas, duración estimada, contexto, restricciones, metas y una vista previa del diagrama de solo lectura con los casilleros vacíos. "Empezar a diseñar" (o Esc) lo cierra y deja el tablero.
+- "Ver caso" abre, sobre el tablero y sin oscurecerlo, el contexto, las restricciones, las metas y los pasos del flujo (número, etiqueta y origen → destino).
+- El brief y "Ver caso" son diálogos: el foco queda atrapado adentro y vuelve al cerrar.
+- En las listas del caso, las metas llevan un ícono neutro: el ✓ queda para el feedback ("cumple").
 
 **CA RF-PLAY-02**
 - Ningún texto visible antes de acertar (rol, etiquetas, contexto, objetivos, pistas) contiene el nombre de un servicio que el jugador deba adivinar. Esto lo garantiza el lint `L005` en CI, no la UI.

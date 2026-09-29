@@ -10,6 +10,7 @@ import { Handle, Position, type NodeProps } from "@xyflow/react";
 import {
   AppWindowIcon,
   Building2Icon,
+  CircleHelpIcon,
   ServerIcon,
   SmartphoneIcon,
   UserIcon,
@@ -134,9 +135,30 @@ function DroppableSlot({
   );
 }
 
+/** Slot of the preview: an empty dashed box with a question mark, as in the brief (captura 12). */
+function PreviewSlot() {
+  return (
+    <div
+      data-slot="architecture-slot"
+      data-grade="empty"
+      className="grid size-full place-items-center rounded-[7px] border-2 border-dashed border-primary bg-card"
+    >
+      <CircleHelpIcon aria-hidden="true" className="size-1/3 text-primary" />
+    </div>
+  );
+}
+
 export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
   const { node, view, service, box } = data;
-  const { onSlotActivate, slotHintAction, droppable, reveal } = useDiagramContext();
+  const { onSlotActivate, slotHintAction, droppable, reveal, preview } = useDiagramContext();
+  if (preview) {
+    return (
+      <>
+        <HiddenHandles />
+        <PreviewSlot />
+      </>
+    );
+  }
   const hintAction = slotHintAction?.(node.id);
   const slot = (dropActive: boolean) => (
     <ArchitectureSlot

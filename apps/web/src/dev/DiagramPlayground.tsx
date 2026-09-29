@@ -161,12 +161,6 @@ function ScenarioSample({
           onSlotActivate={onSlotActivate}
           onServiceDrop={onServiceDrop}
           label={`Diagrama: ${scenario.title}`}
-          toolbarStart={
-            <span className="flex items-center gap-2">
-              <span aria-hidden="true" className="size-2 rounded-full bg-success" />
-              Arquitectura en progreso
-            </span>
-          }
           className="h-[760px] overflow-hidden rounded-lg border bg-card"
         />
       </DndContext>

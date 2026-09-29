@@ -89,3 +89,25 @@ export const initialView = (
   }
   return { kind: "anchored", viewport: { x, y, zoom: initialZoom } };
 };
+
+/** Zoom buttons move in 25 % steps (docs/design, problem 27). */
+export const ZOOM_STEP = 0.25;
+/** Rounding slack: React Flow zooms land on values like 0.7499999. */
+const EPSILON = 1e-6;
+
+/**
+ * Next zoom of the + and − buttons: the next multiple of ZOOM_STEP in that direction, so an
+ * opening zoom of 80 % goes to 100 % or 75 %, clamped to [minZoom, maxZoom].
+ */
+export const steppedZoom = (
+  zoom: number,
+  direction: 1 | -1,
+  minZoom: number,
+  maxZoom: number,
+): number => {
+  const next =
+    direction === 1
+      ? (Math.floor(zoom / ZOOM_STEP + EPSILON) + 1) * ZOOM_STEP
+      : (Math.ceil(zoom / ZOOM_STEP - EPSILON) - 1) * ZOOM_STEP;
+  return Math.min(maxZoom, Math.max(minZoom, next));
+};

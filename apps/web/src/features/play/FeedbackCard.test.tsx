@@ -4,7 +4,7 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "../../i18n";
-import { FeedbackPanel } from "./FeedbackPanel";
+import { FeedbackCard, hasFeedback } from "./FeedbackCard";
 import { newSession, pdfScenario, services, slotOf } from "./testing/game-fixture";
 
 afterEach(cleanup);
@@ -17,11 +17,10 @@ const renderPanel = (session: SessionState, slotId: string | null) => {
   const onRetry = vi.fn();
   const onClose = vi.fn();
   render(
-    <FeedbackPanel
+    <FeedbackCard
       session={session}
       slotId={slotId}
       services={services}
-      announcement={{ key: 1, text: "Anuncio de prueba." }}
       onAccept={onAccept}
       onRetry={onRetry}
       onClose={onClose}
@@ -37,13 +36,23 @@ const tags = (panel: HTMLElement) =>
     (tag) => `${tag.dataset.status}: ${tag.textContent}`,
   );
 
-describe("FeedbackPanel", () => {
-  it("is a polite live region that invites to place a service while empty", () => {
-    const { panel } = renderPanel(newSession(), null);
-    expect(panel.getAttribute("aria-live")).toBe("polite");
-    expect(panel.textContent).toContain("Colocá un servicio para ver la explicación.");
-    expect(panel.textContent).toContain("Anuncio de prueba.");
-    expect(screen.queryByRole("button")).toBeNull();
+describe("FeedbackCard", () => {
+  it("renders nothing while there is nothing to explain", () => {
+    const empty = newSession();
+    render(
+      <FeedbackCard
+        session={empty}
+        slotId="api-entry"
+        services={services}
+        onAccept={vi.fn()}
+        onRetry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    expect(document.querySelector("section")).toBeNull();
+    expect(hasFeedback(empty, "api-entry")).toBe(false);
+    expect(hasFeedback(play(commands.placeService("api-entry", "alb")), "api-entry")).toBe(true);
+    expect(hasFeedback(empty, null)).toBe(false);
   });
 
   it("optimal: rationale, met objectives, docs link and no actions", () => {
