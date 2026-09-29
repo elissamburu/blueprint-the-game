@@ -265,23 +265,77 @@ describe("score end to end (static-website-https)", () => {
     await press(user, slotButton("certificate"));
     expect(score()).toBe("200");
   });
+
+  it("two incorrect answers before the optimal one in another slot add 50", async () => {
+    const user = await open(staticWebsiteScenario.id);
+    await user.click(paletteButton("route53"));
+    await press(user, slotButton("dns"));
+    expect(score()).toBe("100");
+
+    await press(user, slotButton("certificate"));
+    for (const wrong of ["kms", "secrets-manager"]) {
+      await user.click(paletteButton(wrong));
+      expect(slotButton("certificate").getAttribute("aria-label")).toContain("Incorrecto");
+      expect(score()).toBe("100");
+      await user.click(within(feedback()).getByRole("button", { name: "Probar otra" }));
+    }
+    await user.click(paletteButton("acm"));
+    expect(slotButton("certificate").getAttribute("aria-label")).toContain("Óptimo");
+    // max(min, firstTryGreen − penaltyPerError · 2) = max(25, 100 − 25 · 2) = 50.
+    expect(bundle.rules.scoring.greenAfterErrors).toEqual({ penaltyPerError: 25, min: 25 });
+    expect(score()).toBe("150");
+  });
 });
 
 describe("board viewport", () => {
-  it("does not move when placing, accepting or clearing a service", async () => {
+  const transform = () =>
+    document.querySelector<HTMLElement>(".react-flow__viewport")?.style.transform;
+  const zoom = () => screen.getByLabelText("Nivel de zoom").textContent;
+
+  it("keeps zoom and position when placing, accepting, clearing and revealing hints", async () => {
     const user = await open();
-    const transform = () =>
-      document.querySelector<HTMLElement>(".react-flow__viewport")?.style.transform;
-    await waitFor(() => expect(transform()).toMatch(/scale\(/));
+    // The opening view (jsdom's board has no size: it does not fit, so it opens at 80 %).
+    await waitFor(() => expect(transform()).toMatch(/scale\(0\.8\)/));
     const initial = transform();
+    const still = () => {
+      expect(transform()).toBe(initial);
+      expect(zoom()).toMatch(/^80\s?%$/);
+    };
+
+    // Slot first: acceptable, "Me quedo con esta", "Probar otra", optimal.
     await press(user, slotButton("url-signer"));
     await user.click(paletteButton("fargate"));
+    still();
     await user.click(within(feedback()).getByRole("button", { name: "Me quedo con esta" }));
+    still();
     await user.click(within(feedback()).getByRole("button", { name: "Probar otra" }));
+    still();
     await user.click(paletteButton("lambda"));
+    still();
+    // Service first: incorrect, then clear it.
     await user.click(paletteButton("ebs"));
     await press(user, slotButton("upload-store"));
     expect(slotButton("upload-store").getAttribute("aria-label")).toContain("Incorrecto");
-    expect(transform()).toBe(initial);
+    still();
+    await user.click(within(feedback()).getByRole("button", { name: "Probar otra" }));
+    still();
+    // Slot first with the keyboard, the focus back on the slot, and a hint.
+    await user.keyboard("Simple Storage{Enter}");
+    expect(document.activeElement).toBe(slotButton("upload-store"));
+    still();
+    const slot = slotButton("api-entry").closest<HTMLElement>("[data-slot=architecture-slot]");
+    if (slot === null) throw new Error("no slot");
+    await press(user, within(slot).getByRole("button", { name: /Ver pista/ }));
+    await screen.findByRole("dialog");
+    await user.keyboard("{Escape}");
+    still();
+
+    // "Ajustar a pantalla" is the only thing, besides opening, that fits the board.
+    await user.click(screen.getByRole("button", { name: /Restablecer zoom/ }));
+    // Animated: the first frames can still read 80 %.
+    await waitFor(() => {
+      expect(transform()).not.toBe(initial);
+      expect(zoom()).not.toMatch(/^80\s?%$/);
+    });
   });
 });
