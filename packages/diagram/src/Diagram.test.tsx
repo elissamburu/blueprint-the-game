@@ -1,5 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { DndContext } from "@dnd-kit/core";
+import { cleanup, fireEvent, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { Diagram } from "./Diagram";
@@ -128,5 +129,100 @@ describe("Diagram slot hint action", () => {
     });
     expect(screen.getByRole("button", { name: `Pista de ${slotIds[0]}` })).toBeTruthy();
     expect(screen.queryByRole("button", { name: `Pista de ${slotIds[1]}` })).toBeNull();
+  });
+});
+
+describe("Diagram viewport stability", () => {
+  const transform = () =>
+    document.querySelector<HTMLElement>(".react-flow__viewport")?.style.transform ?? "";
+
+  /** Waits for the opening view (React Flow calls onInit after a tick). */
+  const opened = async () => {
+    await waitFor(() => expect(transform()).toMatch(/scale\(/));
+    const initial = transform();
+    await new Promise((resolve) => setTimeout(resolve, 50));
+    expect(transform()).toBe(initial);
+    return initial;
+  };
+
+  it("keeps zoom and position when slot states, callbacks and hint actions change", async () => {
+    const props = { onSlotActivate: () => {}, onServiceDrop: () => {} };
+    const { rerender } = render(
+      <DndContext>
+        <div style={{ width: 1200, height: 800 }}>
+          <Diagram diagram={pdfScenario.diagram} services={fakeServices} {...props} />
+        </div>
+      </DndContext>,
+    );
+    const initial = await opened();
+    for (const grade of ["optimal", "acceptable", "incorrect", "empty"] as const) {
+      rerender(
+        <DndContext>
+          <div style={{ width: 1200, height: 800 }}>
+            <Diagram
+              diagram={pdfScenario.diagram}
+              services={fakeServices}
+              slots={{ "api-entry": { grade, serviceId: grade === "empty" ? null : "apigateway" } }}
+              onSlotActivate={() => {}}
+              onServiceDrop={() => {}}
+              slotHintAction={() => <button type="button">Pista</button>}
+            />
+          </div>
+        </DndContext>,
+      );
+      await new Promise((resolve) => setTimeout(resolve, 20));
+      expect(transform()).toBe(initial);
+    }
+  });
+
+  it("does not pan when a slot gets focus by pointer or by script", async () => {
+    renderBoard({ onSlotActivate: () => {} });
+    const initial = await opened();
+    // The app focuses a slot back after placing a service.
+    slotButtons().at(-1)?.focus();
+    // A click (pointerdown only: d3-zoom breaks on jsdom mouse events) and its focus.
+    const clicked = slotButtons()[3];
+    if (clicked === undefined) throw new Error("no slot");
+    fireEvent.pointerDown(clicked);
+    clicked.focus();
+    await new Promise((resolve) => setTimeout(resolve, 300));
+    expect(transform()).toBe(initial);
+  });
+
+  it("pans to a slot out of view reached with Tab", async () => {
+    const user = userEvent.setup();
+    renderBoard({ onSlotActivate: () => {} });
+    const initial = await opened();
+    screen.getByRole("button", { name: "Reproducir flujo" }).focus();
+    await user.tab();
+    // jsdom has no layout: the board measures 0 × 0, so every slot is out of view.
+    await waitFor(() => expect(transform()).not.toBe(initial));
+  });
+});
+
+describe("Diagram edges", () => {
+  const path = (edgeId: string) =>
+    document.querySelector<SVGPathElement>(`[data-edge-id="${edgeId}"] path`);
+
+  it("are thin, dotted and faint at rest, and primary and moving only on the playing step", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+    const firstStep = pdfScenario.diagram.edges.filter((e) => e.step === 1).map((e) => e.id);
+    const other = pdfScenario.diagram.edges.find((e) => e.step !== 1)?.id ?? "";
+    const idle = path(firstStep[0] ?? "");
+    expect(idle?.style.stroke).toBe("var(--muted-foreground)");
+    expect(idle?.style.strokeDasharray).toBe("4 3");
+    expect(idle?.style.strokeOpacity).toBe("0.58");
+    expect(idle?.getAttribute("vector-effect")).toBe("non-scaling-stroke");
+    expect(idle?.querySelector("animate")).toBeNull();
+
+    await user.click(screen.getByRole("button", { name: "Reproducir flujo" }));
+    for (const id of firstStep) {
+      expect(path(id)?.style.stroke).toBe("var(--primary)");
+      expect(path(id)?.style.strokeOpacity).toBe("1");
+      expect(path(id)?.querySelector("animate")).not.toBeNull();
+    }
+    expect(path(other)?.style.stroke).toBe("var(--muted-foreground)");
+    expect(path(other)?.querySelector("animate")).toBeNull();
   });
 });

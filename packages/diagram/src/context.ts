@@ -9,7 +9,7 @@ export interface DiagramContextValue {
   slotHintAction: ((slotId: string) => ReactNode) | undefined;
   /** Slots are @dnd-kit drop targets (the board got onServiceDrop). */
   droppable: boolean;
-  /** Pans the board so the box (canvas units) is in view, e.g. when a slot gets focus. */
+  /** Pans the board so the box (canvas units) is in view when a slot is reached with Tab. */
   reveal: (box: Box) => void;
   /** Animate the active edges (false with prefers-reduced-motion). */
   animate: boolean;

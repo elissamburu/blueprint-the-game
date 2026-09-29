@@ -41,7 +41,7 @@ export function HintAction({ role, revealed, total, cost, canReveal, onReveal }:
         : t("play.hints.none");
 
   return (
-    <span className="mt-auto flex items-center justify-between gap-1 text-[0.55rem]">
+    <span className="mt-auto flex items-center justify-between gap-1 pt-[0.25rem] text-[0.55rem]">
       <Popover open={open} onOpenChange={setOpen}>
         <PopoverTrigger asChild>
           <button

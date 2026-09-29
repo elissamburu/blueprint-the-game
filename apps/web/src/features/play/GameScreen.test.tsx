@@ -13,7 +13,7 @@ import "../../i18n";
 import { PROGRESS_STORAGE_KEY } from "../../progress/local-storage-progress-repository";
 import { useProgressStore } from "../../progress/progress-store";
 import { mockReactFlowLayout } from "../../testing/react-flow-mocks";
-import { bundle, pdfScenario, slotOf } from "./testing/game-fixture";
+import { bundle, pdfScenario, slotOf, staticWebsiteScenario } from "./testing/game-fixture";
 
 beforeEach(() => {
   useContentStore.setState(useContentStore.getInitialState(), true);
@@ -29,17 +29,18 @@ afterEach(() => {
   vi.unstubAllGlobals();
 });
 
-const TITLE = "Comprobantes en PDF para un estudio contable";
-
-const open = async () => {
+const open = async (scenarioId = pdfScenario.id) => {
   // React Flow leaves nodes without pointer events until it measures them, which jsdom never does.
   const user = userEvent.setup({ pointerEventsCheck: 0 });
   render(
-    <MemoryRouter initialEntries={[`/escenarios/${pdfScenario.id}`]}>
+    <MemoryRouter initialEntries={[`/escenarios/${scenarioId}`]}>
       <AppRoutes />
     </MemoryRouter>,
   );
-  await screen.findByRole("heading", { level: 1, name: TITLE });
+  const scenario = scenarioId === pdfScenario.id ? pdfScenario : staticWebsiteScenario;
+  await screen.findByRole("heading", { level: 1, name: scenario.title });
+  // React Flow draws the nodes once it has measured the board.
+  await waitFor(() => expect(document.querySelector("[data-slot-id]")).not.toBeNull());
   return user;
 };
 
@@ -240,5 +241,47 @@ describe("finishing", () => {
       ),
     ).toBeTruthy();
     expect(localStorage.getItem(PROGRESS_STORAGE_KEY)).toBeNull();
+  });
+});
+
+describe("score end to end (static-website-https)", () => {
+  const score = () => screen.getByText("Puntaje").nextElementSibling?.textContent;
+
+  it("an optimal answer at the first attempt, without hints, adds 100 (slot first)", async () => {
+    const user = await open(staticWebsiteScenario.id);
+    expect(score()).toBe("0");
+    await press(user, slotButton("dns"));
+    await user.keyboard("Route 53{Enter}");
+    expect(slotButton("dns").getAttribute("aria-label")).toContain("Óptimo");
+    expect(score()).toBe(String(bundle.rules.scoring.firstTryGreen));
+    expect(bundle.rules.scoring.firstTryGreen).toBe(100);
+  });
+
+  it("adds 100 per slot with service first too", async () => {
+    const user = await open(staticWebsiteScenario.id);
+    await user.click(paletteButton("route53"));
+    await press(user, slotButton("dns"));
+    await user.click(paletteButton("acm"));
+    await press(user, slotButton("certificate"));
+    expect(score()).toBe("200");
+  });
+});
+
+describe("board viewport", () => {
+  it("does not move when placing, accepting or clearing a service", async () => {
+    const user = await open();
+    const transform = () =>
+      document.querySelector<HTMLElement>(".react-flow__viewport")?.style.transform;
+    await waitFor(() => expect(transform()).toMatch(/scale\(/));
+    const initial = transform();
+    await press(user, slotButton("url-signer"));
+    await user.click(paletteButton("fargate"));
+    await user.click(within(feedback()).getByRole("button", { name: "Me quedo con esta" }));
+    await user.click(within(feedback()).getByRole("button", { name: "Probar otra" }));
+    await user.click(paletteButton("lambda"));
+    await user.click(paletteButton("ebs"));
+    await press(user, slotButton("upload-store"));
+    expect(slotButton("upload-store").getAttribute("aria-label")).toContain("Incorrecto");
+    expect(transform()).toBe(initial);
   });
 });

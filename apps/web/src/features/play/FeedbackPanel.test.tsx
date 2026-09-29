@@ -5,7 +5,7 @@ import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import "../../i18n";
 import { FeedbackPanel } from "./FeedbackPanel";
-import { newSession, services } from "./testing/game-fixture";
+import { newSession, pdfScenario, services, slotOf } from "./testing/game-fixture";
 
 afterEach(cleanup);
 
@@ -59,7 +59,7 @@ describe("FeedbackPanel", () => {
       "met: Cumple: Picos fuertes a fin de mes y días enteros sin uso.",
       "met: Cumple: Pagar lo mínimo posible cuando no hay actividad.",
     ]);
-    const docs = within(panel).getByRole("link", { name: /Ver documentación/ });
+    const docs = within(panel).getByRole("link", { name: /^Documentación/ });
     expect(docs.getAttribute("href")).toBe(
       "https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api.html",
     );
@@ -115,6 +115,26 @@ describe("FeedbackPanel", () => {
     expect(panel.dataset.status).toBe("incorrect");
     expect(panel.textContent).toContain(`${services.get("s3")?.short} No cumple el rol: `);
     expect(tags(panel)).toEqual([]);
+  });
+
+  it('with several references, one "Documentación" opens the list in a popover', async () => {
+    const user = userEvent.setup();
+    const { panel } = renderPanel(
+      play(commands.placeService("url-signer", "lambda")),
+      "url-signer",
+    );
+    const references = slotOf(pdfScenario, "url-signer").answers.find(
+      (a) => a.service === "lambda",
+    )?.references;
+    expect(references?.length).toBeGreaterThan(1);
+    expect(within(panel).queryByRole("link")).toBeNull();
+    await user.click(within(panel).getByRole("button", { name: /^Documentación/ }));
+    const list = await screen.findByRole("dialog", { name: "Documentación" });
+    expect(
+      within(list)
+        .getAllByRole("link")
+        .map((l) => l.getAttribute("href")),
+    ).toEqual(references);
   });
 
   it("closes with the X button", async () => {

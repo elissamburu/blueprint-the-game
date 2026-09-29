@@ -151,7 +151,6 @@ export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
       emptyText={onSlotActivate === undefined ? "" : undefined}
       hintAction={hintAction}
       onFocus={() => reveal(box)}
-      title={node.role}
       // React Flow turns pointer events off on nodes that are neither selectable nor draggable;
       // the slot is a button (and holds the hint button), so it takes them back.
       className="pointer-events-auto size-full"

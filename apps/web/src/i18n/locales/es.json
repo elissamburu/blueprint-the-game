@@ -104,9 +104,10 @@
       "accept": "Me quedo con esta",
       "retry": "Probar otra",
       "close": "Cerrar explicación",
-      "docs": "Ver documentación",
-      "docsN": "Ver documentación ({{number}} de {{total}})",
-      "undeclared": "{{short}} No cumple el rol: {{role}}"
+      "docs": "Documentación",
+      "undeclared": "{{short}} No cumple el rol: {{role}}",
+      "docsCount_one": "{{count}} enlace",
+      "docsCount_other": "{{count}} enlaces"
     },
     "hints": {
       "reveal": "Ver pista (−{{cost}} pts)",

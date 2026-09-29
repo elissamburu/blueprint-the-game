@@ -16,8 +16,10 @@ import type { Service } from "@blueprint/scenario-schema";
 import { Button } from "@blueprint/ui/components/button";
 import { gradeLabel } from "@blueprint/ui/components/grade-badge";
 import { ObjectiveTag } from "@blueprint/ui/components/objective-tag";
+import { Popover, PopoverContent, PopoverTrigger } from "@blueprint/ui/components/popover";
 import { cn } from "@blueprint/ui/lib/utils";
 import {
+  ChevronDownIcon,
   CircleCheckIcon,
   CircleXIcon,
   ExternalLinkIcon,
@@ -175,27 +177,58 @@ export function FeedbackPanel({
         >
           <XIcon />
         </Button>
-        {references.length > 0 && (
-          <ul className="flex flex-col items-end gap-1">
-            {references.map((url, i) => (
-              <li key={url}>
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="inline-flex items-center gap-1 text-[0.75rem] font-semibold text-primary underline-offset-4 hover:underline"
-                >
-                  {references.length === 1
-                    ? t("play.feedback.docs")
-                    : t("play.feedback.docsN", { number: i + 1, total: references.length })}
-                  <ExternalLinkIcon aria-hidden className="size-3.5" />
-                  <span className="sr-only">{t("about.external")}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        )}
+        <DocsLink references={references} />
       </div>
     </section>
+  );
+}
+
+const LINK =
+  "inline-flex items-center gap-1 text-[0.75rem] font-semibold text-primary underline-offset-4 hover:underline";
+
+/** "docs.aws.amazon.com/lambda/latest/dg/welcome.html": readable, and says where it goes. */
+const referenceLabel = (url: string) => {
+  const { hostname, pathname } = new URL(url);
+  return `${hostname}${pathname === "/" ? "" : pathname}`;
+};
+
+/** One "Documentación" link; with several references, it opens the list in a popover. */
+function DocsLink({ references }: { references: readonly string[] }) {
+  const { t } = useTranslation();
+  const [first] = references;
+  if (first === undefined) return null;
+  if (references.length === 1) {
+    return (
+      <a href={first} target="_blank" rel="noreferrer" className={LINK}>
+        {t("play.feedback.docs")}
+        <ExternalLinkIcon aria-hidden className="size-3.5" />
+        <span className="sr-only">{t("about.external")}</span>
+      </a>
+    );
+  }
+  return (
+    <Popover>
+      <PopoverTrigger className={cn(LINK, "cursor-pointer")}>
+        {t("play.feedback.docs")}
+        <span className="sr-only">
+          {" "}
+          ({t("play.feedback.docsCount", { count: references.length })})
+        </span>
+        <ChevronDownIcon aria-hidden className="size-3.5" />
+      </PopoverTrigger>
+      <PopoverContent align="end" side="top" aria-label={t("play.feedback.docs")} className="w-96">
+        <ul className="flex flex-col gap-2">
+          {references.map((url) => (
+            <li key={url}>
+              <a href={url} target="_blank" rel="noreferrer" className={cn(LINK, "break-all")}>
+                {referenceLabel(url)}
+                <ExternalLinkIcon aria-hidden className="size-3.5 shrink-0" />
+                <span className="sr-only">{t("about.external")}</span>
+              </a>
+            </li>
+          ))}
+        </ul>
+      </PopoverContent>
+    </Popover>
   );
 }

@@ -28,7 +28,7 @@ export interface ArchitectureSlotService {
 
 export type ArchitectureSlotProps = Omit<React.ComponentProps<"div">, "children" | "role"> & {
   grade: SlotGrade;
-  /** Role of the slot in the architecture (scenario `role`). Shown in up to two lines. */
+  /** Role of the slot in the architecture (scenario `role`). Always shown whole. */
   role: string;
   /** Service placed in the slot; without it the slot shows the empty placeholder. */
   service?: ArchitectureSlotService | undefined;
@@ -77,24 +77,24 @@ function ArchitectureSlot({
       <GradeBadge grade={grade} />
       {/* Service and placeholder share the height, so the slot does not jump when it fills. */}
       {service !== undefined ? (
-        <span className="mt-2 flex h-[46px] items-center gap-[0.45rem] rounded-[5px] bg-card p-[0.45rem] text-[0.68rem] leading-tight">
+        <span className="mt-[0.3rem] flex h-[36px] items-center gap-[0.4rem] rounded-[5px] bg-card px-[0.3rem] text-[0.68rem] leading-tight">
           <ServiceIcon
             src={service.iconSrc}
             name={service.name}
             category={service.category}
             decorative
+            className="size-7"
           />
           <strong className="line-clamp-2 min-w-0">{service.name}</strong>
         </span>
       ) : (
-        <span className="mt-2 flex h-[46px] flex-col items-center justify-center gap-[0.2rem] rounded-[5px] border border-dashed border-border text-center text-[0.61rem] leading-tight text-muted-foreground">
-          <PlusIcon aria-hidden="true" className="size-4" />
+        <span className="mt-[0.3rem] flex h-[36px] items-center justify-center gap-[0.3rem] rounded-[5px] border border-dashed border-border px-[0.3rem] text-left text-[0.61rem] leading-tight text-muted-foreground">
+          <PlusIcon aria-hidden="true" className="size-4 shrink-0" />
           {emptyText !== "" && <span>{emptyText}</span>}
         </span>
       )}
-      <span className="mt-2 line-clamp-2 text-[0.57rem] leading-[1.4] text-muted-foreground">
-        {role}
-      </span>
+      {/* Never clamped: the whole role is the clue (it wraps inside NODE_SIZE.slot). */}
+      <span className="mt-[0.3rem] text-[0.57rem] leading-[1.3] text-muted-foreground">{role}</span>
     </>
   );
 
@@ -137,7 +137,7 @@ function ArchitectureSlot({
       )}
       {hintAction ??
         (hints !== undefined && hints.total > 0 && (
-          <span className="mt-auto flex items-center gap-[0.3rem] text-[0.55rem] text-warning">
+          <span className="mt-auto flex items-center gap-[0.3rem] pt-[0.25rem] text-[0.55rem] text-warning">
             <CircleHelpIcon aria-hidden="true" className="size-3 shrink-0" />
             Pistas {hints.used}/{hints.total}
           </span>

@@ -31,6 +31,10 @@ export const pdfScenario: Scenario = unwrap(
   parseScenario(files["serverless-pdf-processing.v1.json"]),
 );
 
+export const staticWebsiteScenario: Scenario = unwrap(
+  parseScenario(files["static-website-https.v1.json"]),
+);
+
 export const services = new Map<string, Service>(bundle.catalog.services.map((s) => [s.id, s]));
 
 export const slotOf = (scenario: Scenario, id: string): SlotNode => {
