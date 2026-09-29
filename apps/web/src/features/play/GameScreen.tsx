@@ -20,7 +20,6 @@ import {
 } from "@blueprint/game-engine";
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
-import { toast } from "@blueprint/ui/components/sonner";
 import {
   useCallback,
   useEffect,
@@ -40,7 +39,7 @@ import { serviceIconSrc } from "../../service-icons";
 import { createServiceLookup, slotViews } from "./board";
 import { CaseDrawer } from "./CaseDrawer";
 import { FeedbackCard, hasFeedback } from "./FeedbackCard";
-import { finishScenario, progressEventText, summaryState } from "./finish";
+import { finishScenario, summaryState } from "./finish";
 import { FocusBar, GameBar, type GameProgress } from "./GameBar";
 import { HintAction, showsHintAction } from "./HintAction";
 import { Palette } from "./Palette";
@@ -257,15 +256,8 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
       scenarios: bundle.index.scenarios,
       save: replace,
     });
-    if (outcome.saved) {
-      for (const event of outcome.events) {
-        toast.success(progressEventText(t, event, bundle.index.areas));
-      }
-    } else {
-      toast.warning(t("play.finish.notSaved"), {
-        action: { label: t("play.finish.setUp"), onClick: () => void navigate("/bienvenida") },
-      });
-    }
+    // The summary shows and announces the XP, the rank and the unlocks (and says when nothing
+    // was saved): toasts on top of it would be read twice.
     void navigate(`/escenarios/${scenario.id}/resumen`, { state: summaryState(outcome) });
   };
 

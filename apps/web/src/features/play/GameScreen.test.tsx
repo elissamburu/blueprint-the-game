@@ -11,6 +11,7 @@ import { AppRoutes } from "../../app/App";
 import { useContentStore } from "../../content/content-store";
 import { bundleFiles, fetchFrom } from "../../content/testing/bundle-fixture";
 import "../../i18n";
+import { formatNumber } from "../../i18n/format";
 import { PROGRESS_STORAGE_KEY } from "../../progress/local-storage-progress-repository";
 import { PALETTE_COLLAPSED_KEY } from "./ui-preferences";
 import { PROGRESS_SCHEMA_VERSION } from "../../progress/progress-schema";
@@ -286,7 +287,7 @@ describe("finishing", () => {
     }
   };
 
-  it("saves the progress, toasts the XP and opens the summary", async () => {
+  it("saves the progress and opens the summary, which shows the XP instead of a toast", async () => {
     withProgress();
     const user = await open();
     const finish = screen.getByRole("button", { name: "Finalizar" });
@@ -301,9 +302,11 @@ describe("finishing", () => {
     const slots = slotNodes(pdfScenario).length;
     const score = slots * bundle.rules.scoring.firstTryGreen;
     const xp = Math.round(score * bundle.rules.levelMultipliers["200"]);
-    expect(screen.getByText(`${score} de ${score}`)).toBeTruthy();
-    expect(screen.getByText(`${xp} XP (+${xp} a tu total)`)).toBeTruthy();
-    expect(await screen.findByText(`+${xp} XP (total: ${xp} XP)`)).toBeTruthy();
+    const figures = await screen.findByRole("region", { name: "Resultado" });
+    expect(within(figures).getByText(String(score))).toBeTruthy();
+    expect(within(figures).getByText(`de ${score}`)).toBeTruthy();
+    expect(within(figures).getByText(`+${formatNumber(xp)}`)).toBeTruthy();
+    expect(screen.queryByText(/XP \(total:/)).toBeNull();
     const stored = JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY) ?? "{}") as {
       progress?: { xp?: number };
     };
@@ -345,12 +348,15 @@ describe("finishing", () => {
     expect(
       await screen.findByRole("heading", { level: 1, name: "Escenario completado" }),
     ).toBeTruthy();
-    expect(screen.getByText(/XP \(no se guardó\)/)).toBeTruthy();
+    expect(screen.getByText("No se guardó")).toBeTruthy();
     expect(
-      await screen.findByText(
-        "Tu resultado no se guarda hasta que completes la configuración inicial.",
+      screen.getByText(
+        "Tu resultado no se guardó porque todavía no hiciste la configuración inicial.",
       ),
     ).toBeTruthy();
+    expect(
+      screen.getByRole("link", { name: "Hacer la configuración inicial" }).getAttribute("href"),
+    ).toBe("/bienvenida");
     expect(localStorage.getItem(PROGRESS_STORAGE_KEY)).toBeNull();
   });
 });

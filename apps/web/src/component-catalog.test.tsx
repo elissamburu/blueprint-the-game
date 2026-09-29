@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // axe over the component catalog (RNF-02). jsdom has no layout, so rules that need rendering
 // (color contrast) are checked in a real browser; see the PR for that run.
-import { cleanup, render } from "@testing-library/react";
+import { cleanup, render, screen, within } from "@testing-library/react";
+import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
 import { afterEach, describe, expect, it } from "vitest";
 import { ComponentCatalog } from "./component-catalog";
@@ -37,6 +38,7 @@ describe("ComponentCatalog", () => {
       "popover-trigger",
       "tooltip-trigger",
       "dialog-trigger",
+      "alert-dialog-trigger",
       "progress",
       "radio-group",
       "radio-card",
@@ -47,5 +49,15 @@ describe("ComponentCatalog", () => {
     ]) {
       expect(container.querySelector(`[data-slot="${slot}"]`), slot).not.toBeNull();
     }
+  });
+
+  it("opens the AlertDialog example with the focus on «Cancelar»", async () => {
+    const user = userEvent.setup();
+    render(<ComponentCatalog />);
+    await user.click(screen.getByRole("button", { name: "Reiniciar progreso" }));
+    const dialog = await screen.findByRole("alertdialog", { name: "¿Reiniciar tu progreso?" });
+    expect(document.activeElement).toBe(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("alertdialog")).toBeNull();
   });
 });

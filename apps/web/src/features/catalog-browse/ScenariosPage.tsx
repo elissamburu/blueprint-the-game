@@ -47,6 +47,7 @@ import {
 } from "./filters";
 import { LockReasonText } from "./LockReasonText";
 import { StatusBadge } from "./StatusBadge";
+import { formatNumber } from "../../i18n/format";
 
 export default function ScenariosPage() {
   const { t } = useTranslation();
@@ -399,9 +400,12 @@ function BestScore({ best }: { best: BestResult }) {
   return (
     <span className="flex items-center gap-[0.3rem] text-sm font-extrabold text-warning">
       <TrophyIcon aria-hidden className="size-[17px]" />
-      <span aria-hidden="true">{best.score}</span>
+      <span aria-hidden="true">{formatNumber(best.score)}</span>
       <span className="sr-only">
-        {t("scenarios.best", { score: best.score, max: best.maxScore })}
+        {t("scenarios.best", {
+          score: formatNumber(best.score),
+          max: formatNumber(best.maxScore),
+        })}
       </span>
     </span>
   );

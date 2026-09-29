@@ -36,6 +36,7 @@ import {
 import { useId, useState, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
+import { formatNumber } from "../../i18n/format";
 
 export interface GameProgress {
   resolved: number;
@@ -92,7 +93,9 @@ export function GameBar({
         <StarIcon aria-hidden className="size-5 text-warning" />
         <span className="flex flex-col leading-tight">
           <span className="text-sm text-muted-foreground">{t("play.top.score")}</span>
-          <strong className="text-lg text-warning tabular-nums">{progress.score}</strong>
+          <strong className="text-lg text-warning tabular-nums">
+            {formatNumber(progress.score)}
+          </strong>
         </span>
       </p>
       <div className="flex flex-wrap items-center gap-2">

@@ -3,9 +3,20 @@
 // patterns next to the Lovable screenshots. The texts are sample data; the game screens (router,
 // i18n, content loading) arrive in a later PR.
 import { useId } from "react";
-import { ArrowRightIcon, InfoIcon, PlayIcon } from "lucide-react";
+import { ArrowRightIcon, InfoIcon, PlayIcon, RotateCcwIcon } from "lucide-react";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@blueprint/ui/components/alert-dialog";
 import { Badge } from "@blueprint/ui/components/badge";
-import { Button } from "@blueprint/ui/components/button";
+import { Button, buttonVariants } from "@blueprint/ui/components/button";
 import {
   Card,
   CardContent,
@@ -235,10 +246,10 @@ function Overlays() {
     <Section
       id="overlays"
       kicker="shadcn/ui"
-      title="Tooltip, Dialog y Sonner"
+      title="Tooltip, Dialog, AlertDialog y Sonner"
       description="Capas flotantes: abrilas con mouse o teclado. El Popover está en el casillero."
     >
-      <div className="grid gap-4 md:grid-cols-3">
+      <div className="grid gap-4 md:grid-cols-2 xl:grid-cols-4">
         <Panel title="Tooltip">
           <Tooltip>
             <TooltipTrigger asChild>
@@ -271,6 +282,34 @@ function Overlays() {
               </DialogFooter>
             </DialogContent>
           </Dialog>
+        </Panel>
+        <Panel title="AlertDialog">
+          <AlertDialog>
+            <AlertDialogTrigger asChild>
+              <Button
+                variant="outline"
+                className="border-destructive text-destructive hover:bg-danger-soft hover:text-destructive"
+              >
+                <RotateCcwIcon aria-hidden />
+                Reiniciar progreso
+              </Button>
+            </AlertDialogTrigger>
+            <AlertDialogContent>
+              <AlertDialogHeader>
+                <AlertDialogTitle>¿Reiniciar tu progreso?</AlertDialogTitle>
+                <AlertDialogDescription>
+                  Vas a perder tu XP, tu rango, tus mejores resultados y los niveles desbloqueados.
+                  No se puede deshacer.
+                </AlertDialogDescription>
+              </AlertDialogHeader>
+              <AlertDialogFooter>
+                <AlertDialogCancel>Cancelar</AlertDialogCancel>
+                <AlertDialogAction className={buttonVariants({ variant: "destructive" })}>
+                  Sí, reiniciar
+                </AlertDialogAction>
+              </AlertDialogFooter>
+            </AlertDialogContent>
+          </AlertDialog>
         </Panel>
         <Panel title="Sonner (toasts)">
           <div className="flex flex-wrap gap-2">
