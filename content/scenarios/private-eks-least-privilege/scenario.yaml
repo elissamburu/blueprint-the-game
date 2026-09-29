@@ -1,0 +1,336 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: private-eks-least-privilege
+version: 1
+status: draft
+lang: es
+level: 300
+areas: [containers, security, networking]
+title: "Extractos bancarios en un clúster EKS sin salida a internet"
+summary: "Un banco procesa extractos en Kubernetes sin ninguna ruta a internet, con un rol por workload, Secrets cifrados con su propia clave, auditoría y detección de amenazas."
+estimatedMinutes: 14
+authors:
+  - github: elissamburu
+
+context: |
+  Un **banco** procesa los **extractos de sus clientes** en un clúster de **EKS**. El servicio
+  de extractos lee cada archivo de un **bucket de S3 de entrada** y escribe el resultado en
+  un **bucket de salida**: entre los dos mueve **cientos de GB por día**.
+
+  El área de seguridad exige **detectar amenazas en tiempo de ejecución** con un agente que
+  corre como DaemonSet en cada nodo y observa la actividad de los contenedores. Ese agente no
+  funciona sobre capacidad serverless: por eso los pods corren en **grupos de nodos
+  administrados sobre EC2**. Las imágenes se descargan de **ECR**.
+
+  La normativa del banco es estricta:
+
+  - las subredes del clúster **no tienen ninguna ruta a internet**, ni de entrada ni de salida;
+  - el endpoint de la **API del clúster es privado**: los operadores llegan desde la red
+    interna del banco;
+  - en el entorno de pruebas, el servicio usa **claves de acceso** guardadas en un Secret de
+    Kubernetes. Auditoría lo marcó como hallazgo crítico: en producción, cada workload tiene
+    que tener **solo los permisos que necesita** y ningún pod puede aprovechar los permisos
+    de los nodos;
+  - los **Secrets de Kubernetes** se cifran con una clave que el banco controla: define
+    quién puede usarla, la rota y audita cada uso;
+  - hay que poder responder **quién ejecutó qué acción** contra la API de Kubernetes;
+  - hay que detectar **actividad sospechosa**, tanto en los pedidos a la API de Kubernetes
+    como dentro de los contenedores en ejecución.
+
+objectives:
+  - id: no-internet-route
+    kind: hard
+    category: compliance
+    text: "Ninguna subred del clúster tiene ruta a internet, ni de entrada ni de salida: todo el tráfico hacia los servicios de AWS es privado."
+  - id: no-long-lived-credentials
+    kind: hard
+    category: security
+    text: "Ningún pod usa credenciales de larga duración (claves de acceso) ni los permisos del rol de los nodos."
+  - id: least-privilege-per-workload
+    kind: hard
+    category: security
+    text: "Cada workload tiene su propio rol, con solo los permisos que necesita."
+  - id: customer-managed-key
+    kind: hard
+    category: compliance
+    text: "Los Secrets de Kubernetes se cifran con una clave administrada por el cliente: el banco define su política de acceso, su rotación y audita cada uso."
+  - id: low-s3-traffic-cost
+    kind: soft
+    category: cost
+    text: "Minimizar el costo del tráfico hacia los buckets, que mueve cientos de GB por día."
+  - id: k8s-audit
+    kind: soft
+    category: compliance
+    text: "Poder auditar quién ejecutó qué acción contra la API de Kubernetes del clúster."
+  - id: threat-detection
+    kind: hard
+    category: security
+    text: "Detectar actividad sospechosa en el clúster, tanto en los pedidos a la API de Kubernetes como dentro de los contenedores en ejecución."
+
+diagram:
+  canvas: { width: 1400, height: 1040 }
+  groups:
+    - id: region
+      kind: region
+      label: "Región"
+      rect: { x: 40, y: 40, w: 1320, h: 860 }
+      parent: null
+    - id: vpc
+      kind: vpc
+      label: "Red del clúster"
+      rect: { x: 80, y: 90, w: 560, h: 780 }
+      parent: region
+    - id: subnets
+      kind: subnet-private
+      label: "Subredes privadas, sin ruta a internet"
+      rect: { x: 110, y: 140, w: 260, h: 700 }
+      parent: vpc
+
+  nodes:
+    - id: operators
+      type: actor
+      label: "Operadores (red interna del banco)"
+      icon: users
+      position: { x: 940, y: 920 }
+
+    - id: cluster
+      type: fixed
+      service: eks
+      position: { x: 940, y: 480 }
+      group: region
+
+    - id: nodes
+      type: fixed
+      service: ec2
+      position: { x: 160, y: 440 }
+      group: subnets
+
+    - id: input-bucket
+      type: fixed
+      service: s3
+      position: { x: 940, y: 140 }
+      group: region
+
+    - id: output-bucket
+      type: fixed
+      service: s3
+      position: { x: 940, y: 260 }
+      group: region
+
+    - id: registry
+      type: fixed
+      service: ecr
+      position: { x: 700, y: 400 }
+      group: region
+
+    - id: workload-identity
+      type: slot
+      role: "Identidad propia del servicio de extractos: le entrega credenciales temporales con acceso solo a sus dos buckets."
+      position: { x: 700, y: 580 }
+      group: region
+      answers:
+        - service: iam
+          grade: optimal
+          objectives: [no-long-lived-credentials, least-privilege-per-workload]
+          rationale: >
+            Un rol por cuenta de servicio, con EKS Pod Identity (o IRSA): el pod recibe
+            credenciales temporales que se renuevan solas, sin claves en el pod. La política del
+            rol permite solo leer el bucket de entrada y escribir el de salida. Como el pod igual
+            podría heredar el rol del nodo, la guía de buenas prácticas de EKS recomienda
+            bloquear su acceso a los metadatos de la instancia (IMDSv2 con límite de saltos 1).
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/pod-id-how-it-works.html
+            - https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html
+      incorrect:
+        - service: secrets-manager
+          violates: [no-long-lived-credentials]
+          rationale: "Guardar ahí las claves de acceso del servicio las protege mejor que un Secret, pero siguen siendo credenciales de larga duración: si se filtran, sirven hasta que alguien las rote. El pod tiene que recibir credenciales temporales de un rol."
+        - service: iam-identity-center
+          rationale: "Es el acceso de las personas de la organización (fuerza laboral) a las cuentas y aplicaciones, con inicio de sesión único. No le da identidad a un pod."
+        - service: cognito
+          rationale: "Es el registro e inicio de sesión de los usuarios finales de una aplicación web o móvil. No sirve para que un workload del clúster obtenga permisos sobre los buckets."
+      hints:
+        - "El pod no debería tener ninguna clave guardada: las credenciales tienen que ser temporales."
+        - "Asociá la cuenta de servicio de Kubernetes con un rol que solo tenga los permisos del servicio."
+
+    - id: s3-access
+      type: slot
+      role: "Acceso privado a los buckets desde las subredes del clúster, por donde pasan los extractos y también las capas de las imágenes."
+      position: { x: 440, y: 200 }
+      group: vpc
+      answers:
+        - service: vpc-gateway-endpoint
+          grade: optimal
+          objectives: [no-internet-route, low-s3-traffic-cost]
+          rationale: >
+            Una ruta en las tablas de las subredes hacia S3, sin cargo por hora ni por GB. En un
+            clúster privado es imprescindible también para arrancar pods: ECR guarda las capas de
+            las imágenes en S3, y su guía pide este acceso por ruta para bajarlas. Si se
+            restringe con una política, hay que permitir el bucket de capas de ECR además de los
+            del banco.
+          references:
+            - https://docs.aws.amazon.com/AmazonECR/latest/userguide/vpc-endpoints.html
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html
+      incorrect:
+        - service: vpc-interface-endpoint
+          rationale: "Serviría para leer y escribir los extractos por la red privada, pero cobra por hora en cada zona y por GB, con cientos de GB por día. Y la guía de ECR pide un acceso por ruta a S3 para las capas de las imágenes: sin él, los nodos no bajan las capas y los pods no arrancan."
+        - service: nat-gateway
+          violates: [no-internet-route]
+          rationale: "Necesita una subred pública con ruta a la salida a internet de la VPC: justo lo que la normativa prohíbe. Además cobra por hora y por cada GB que procesa."
+        - service: internet-gateway
+          violates: [no-internet-route]
+          rationale: "Es la salida a internet de la VPC: una subred del clúster con ruta hacia él rompe la normativa."
+      hints:
+        - "Por acá no pasan solo los extractos: pensá de dónde salen las capas de las imágenes."
+        - "Para este servicio existe un acceso privado que es solo una ruta y no tiene cargo."
+
+    - id: aws-apis-access
+      type: slot
+      role: "Acceso privado desde los nodos y los pods a las APIs de AWS que necesitan para arrancar y obtener sus credenciales."
+      position: { x: 440, y: 560 }
+      group: vpc
+      answers:
+        - service: vpc-interface-endpoint
+          grade: optimal
+          objectives: [no-internet-route]
+          rationale: >
+            Uno por API, con DNS privado: `ecr.api` y `ecr.dkr` (imágenes; las capas van por el
+            acceso a S3), `eks-auth` (credenciales de Pod Identity; con IRSA, `sts`), `ec2` (la
+            AMI optimizada fija el nombre DNS del nodo), `eks` (API de EKS) y `logs` si se envían
+            logs de nodos y pods. Los nodos se registran por el acceso privado al endpoint del
+            clúster. Cada endpoint acepta 443 desde las subredes de los nodos.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/vpc-interface-endpoints.html
+      incorrect:
+        - service: nat-gateway
+          violates: [no-internet-route]
+          rationale: "Llegaría a las APIs por sus puntos de acceso públicos a través de la salida a internet de la VPC, que la normativa prohíbe."
+        - service: direct-connect
+          rationale: "Es un enlace dedicado entre la red propia del banco y AWS: sirve para que los operadores lleguen a la VPC, no para que los nodos lleguen a las APIs de AWS."
+        - service: vpc-gateway-endpoint
+          rationale: "El acceso por ruta solo existe para S3 y DynamoDB; ECR, las credenciales de los pods y las APIs de EC2 y EKS no lo ofrecen."
+      hints:
+        - "Sin salida a internet, cada API de AWS que usan los nodos o los pods necesita su propia puerta privada."
+        - "No te olvides de la API que entrega las credenciales temporales de los pods."
+
+    - id: secrets-key
+      type: slot
+      role: "Clave con la que el plano de control cifra los Secrets y el resto de los datos de la API antes de guardarlos."
+      position: { x: 1180, y: 400 }
+      group: region
+      answers:
+        - service: kms
+          grade: optimal
+          objectives: [customer-managed-key]
+          rationale: >
+            Desde Kubernetes 1.28, EKS ya cifra todos los datos de la API con una clave propiedad
+            de AWS, pero el banco no la ve ni la controla. Con una clave administrada por el
+            cliente, el banco define la política de la clave, activa la rotación automática y
+            cada uso queda registrado en la cuenta. Si la deshabilita, el clúster se degrada:
+            hay que proteger quién puede administrarla.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html
+            - https://docs.aws.amazon.com/kms/latest/developerguide/rotate-keys.html
+      incorrect:
+        - service: secrets-manager
+          rationale: "Guarda y rota secretos de aplicaciones, pero no es la clave con la que el plano de control cifra lo que guarda la API de Kubernetes."
+        - service: acm
+          rationale: "Emite y renueva certificados TLS para cifrar el tráfico en tránsito; no cifra los datos que guarda el clúster."
+        - service: systems-manager
+          rationale: "Su almacén de parámetros guarda configuración, incluso cifrada, pero no puede ser la clave de cifrado de los datos de la API del clúster."
+      hints:
+        - "EKS ya cifra estos datos por defecto: la diferencia está en quién controla la clave."
+        - "Buscá el servicio de claves criptográficas que te deja definir la política y la rotación."
+
+    - id: audit-logs
+      type: slot
+      role: "Destino del registro de auditoría del plano de control: cada pedido a la API de Kubernetes, con quién lo hizo."
+      position: { x: 1180, y: 640 }
+      group: region
+      answers:
+        - service: cloudwatch
+          grade: optimal
+          objectives: [k8s-audit]
+          rationale: >
+            El registro de auditoría es un tipo de log del plano de control que viene apagado:
+            al activarlo, EKS lo envía a CloudWatch Logs de la cuenta, con el usuario, el verbo y
+            el recurso de cada pedido a la API de Kubernetes. Se paga la ingesta y el
+            almacenamiento de los logs.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/control-plane-logs.html
+      incorrect:
+        - service: cloudtrail
+          rationale: "Registra las llamadas a la API de AWS, como crear el clúster o cambiar su configuración, y las de los pods a otros servicios. Un kubectl que borra un pod es un pedido a la API de Kubernetes y queda en el log de auditoría del plano de control, no ahí."
+        - service: guardduty
+          rationale: "Analiza el log de auditoría con su propio flujo para detectar amenazas, pero no lo deja disponible en la cuenta: para consultar quién hizo qué, hay que activar el envío de los logs del plano de control."
+        - service: config
+          rationale: "Registra cómo cambia la configuración de los recursos de AWS y evalúa reglas de cumplimiento; no ve cada pedido a la API de Kubernetes."
+        - service: x-ray
+          rationale: "Traza pedidos de una aplicación a través de sus componentes para ver latencias y errores; no audita quién ejecutó qué en el clúster."
+      hints:
+        - "Una acción de kubectl no es una llamada a la API de AWS: queda en otro registro."
+        - "Es uno de los tipos de log del plano de control que se activan por clúster."
+
+    - id: threat-detection
+      type: slot
+      role: "Detección de amenazas: analiza los pedidos a la API de Kubernetes y la actividad de los contenedores en ejecución."
+      position: { x: 1180, y: 140 }
+      group: region
+      answers:
+        - service: guardduty
+          grade: optimal
+          objectives: [threat-detection, no-internet-route]
+          rationale: >
+            EKS Protection analiza el log de auditoría con un flujo propio: no hace falta activar
+            los logs del plano de control. Runtime Monitoring agrega un agente, instalado como
+            add-on de EKS, que observa los contenedores en cada nodo; no soporta Fargate. Con la
+            configuración automática, GuardDuty instala el agente y crea el endpoint de VPC
+            `guardduty-data`, sin costo adicional: funciona sin salida a internet.
+          references:
+            - https://docs.aws.amazon.com/guardduty/latest/ug/kubernetes-protection.html
+            - https://docs.aws.amazon.com/guardduty/latest/ug/how-runtime-monitoring-works-eks.html
+      incorrect:
+        - service: inspector
+          rationale: "Escanea imágenes de contenedores e instancias en busca de vulnerabilidades conocidas: dice qué podría explotarse, no detecta comportamiento sospechoso en el clúster mientras corre."
+        - service: security-hub
+          rationale: "Reúne, correlaciona y prioriza hallazgos de otros servicios y controles de buenas prácticas; no genera por sí mismo detecciones a partir del log de auditoría ni de la actividad de los contenedores."
+        - service: detective
+          rationale: "Sirve para investigar un hallazgo después de que ocurrió, reconstruyendo su contexto; no es el que detecta la actividad sospechosa."
+        - service: macie
+          rationale: "Descubre datos sensibles, como información personal, en los buckets; no analiza la API de Kubernetes ni los contenedores."
+      hints:
+        - "Buscá el servicio que genera los hallazgos, no el que los agrega ni el que los investiga."
+        - "Tiene una protección específica para el clúster y un agente que corre en cada nodo."
+
+  edges:
+    - { id: e1,  from: operators,       to: cluster,           step: 1,  style: sync,    label: "Despliega con kubectl",
+        description: "Por el endpoint privado de la API del clúster, desde la red interna del banco." }
+    - { id: e2,  from: cluster,         to: secrets-key,       step: 2,  style: control, label: "Cifra los datos antes de guardarlos" }
+    - { id: e3,  from: cluster,         to: audit-logs,        step: 2,  style: control, label: "Registra quién hizo qué" }
+    - { id: e14, from: cluster,         to: threat-detection,  step: 2,  style: control, label: "Analiza el log de auditoría" }
+    - { id: e4,  from: cluster,         to: nodes,             step: 3,  style: control, label: "Agenda los pods en los nodos" }
+    - { id: e5,  from: nodes,           to: aws-apis-access,   step: 4,  style: sync,    label: "Pide el manifiesto de la imagen" }
+    - { id: e6,  from: aws-apis-access, to: registry,          step: 5,  style: sync,    label: "Llega por la red privada" }
+    - { id: e7,  from: nodes,           to: s3-access,         step: 6,  style: data,    label: "Descarga las capas de la imagen" }
+    - { id: e8,  from: s3-access,       to: registry,          step: 7,  style: data,    label: "Capas de las imágenes" }
+    - { id: e9,  from: nodes,           to: aws-apis-access,   step: 8,  style: sync,    label: "Pide credenciales para el pod" }
+    - { id: e10, from: aws-apis-access, to: workload-identity, step: 9,  style: sync,    label: "Credenciales temporales del rol" }
+    - { id: e11, from: nodes,           to: s3-access,         step: 10, style: data,    label: "Lee extractos, escribe resultados",
+        description: "Es el tramo de mayor volumen: cientos de GB por día." }
+    - { id: e12, from: s3-access,       to: input-bucket,      step: 11, style: data,    label: "Lee el extracto" }
+    - { id: e13, from: s3-access,       to: output-bucket,     step: 11, style: data,    label: "Escribe el resultado" }
+    - { id: e15, from: nodes,           to: threat-detection,  step: 12, style: control, label: "Eventos de los contenedores",
+        description: "El agente de cada nodo los envía por un endpoint privado." }
+
+palette:
+  mode: auto
+
+references:
+  - title: "Clústeres privados de EKS"
+    url: https://docs.aws.amazon.com/eks/latest/userguide/private-clusters.html
+  - title: "Cifrado por defecto de los datos de la API de Kubernetes"
+    url: https://docs.aws.amazon.com/eks/latest/userguide/envelope-encryption.html
+  - title: "Mejores prácticas de EKS: identidad y acceso"
+    url: https://docs.aws.amazon.com/eks/latest/best-practices/identity-and-access-management.html
