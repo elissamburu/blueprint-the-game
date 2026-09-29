@@ -128,7 +128,7 @@ function DroppableSlot({
 }) {
   const { setNodeRef, isOver } = useDroppable({ id: `slot:${slotId}`, data: { slotId } });
   return (
-    <div ref={setNodeRef} className="size-full">
+    <div ref={setNodeRef} className="flex min-h-full w-full flex-col">
       {children(isOver)}
     </div>
   );
@@ -136,7 +136,8 @@ function DroppableSlot({
 
 export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
   const { node, view, service, box } = data;
-  const { onSlotActivate, droppable, reveal } = useDiagramContext();
+  const { onSlotActivate, slotHintAction, droppable, reveal } = useDiagramContext();
+  const hintAction = slotHintAction?.(node.id);
   const slot = (dropActive: boolean) => (
     <ArchitectureSlot
       data-slot-id={node.id}
@@ -148,9 +149,12 @@ export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
       dropActive={dropActive}
       onActivate={onSlotActivate === undefined ? undefined : () => onSlotActivate(node.id)}
       emptyText={onSlotActivate === undefined ? "" : undefined}
+      hintAction={hintAction}
       onFocus={() => reveal(box)}
-      title={node.role}
-      className="size-full"
+      // React Flow turns pointer events off on nodes that are neither selectable nor draggable;
+      // the slot is a button (and holds the hint button), so it takes them back. At least the node
+      // box, taller when a larger browser font needs it: the role is never cut.
+      className="pointer-events-auto min-h-full w-full grow"
     />
   );
   return (

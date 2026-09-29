@@ -1,0 +1,50 @@
+# Destino del enlace "Reportar un problema" de la pantalla de juego (RF-PLAY-13). El juego
+# precarga los campos por URL (?scenario=…&version=…&slot=…): si cambiás un `id`, actualizá
+# apps/web/src/features/play/report-issue.ts.
+name: Error en un escenario
+description: Algo de un escenario está mal (grado, explicación, pista, diagrama o una filtración).
+title: "[escenario] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por avisar. Si abriste esto desde el juego, el escenario, la versión y el casillero ya están completos.
+  - type: input
+    id: scenario
+    attributes:
+      label: Escenario (id)
+      placeholder: serverless-pdf-processing
+    validations:
+      required: true
+  - type: input
+    id: version
+    attributes:
+      label: Versión del escenario
+      placeholder: "1"
+    validations:
+      required: true
+  - type: input
+    id: slot
+    attributes:
+      label: Casillero (id)
+      description: Opcional. El casillero donde viste el problema.
+  - type: dropdown
+    id: kind
+    attributes:
+      label: Tipo de problema
+      options:
+        - Un grado me parece incorrecto
+        - La explicación es confusa o está mal
+        - Una pista está mal o revela demasiado
+        - El diagrama o el flujo están mal
+        - Un texto nombra el servicio que hay que adivinar
+        - Otro
+    validations:
+      required: true
+  - type: textarea
+    id: description
+    attributes:
+      label: Comentario
+      description: Qué pasó, qué esperabas y, si podés, un enlace a la documentación oficial de AWS que lo respalde.
+    validations:
+      required: true

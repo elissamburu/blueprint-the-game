@@ -5,7 +5,7 @@ import { Button } from "@blueprint/ui/components/button";
 import { Toaster, toast } from "@blueprint/ui/components/sonner";
 import { Suspense, useEffect } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, Outlet } from "react-router";
+import { Link, Outlet, useMatch } from "react-router";
 import { useContentStore } from "../content/content-store";
 import { Loading } from "../content/RequireContent";
 import { useProgressStore } from "../progress/progress-store";
@@ -18,6 +18,8 @@ export function AppLayout() {
   const { t } = useTranslation();
   const loadContent = useContentStore((s) => s.load);
   const hydrate = useProgressStore((s) => s.hydrate);
+  // The game screen fills the viewport below the header, without page scroll: no footer.
+  const playing = useMatch("/escenarios/:id") !== null;
   useEffect(() => {
     void loadContent();
     void hydrate();
@@ -40,12 +42,14 @@ export function AppLayout() {
           </Suspense>
         </ErrorBoundary>
       </main>
-      <footer className="border-t px-4 py-6 pb-24 text-center text-[0.78rem] text-muted-foreground md:pb-6">
-        {t("app.footer")}{" "}
-        <Link to="/acerca" className="text-primary underline-offset-4 hover:underline">
-          {t("nav.about")}
-        </Link>
-      </footer>
+      {!playing && (
+        <footer className="border-t px-4 py-6 pb-24 text-center text-[0.78rem] text-muted-foreground md:pb-6">
+          {t("app.footer")}{" "}
+          <Link to="/acerca" className="text-primary underline-offset-4 hover:underline">
+            {t("nav.about")}
+          </Link>
+        </footer>
+      )}
       <ProgressNotices />
       <Toaster />
     </div>

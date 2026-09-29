@@ -48,6 +48,7 @@ describe("lintScenario", () => {
       "L016",
       "L018",
       "L019",
+      "L020",
     ]);
     for (const rule of rules) expect(rule.description).not.toBe("");
   });

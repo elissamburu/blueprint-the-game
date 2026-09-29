@@ -64,14 +64,103 @@
       "title": "Escenario no encontrado",
       "description": "No hay ningún escenario disponible con el id «{{id}}»."
     },
-    "underConstruction": "Vista previa del tablero: la paleta de servicios y la evaluación todavía están en construcción.",
     "board": {
       "label": "Diagrama de «{{title}}»",
-      "loading": "Cargando el tablero…"
+      "loading": "Cargando el tablero…",
+      "inProgress": "Arquitectura en progreso",
+      "completed": "Arquitectura completa"
     },
     "back": "Volver a escenarios",
+    "top": {
+      "slots": "{{resolved}} de {{total}} casilleros",
+      "progress": "Casilleros resueltos",
+      "score": "Puntaje",
+      "report": "Reportar un problema",
+      "finish": "Finalizar",
+      "finishHint": "Completá todos los casilleros (verdes o naranjas aceptados) para finalizar."
+    },
+    "case": {
+      "label": "El caso",
+      "kicker": "El caso",
+      "restrictions": "Restricciones",
+      "goals": "Metas"
+    },
+    "palette": {
+      "label": "Paleta de servicios",
+      "title": "Servicios",
+      "help": "Arrastrá un servicio a un casillero, o elegí un casillero y después un servicio.",
+      "forSlot": "Elegí un servicio para «{{role}}». Esc cancela.",
+      "pending": "{{service}} elegido: activá un casillero para colocarlo. Esc cancela.",
+      "search": "Buscar servicio",
+      "searchPlaceholder": "Buscar por nombre o alias",
+      "noResults": "Ningún servicio coincide con la búsqueda.",
+      "placed": "En uso"
+    },
     "feedback": {
-      "undeclared": "{{short}} No cumple el rol: {{role}}"
+      "label": "Explicación",
+      "empty": "Colocá un servicio para ver la explicación.",
+      "objectives": "Objetivos",
+      "acceptedNote": "Te quedaste con esta",
+      "accept": "Me quedo con esta",
+      "retry": "Probar otra",
+      "close": "Cerrar explicación",
+      "docs": "Documentación",
+      "undeclared": "{{short}} No cumple el rol: {{role}}",
+      "docsCount_one": "{{count}} enlace",
+      "docsCount_other": "{{count}} enlaces"
+    },
+    "hints": {
+      "reveal": "Ver pista (−{{cost}} pts)",
+      "another": "Ver otra pista (−{{cost}} pts)",
+      "show": "Ver pistas",
+      "none": "Sin más pistas",
+      "title": "Pistas · {{role}}",
+      "number": "Pista {{number}}:",
+      "counter": "Pistas {{used}}/{{total}}"
+    },
+    "drag": {
+      "start": "Arrastrando {{service}}.",
+      "over": "{{service}} sobre «{{role}}».",
+      "outside": "{{service}} fuera de los casilleros.",
+      "cancel": "Arrastre cancelado."
+    },
+    "announce": {
+      "selected": "Casillero «{{role}}» seleccionado. Elegí un servicio de la paleta.",
+      "deselected": "Selección cancelada.",
+      "placed": "{{service}} en «{{role}}»: {{grade}}.",
+      "accepted": "Te quedaste con el servicio de «{{role}}».",
+      "cleared": "«{{role}}» quedó vacío.",
+      "hint": "Pista {{number}}: {{hint}}",
+      "servicePicked": "{{service}} elegido. Activá un casillero para colocarlo.",
+      "serviceDropped": "Servicio descartado.",
+      "rejected": {
+        "session-completed": "El escenario ya está completo.",
+        "unknown-slot": "Ese casillero no existe.",
+        "slot-locked": "Ese casillero ya está resuelto.",
+        "slot-accepted": "Te quedaste con este servicio: usá «Probar otra» para cambiarlo.",
+        "already-placed": "Ese servicio ya está en el casillero.",
+        "not-acceptable": "Solo podés quedarte con una respuesta aceptable.",
+        "no-hints-left": "No hay más pistas para este casillero.",
+        "slot-empty": "El casillero ya está vacío."
+      }
+    },
+    "finish": {
+      "xpGained": "+{{amount}} XP (total: {{total}} XP)",
+      "rankUp": "¡Subiste de rango: {{rank}}!",
+      "levelUnlocked": "Desbloqueaste el nivel {{level}} en {{areas}}.",
+      "notSaved": "Tu resultado no se guarda hasta que completes la configuración inicial.",
+      "setUp": "Configurar"
+    },
+    "summary": {
+      "kicker": "Resumen",
+      "title": "Escenario completado",
+      "missing": "No hay un resultado para mostrar: jugá el escenario y finalizalo.",
+      "score": "Puntaje",
+      "scoreValue": "{{score}} de {{max}}",
+      "xp": "XP",
+      "xpGained": "{{xp}} XP (+{{gained}} a tu total)",
+      "xpNotSaved": "{{xp}} XP (no se guardó)",
+      "replay": "Volver a jugar"
     }
   },
   "profile": {

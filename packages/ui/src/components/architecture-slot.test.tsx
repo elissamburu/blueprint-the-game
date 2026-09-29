@@ -56,3 +56,26 @@ describe("ArchitectureSlot", () => {
     expect(screen.getByRole("button", { name: "Ver pista" })).toBeDefined();
   });
 });
+
+describe("ArchitectureSlot role", () => {
+  const ROLE =
+    "Cola administrada donde otro sistema deja trabajos pendientes; el servicio los toma a su ritmo y los borra al terminarlos.";
+
+  it("shows the whole role, never clamped, and names the slot with it", () => {
+    render(<ArchitectureSlot grade="empty" role={ROLE} onActivate={() => {}} />);
+    const main = screen.getByRole("button");
+    expect(main.getAttribute("aria-label")).toBe(`${ROLE.slice(0, -1)}. Vacío`);
+    const role = screen.getByText(ROLE);
+    expect(role.className).not.toMatch(/line-clamp|truncate|overflow|ellipsis/);
+  });
+
+  it("grows instead of clipping when the text needs more room (larger browser font)", () => {
+    const { container } = render(
+      <ArchitectureSlot grade="optimal" role={ROLE} service={service} onActivate={() => {}} />,
+    );
+    const slot = container.querySelector<HTMLElement>("[data-slot=architecture-slot]");
+    expect(slot?.className).not.toMatch(/overflow-hidden|(^|\s)h-/);
+    // Neither the service chip nor the placeholder has a fixed height.
+    expect(container.innerHTML).not.toMatch(/\sh-\[/);
+  });
+});

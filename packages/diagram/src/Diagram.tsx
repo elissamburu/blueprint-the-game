@@ -28,7 +28,7 @@ import {
   RotateCcwIcon,
   SquareIcon,
 } from "lucide-react";
-import { useCallback, useId, useMemo, useRef, type ReactNode } from "react";
+import { useCallback, useEffect, useId, useMemo, useRef, type ReactNode } from "react";
 import { DiagramContext, type DiagramContextValue } from "./context";
 import { edgeTypes } from "./edges";
 import {
@@ -44,6 +44,7 @@ import { describeStep, flowSteps, type FlowStep } from "./steps";
 import { isServiceDragData, type ServiceLookup, type SlotView } from "./types";
 import { useFlowPlayer, type FlowPlayer } from "./use-flow-player";
 import { useReducedMotion } from "./use-reduced-motion";
+import { initialView } from "./viewport";
 
 export const MIN_ZOOM = 0.2;
 export const MAX_ZOOM = 2;
@@ -67,6 +68,11 @@ export interface DiagramProps {
    * @dnd-kit drop target, so the board has to be inside the app's `DndContext`.
    */
   onServiceDrop?: ((slotId: string, serviceId: string) => void) | undefined;
+  /**
+   * Replaces the hint counter of a slot (e.g. a "Ver pista" button with its popover). Return
+   * undefined to keep the counter.
+   */
+  slotHintAction?: ((slotId: string) => ReactNode) | undefined;
   /** Accessible name of the board. */
   label?: string | undefined;
   /** Left side of the toolbar (e.g. the progress status of the game). */
@@ -88,6 +94,7 @@ function DiagramBoard({
   slots,
   onSlotActivate,
   onServiceDrop,
+  slotHintAction,
   label = "Diagrama de la arquitectura",
   toolbarStart,
   className,
@@ -126,10 +133,38 @@ function DiagramBoard({
     [width, height, reducedMotion],
   );
 
+  /**
+   * Opening view: the fit, unless it would go below MIN_INITIAL_ZOOM; then the top-left of the
+   * diagram at that zoom (viewport.ts). The reset button keeps the plain fit.
+   */
+  const opened = useRef(false);
+  const open = useCallback(
+    (instance: Pick<ReactFlowInstance, "fitBounds" | "setViewport">) => {
+      // Only once per board: placing, clearing or accepting never moves the view (RF-PLAY-11).
+      if (opened.current) return;
+      opened.current = true;
+      const board = boardRef.current;
+      const view =
+        board === null
+          ? ({ kind: "fit" } as const)
+          : initialView(
+              diagram,
+              { width: board.clientWidth, height: board.clientHeight },
+              { padding: FIT_PADDING, minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM },
+            );
+      if (view.kind === "fit") fit(instance, false);
+      else void instance.setViewport(view.viewport);
+    },
+    [diagram, fit],
+  );
+
+  const tabbing = useTabNavigation();
   const reveal = useCallback(
     (box: Box) => {
       const board = boardRef.current;
-      if (board === null) return;
+      // Only for Tab: a click lands on a slot already in view, and the focus the app moves back to
+      // a slot after placing a service must not pan the board.
+      if (board === null || !tabbing.current) return;
       const { x, y, zoom } = flow.getViewport();
       const left = box.x * zoom + x;
       const top = box.y * zoom + y;
@@ -144,18 +179,19 @@ function DiagramBoard({
         duration: reducedMotion ? 0 : 200,
       });
     },
-    [flow, reducedMotion],
+    [flow, reducedMotion, tabbing],
   );
 
   const context = useMemo(
     (): DiagramContextValue => ({
       onSlotActivate,
+      slotHintAction,
       droppable: onServiceDrop !== undefined,
       reveal,
       animate: !reducedMotion,
       markers,
     }),
-    [onSlotActivate, onServiceDrop, reveal, reducedMotion, markers],
+    [onSlotActivate, slotHintAction, onServiceDrop, reveal, reducedMotion, markers],
   );
 
   return (
@@ -195,7 +231,7 @@ function DiagramBoard({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             zIndexMode="manual"
-            onInit={(instance) => fit(instance, false)}
+            onInit={open}
             minZoom={MIN_ZOOM}
             maxZoom={MAX_ZOOM}
             // Read-only canvas: nothing is dragged, connected, selected or deleted.
@@ -224,6 +260,26 @@ function DiagramBoard({
       </div>
     </DiagramContext.Provider>
   );
+}
+
+/** Whether the last user input was the Tab key (a pointer press or any other key resets it). */
+function useTabNavigation() {
+  const tabbing = useRef(false);
+  useEffect(() => {
+    const onKey = (event: KeyboardEvent) => {
+      tabbing.current = event.key === "Tab";
+    };
+    const onPointer = () => {
+      tabbing.current = false;
+    };
+    window.addEventListener("keydown", onKey, true);
+    window.addEventListener("pointerdown", onPointer, true);
+    return () => {
+      window.removeEventListener("keydown", onKey, true);
+      window.removeEventListener("pointerdown", onPointer, true);
+    };
+  }, []);
+  return tabbing;
 }
 
 function ArrowMarker({ id, color }: { id: string; color: string }) {

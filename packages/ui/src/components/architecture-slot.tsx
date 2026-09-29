@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Slot of the board (RF-PLAY-02): grade, placed service, role and hint counter. Presentation only:
 // the grade and the hints come through props (from game-engine, via the app) and this component
-// never decides them. It fills the box its parent gives it (NODE_SIZE.slot on the board).
+// never decides them. It fills the box its parent gives it (NODE_SIZE.slot on the board) and grows
+// past it only when the text needs more room: nothing inside is ever cut.
 // Lovable: ArchitectureSlot, .architecture-slot, .slot-status, .placed-service, .empty-slot,
 // .slot-main-action > p, .architecture-slot > button (src/components/blueprint-app.tsx, styles.css).
 import type * as React from "react";
@@ -28,7 +29,7 @@ export interface ArchitectureSlotService {
 
 export type ArchitectureSlotProps = Omit<React.ComponentProps<"div">, "children" | "role"> & {
   grade: SlotGrade;
-  /** Role of the slot in the architecture (scenario `role`). Shown in up to two lines. */
+  /** Role of the slot in the architecture (scenario `role`). Always shown whole. */
   role: string;
   /** Service placed in the slot; without it the slot shows the empty placeholder. */
   service?: ArchitectureSlotService | undefined;
@@ -77,24 +78,25 @@ function ArchitectureSlot({
       <GradeBadge grade={grade} />
       {/* Service and placeholder share the height, so the slot does not jump when it fills. */}
       {service !== undefined ? (
-        <span className="mt-2 flex h-[46px] items-center gap-[0.45rem] rounded-[5px] bg-card p-[0.45rem] text-[0.68rem] leading-tight">
+        <span className="mt-[0.3rem] flex min-h-[36px] items-center gap-[0.4rem] rounded-[5px] bg-card px-[0.3rem] text-[0.68rem] leading-tight">
           <ServiceIcon
             src={service.iconSrc}
             name={service.name}
             category={service.category}
             decorative
+            className="size-7"
           />
           <strong className="line-clamp-2 min-w-0">{service.name}</strong>
         </span>
       ) : (
-        <span className="mt-2 flex h-[46px] flex-col items-center justify-center gap-[0.2rem] rounded-[5px] border border-dashed border-border text-center text-[0.61rem] leading-tight text-muted-foreground">
-          <PlusIcon aria-hidden="true" className="size-4" />
+        <span className="mt-[0.3rem] flex min-h-[36px] items-center justify-center gap-[0.3rem] rounded-[5px] border border-dashed border-border px-[0.3rem] text-left text-[0.61rem] leading-tight text-muted-foreground">
+          <PlusIcon aria-hidden="true" className="size-4 shrink-0" />
           {emptyText !== "" && <span>{emptyText}</span>}
         </span>
       )}
-      <span className="mt-2 line-clamp-2 text-[0.57rem] leading-[1.4] text-muted-foreground">
-        {role}
-      </span>
+      {/* Never clamped nor clipped: the whole role is the clue. It wraps inside NODE_SIZE.slot and,
+          with a larger browser font, the slot grows downward instead of cutting it. */}
+      <span className="mt-[0.3rem] text-[0.57rem] leading-[1.3] text-muted-foreground">{role}</span>
     </>
   );
 
@@ -104,7 +106,7 @@ function ArchitectureSlot({
       data-grade={grade}
       data-selected={selected ? "" : undefined}
       className={cn(
-        "flex flex-col items-stretch overflow-hidden rounded-[7px] border-2 p-2 text-left shadow-[0_5px_16px_color-mix(in_oklab,var(--foreground)_6%,transparent)]",
+        "flex flex-col items-stretch rounded-[7px] border-2 p-2 text-left shadow-[0_5px_16px_color-mix(in_oklab,var(--foreground)_6%,transparent)]",
         STATES[grade],
         selected && "ring-[3px] ring-primary",
         dropActive && "border-primary border-solid bg-blueprint-soft",
@@ -137,7 +139,7 @@ function ArchitectureSlot({
       )}
       {hintAction ??
         (hints !== undefined && hints.total > 0 && (
-          <span className="mt-auto flex items-center gap-[0.3rem] text-[0.55rem] text-warning">
+          <span className="mt-auto flex items-center gap-[0.3rem] pt-[0.25rem] text-[0.55rem] text-warning">
             <CircleHelpIcon aria-hidden="true" className="size-3 shrink-0" />
             Pistas {hints.used}/{hints.total}
           </span>

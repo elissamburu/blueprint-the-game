@@ -18,7 +18,7 @@ Mismo resultado que el Studio con IA, pero desde Claude Code.
 4. Diseñá los casilleros según el rango de L009 para el nivel. Para cada uno:
    - `role` que describa la función **sin nombrar el servicio** (revisá los `leakPatterns` del catálogo).
    - ≥ 1 `optimal` con `rationale` vinculada a objetivos y `references` a docs.aws.amazon.com.
-   - `acceptable` solo si realmente funciona y pierde contra un objetivo `soft`.
+   - `acceptable` solo si realmente funciona y pierde contra un objetivo `soft`. Sus `objectives` son esas metas que cumple a medias, solo `soft` (L020); en un `optimal`, `objectives` son los que cumple.
    - `incorrect` tomados de los grupos de confusión, con `violates` cuando rompen una restricción `hard`.
    - 1–3 `hints`, de lo general a lo específico.
 5. Aristas numeradas que cuenten el flujo de datos de punta a punta.

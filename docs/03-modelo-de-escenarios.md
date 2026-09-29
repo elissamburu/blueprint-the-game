@@ -110,7 +110,8 @@ diagram:
       answers:                   # ≥ 1 optimal
         - service: s3
           grade: optimal
-          objectives: [no-servers, low-cost]      # ≥ 1 para optimal/acceptable
+          objectives: [no-servers, low-cost]      # ≥ 1 para optimal/acceptable. optimal: objetivos que cumple;
+                                                  # acceptable: metas (soft) que cumple a medias (L020)
           rationale: "…"                          # markdown corto, sin nombrar OTROS servicios ocultos
           references:
             - https://docs.aws.amazon.com/...
@@ -173,6 +174,19 @@ Para un casillero y un servicio colocado `s`:
 
 Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con `violates: [<id>]`; la UI usa ese vínculo para decir qué restricción se violó (RF-EVAL-03).
 
+### Objetivos de cada respuesta
+
+Cada respuesta tiene una sola lista de objetivos, y lo que significa depende del grado. El panel de feedback la muestra como etiquetas (`objectiveStatuses` en `game-engine`):
+
+| Grado | Campo | Significado | Etiqueta |
+|---|---|---|---|
+| `optimal` | `objectives` | Objetivos que **cumple**. | ✓ Cumple |
+| `acceptable` | `objectives` | Metas (`soft`) que cumple **a medias**: por qué es naranja y no verde. | — A medias |
+| `incorrect` | `violates` | Objetivos que **viola** (opcional). | ✗ Viola |
+| no declarado | — | Sin etiquetas: solo la explicación genérica. | — |
+
+Un `acceptable` referencia **solo** objetivos `soft` (L020): una restricción `hard` no se cumple a medias; si el servicio no la cumple, va en `incorrect` con `violates`. En un `acceptable` no se listan los objetivos que sí cumple (la `rationale` puede mencionarlos).
+
 ### Qué NO modela v1 (a propósito)
 - Casilleros con **combinación** de servicios (p. ej. "CDN + firewall"). Se modela como dos casilleros.
 - Respuestas dependientes entre casilleros ("si pusiste X acá, entonces Y allá es óptimo").
@@ -203,6 +217,7 @@ Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con 
 | L017 | warning | Enlaces en `references` responden 200 (job de CI semanal, no bloqueante en PR). |
 | L018 | error | Ids únicos dentro de cada colección (`objectives`, `diagram.groups`, `diagram.nodes`, `diagram.edges`); `node.group` y `group.parent` apuntan a grupos existentes, sin ciclos de anidamiento. Las demás referencias viven en una sola regla: `answers[].objectives` en L004, `incorrect[].violates` en L015 y `from`/`to` de aristas en L006. |
 | L019 | error | Cada id de `areas` existe en `content/areas.yaml`. |
+| L020 | error | En una respuesta `acceptable`, `objectives` referencia solo objetivos `kind: soft`: son las metas que cumple a medias (§2 "Objetivos de cada respuesta"). Una restricción `hard` no se cumple a medias: si no se cumple, el servicio va en `incorrect` con `violates`. Los ids inexistentes los reporta L004. |
 
 ### Integridad entre archivos compartidos (C0xx)
 

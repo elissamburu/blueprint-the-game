@@ -1,14 +1,15 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // What the custom nodes and edges need from the board besides their data. Callbacks travel by
 // context so a new callback identity does not rebuild the React Flow nodes.
-import { createContext, useContext } from "react";
+import { createContext, useContext, type ReactNode } from "react";
 import type { Box } from "./geometry";
 
 export interface DiagramContextValue {
   onSlotActivate: ((slotId: string) => void) | undefined;
+  slotHintAction: ((slotId: string) => ReactNode) | undefined;
   /** Slots are @dnd-kit drop targets (the board got onServiceDrop). */
   droppable: boolean;
-  /** Pans the board so the box (canvas units) is in view, e.g. when a slot gets focus. */
+  /** Pans the board so the box (canvas units) is in view when a slot is reached with Tab. */
   reveal: (box: Box) => void;
   /** Animate the active edges (false with prefers-reduced-motion). */
   animate: boolean;
