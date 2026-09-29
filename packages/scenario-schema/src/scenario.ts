@@ -52,7 +52,7 @@ export const NODE_SIZE = {
   actor: { w: 120, h: 80 },
   external: { w: 120, h: 80 },
   fixed: { w: 160, h: 80 },
-  slot: { w: 160, h: 80 },
+  slot: { w: 160, h: 160 },
 } as const satisfies Record<(typeof NODE_TYPES)[number], { w: number; h: number }>;
 export const GRADES = ["optimal", "acceptable"] as const;
 export const EDGE_STYLES = ["sync", "async", "data", "control"] as const;
