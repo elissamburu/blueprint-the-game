@@ -57,7 +57,7 @@ import { describeRoute, describeStep, diagramSteps, type FlowStep } from "./step
 import { isServiceDragData, type ServiceLookup, type SlotView } from "./types";
 import { useFlowPlayer, type FlowPlayer } from "./use-flow-player";
 import { useReducedMotion } from "./use-reduced-motion";
-import { initialView, steppedZoom } from "./viewport";
+import { contentBox, initialView, steppedZoom } from "./viewport";
 
 export const MIN_ZOOM = 0.2;
 /** At least 300 % for people with low vision (docs/design, problem 27). */
@@ -181,7 +181,7 @@ function DiagramPreview({
     }),
     [markers],
   );
-  const { width, height } = diagram.canvas;
+  const content = useMemo(() => contentBox(diagram), [diagram]);
   return (
     <DiagramContext.Provider value={context}>
       <div
@@ -199,8 +199,12 @@ function DiagramPreview({
             edges={edges}
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
+            // The content, not the canvas: the canvas margins would only shrink the picture.
             onInit={(instance) =>
-              void instance.fitBounds({ x: 0, y: 0, width, height }, { padding: FIT_PADDING })
+              void instance.fitBounds(
+                { x: content.x, y: content.y, width: content.w, height: content.h },
+                { padding: FIT_PADDING },
+              )
             }
             minZoom={0.02}
             maxZoom={1}

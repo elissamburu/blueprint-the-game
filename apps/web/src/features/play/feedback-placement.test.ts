@@ -42,11 +42,32 @@ describe("placeFeedback", () => {
     const target = slot(40, 300);
     const bottomOnes = [slot(300, 560), slot(600, 560)];
     const topOne = slot(500, 20);
+    // Top covers one slot and bottom two: top, and a pan uncovers that one (16 + 180 + 12 − 20).
     expect(placeFeedback(layout(target, [...bottomOnes, topOne]))).toEqual({
       side: "top",
-      panY: 0,
+      panY: 188,
     });
     expect(placeFeedback(layout(target, [topOne]))).toEqual({ side: "bottom", panY: 0 });
+  });
+
+  it("pans to uncover the other slots when that keeps its slot whole and uncovered", () => {
+    // Its slot is down (so the card goes up); two others are partly under the top card.
+    const target = slot(700, 520);
+    const others = [slot(300, 150), slot(560, 150)];
+    const placement = placeFeedback(layout(target, others));
+    expect(placement.side).toBe("top");
+    const card = cardRect(layout(target), "top");
+    // Just below the card: 16 + 180 + 12 − 150.
+    expect(placement.panY).toBe(card.y + card.h + PLACEMENT_MARGIN - 150);
+    for (const other of others) {
+      expect(overlaps(card, { ...other, y: other.y + placement.panY })).toBe(false);
+    }
+  });
+
+  it("does not pan when uncovering the others would cut its own slot", () => {
+    // Its slot sits at the very bottom: pushing the content down would take it out of view.
+    const target = slot(700, 620);
+    expect(placeFeedback(layout(target, [slot(300, 150)]))).toEqual({ side: "top", panY: 0 });
   });
 
   it("ignores slots out of view", () => {
