@@ -415,12 +415,14 @@ export function SlotSample({ slot }: { slot: SampleSlot }) {
                   : `Ver pista para ${slot.role}, cuesta ${HINT_COST} puntos`
               }
               // Lovable: h-[25px] on one line, which overflows the 150px node (docs/design/README.md,
-              // problem 8). Here the counter wraps to a second line when it does not fit. Hover underlines
+              // problem 8). Here "Pistas n/m" stays on the "Ver pista" line when it fits and moves to a
+              // second line only when it does not; neither text breaks inside. With Lovable's sizes a
+              // 150px node leaves 129px and the row needs about 141px, so there it wraps. Hover underlines
               // instead of painting the ghost background: over --accent the orange counter drops to 4.32:1.
-              className="mt-1 h-auto min-h-[25px] flex-wrap justify-start gap-x-2 gap-y-0 p-0 text-left text-[0.55rem] whitespace-normal hover:bg-transparent hover:underline"
+              className="mt-1 h-auto min-h-[25px] flex-wrap justify-start gap-x-2 gap-y-0 p-0 text-left text-[0.55rem] hover:bg-transparent hover:underline"
             >
               <CircleHelpIcon />
-              {noMoreHints ? "Sin más pistas" : `Ver pista (−${HINT_COST} pts)`}
+              <span>{noMoreHints ? "Sin más pistas" : `Ver pista (−${HINT_COST} pts)`}</span>
               <span className="ml-auto text-warning">
                 Pistas {slot.hintsUsed}/{slot.hints.length}
               </span>
