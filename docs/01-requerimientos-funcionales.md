@@ -117,8 +117,9 @@
 
 **CA RF-PLAY-01**
 - Al entrar a cada escenario se abre el **brief**: nivel, áreas, duración estimada, contexto, restricciones, metas y una vista previa del diagrama de solo lectura con los casilleros vacíos. "Empezar a diseñar" (o Esc) lo cierra y deja el tablero.
-- "Ver caso" abre, sobre el tablero y sin oscurecerlo, el contexto, las restricciones, las metas y los pasos del flujo (número, etiqueta y origen → destino).
-- El brief y "Ver caso" son diálogos: el foco queda atrapado adentro y vuelve al cerrar.
+- "Ver caso" abre, en un panel lateral sobre el tablero y sin oscurecerlo, el contexto, las restricciones, las metas y los pasos del flujo (número, etiqueta y origen → destino).
+- El brief es un diálogo modal: el foco queda atrapado adentro y, al cerrarlo, pasa al tablero.
+- "Ver caso" es un panel no modal: al abrirlo el foco va al panel, sin quedar atrapado; Esc o la X lo cierran y devuelven el foco al botón. Mientras está abierto, el tablero y la paleta siguen operables (también el drag & drop).
 - En las listas del caso, las metas llevan un ícono neutro: el ✓ queda para el feedback ("cumple").
 
 **CA RF-PLAY-02**

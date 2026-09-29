@@ -434,7 +434,7 @@ describe("brief", () => {
 });
 
 describe('"Ver caso"', () => {
-  it("shows the case and the steps of the flow in a dialog that does not darken the board", async () => {
+  it("shows the case and the steps of the flow in a panel without a scrim", async () => {
     const user = await open(staticWebsiteScenario.id);
     const button = screen.getByRole("button", { name: "Ver caso" });
     await user.click(button);
@@ -454,21 +454,26 @@ describe('"Ver caso"', () => {
     expect(items[1]?.textContent).toContain(`Visitantes → ${roleOf(staticWebsiteScenario, "dns")}`);
     // Nothing names a hidden service (RF-PLAY-02).
     expect(panel.textContent).not.toMatch(/Route 53|CloudFront|Amazon S3|Certificate Manager/);
-
-    const overlay = document.querySelector<HTMLElement>("[data-slot=dialog-overlay]");
-    expect(overlay?.className).toMatch(/\bbg-transparent\b/);
-    expect(overlay?.className).not.toMatch(/bg-black/);
+    // Non-modal: no scrim, and the board is not hidden from assistive technologies.
+    expect(document.querySelector("[data-slot=dialog-overlay]")).toBeNull();
+    expect(screen.getByRole("group", { name: /^Diagrama de/ })).toBeTruthy();
   });
 
-  it("traps the focus and gives it back to the button when Esc or X closes it", async () => {
+  it("takes the focus without trapping it; Esc or X close it and give the focus back", async () => {
     const user = await open();
     const button = screen.getByRole("button", { name: "Ver caso" });
     await user.click(button);
     const panel = await screen.findByRole("dialog");
-    for (let i = 0; i < 4; i++) {
+    await waitFor(() => expect(document.activeElement).toBe(panel));
+    // No trap: Tab eventually leaves the panel.
+    let left = false;
+    for (let i = 0; i < 12 && !left; i++) {
       await user.tab();
-      expect(panel.contains(document.activeElement)).toBe(true);
+      left = !panel.contains(document.activeElement);
     }
+    expect(left).toBe(true);
+
+    panel.querySelector<HTMLElement>("button")?.focus();
     await user.keyboard("{Escape}");
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.activeElement).toBe(button);
@@ -477,6 +482,29 @@ describe('"Ver caso"', () => {
     await user.click(await screen.findByRole("button", { name: "Cerrar el caso" }));
     await waitFor(() => expect(screen.queryByRole("dialog")).toBeNull());
     expect(document.activeElement).toBe(button);
+  });
+
+  it("keeps the board and the palette operable while it is open", async () => {
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "Ver caso" }));
+    await screen.findByRole("dialog");
+
+    // Slot first with the keyboard, and service first with clicks, with the panel open.
+    await press(user, slotButton("upload-store"));
+    expect(document.activeElement).toBe(screen.getByRole("searchbox"));
+    await user.keyboard("Simple Storage{Enter}");
+    expect(slotButton("upload-store").getAttribute("aria-label")).toContain("Óptimo: Amazon S3");
+    await user.click(paletteButton("apigateway"));
+    await press(user, slotButton("api-entry"));
+    expect(slotButton("api-entry").getAttribute("aria-label")).toContain("Óptimo");
+    expect(screen.getByRole("dialog")).toBeTruthy();
+
+    // Esc on the board cancels the selection and leaves the panel open.
+    await press(user, slotButton("url-signer"));
+    slotButton("url-signer").focus();
+    await user.keyboard("{Escape}");
+    expect(slotButton("url-signer").getAttribute("aria-pressed")).toBe("false");
+    expect(screen.getByRole("dialog")).toBeTruthy();
   });
 });
 
