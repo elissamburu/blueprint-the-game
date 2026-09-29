@@ -539,12 +539,19 @@
   ssmNamespaces: [guardduty]
   icon: Arch_Amazon-GuardDuty_48
   status: active
+# Desde el 2025-12-02, "AWS Security Hub" es el servicio nuevo que correlaciona señales de
+# otros servicios, y el anterior pasó a llamarse "AWS Security Hub CSPM" (estándares y controles
+# de postura como CIS o FSBP). En v1 este id cubre los dos. Fuente:
+# https://aws.amazon.com/blogs/aws/aws-security-hub-now-generally-available-with-near-real-time-analytics-and-risk-prioritization/
+# Los dos comparten la misma documentación (https://docs.aws.amazon.com/securityhub/). Dentro de
+# la guía de usuario, el servicio nuevo está en what-is-securityhub-v2.html y CSPM en
+# what-is-securityhub.html.
 - id: security-hub
   name: AWS Security Hub
   category: security-identity
-  aliases: [security hub, hallazgos de seguridad, postura de seguridad]
+  aliases: [security hub, cspm, hallazgos de seguridad, postura de seguridad, controles de seguridad]
   leakPatterns: ["Security Hub", "SecurityHub"]
-  short: "Reúne hallazgos de seguridad de varias cuentas y servicios de AWS en una vista central para priorizarlos."
+  short: "Correlaciona señales de GuardDuty, Inspector, Macie y Security Hub CSPM para priorizar riesgos y exposiciones en varias cuentas."
   docs: https://docs.aws.amazon.com/securityhub/
   ssmNamespaces: []
   icon: Arch_AWS-Security-Hub_48
