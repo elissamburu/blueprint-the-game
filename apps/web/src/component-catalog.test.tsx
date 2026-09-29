@@ -9,7 +9,9 @@ import { ComponentCatalog } from "./component-catalog";
 afterEach(cleanup);
 
 describe("ComponentCatalog", () => {
-  it("has no critical or serious axe violations", async () => {
+  // axe over the whole catalog takes ~1.3 s locally but went past Vitest's 5 s default on the
+  // Windows CI runner, so this test gets its own timeout.
+  it("has no critical or serious axe violations", { timeout: 30_000 }, async () => {
     const { container } = render(<ComponentCatalog />);
     const results = await axe.run(container, {
       resultTypes: ["violations"],
