@@ -6,17 +6,13 @@
 // Lovable: Onboarding, .onboarding-shell, .onboarding-grid, .onboarding-intro, .mini-blueprint,
 // .setup-panel, .chip-grid, .experience-list (blueprint-app.tsx, styles.css).
 import { createProgress } from "@blueprint/game-engine";
-import { EXPERIENCES, type Experience } from "@blueprint/scenario-schema";
+import type { Experience } from "@blueprint/scenario-schema";
 import { Badge } from "@blueprint/ui/components/badge";
 import { Button } from "@blueprint/ui/components/button";
-import { RadioCardItem } from "@blueprint/ui/components/radio-card";
-import { RadioGroup } from "@blueprint/ui/components/radio-group";
-import { Toggle } from "@blueprint/ui/components/toggle";
 import { cn } from "@blueprint/ui/lib/utils";
 import {
   ArrowRightIcon,
   BoxIcon,
-  CheckIcon,
   CloudIcon,
   Globe2Icon,
   ShieldCheckIcon,
@@ -31,6 +27,7 @@ import { usePageTitle } from "../../app/page";
 import type { ContentBundle } from "../../content/load-bundle";
 import { Loading, RequireContent } from "../../content/RequireContent";
 import { useProgressStore } from "../../progress/progress-store";
+import { AreaToggles, ExperienceRadios } from "./PreferenceFields";
 
 export default function WelcomePage() {
   const { t } = useTranslation();
@@ -114,12 +111,6 @@ function SetupPanel({ bundle }: { bundle: ContentBundle }) {
   const [experience, setExperience] = useState<Experience | null>(null);
   const [saving, setSaving] = useState(false);
   const ready = interests.length > 0 && experience !== null;
-  const experiences = EXPERIENCES.filter((e) => bundle.rules.unlock.byExperience[e] !== undefined);
-
-  const toggle = (area: string, pressed: boolean) =>
-    setInterests((current) =>
-      pressed ? [...current, area] : current.filter((item) => item !== area),
-    );
 
   const submit = async (event: MouseEvent<HTMLButtonElement>) => {
     // aria-disabled keeps the button focusable, so its reason is read; it does nothing.
@@ -144,48 +135,18 @@ function SetupPanel({ bundle }: { bundle: ContentBundle }) {
         {t("welcome.title")}
       </h2>
       <p className="mt-[0.6rem] leading-[1.6] text-muted-foreground">{t("welcome.description")}</p>
-      <fieldset className="mt-[1.8rem]">
-        <legend className="mb-[0.8rem] font-bold">{t("welcome.areas")}</legend>
-        <ul className="flex flex-wrap gap-[0.55rem]">
-          {bundle.index.areas.map((area) => {
-            const pressed = interests.includes(area.id);
-            return (
-              <li key={area.id}>
-                <Toggle
-                  variant="chip"
-                  pressed={pressed}
-                  onPressedChange={(value) => toggle(area.id, value)}
-                  title={area.description}
-                >
-                  {pressed && <CheckIcon aria-hidden />}
-                  {area.name}
-                </Toggle>
-              </li>
-            );
-          })}
-        </ul>
-      </fieldset>
-      <fieldset className="mt-[1.8rem]">
-        <legend id={`${id}-experience`} className="mb-[0.8rem] font-bold">
-          {t("welcome.experience")}
-        </legend>
-        <RadioGroup
-          aria-labelledby={`${id}-experience`}
-          value={experience ?? ""}
-          onValueChange={(value) => setExperience(value as Experience)}
-          className="grid gap-[0.6rem] sm:grid-cols-2"
-        >
-          {experiences.map((value, index) => (
-            <RadioCardItem
-              key={value}
-              value={value}
-              marker={index + 1}
-              title={t(`welcome.experiences.${value}.title`)}
-              description={t(`welcome.experiences.${value}.description`)}
-            />
-          ))}
-        </RadioGroup>
-      </fieldset>
+      <AreaToggles
+        areas={bundle.index.areas}
+        value={interests}
+        onChange={setInterests}
+        className="mt-[1.8rem]"
+      />
+      <ExperienceRadios
+        rules={bundle.rules}
+        value={experience}
+        onChange={setExperience}
+        className="mt-[1.8rem]"
+      />
       <Button
         size="lg"
         className="mt-[1.8rem] w-full aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
