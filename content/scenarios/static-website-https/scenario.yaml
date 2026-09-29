@@ -88,7 +88,7 @@ diagram:
     - id: certificate
       type: slot
       role: "Emisión y renovación del certificado TLS del dominio propio que se presenta a los visitantes."
-      position: { x: 620, y: 120 }
+      position: { x: 620, y: 100 }
       group: cloud
       answers:
         - service: acm
@@ -140,7 +140,7 @@ diagram:
     - id: site-store
       type: slot
       role: "Almacenamiento privado y durable de los archivos del sitio: HTML, CSS, imágenes y PDF."
-      position: { x: 960, y: 320 }
+      position: { x: 960, y: 420 }
       group: cloud
       answers:
         - service: s3

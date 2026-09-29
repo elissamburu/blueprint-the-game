@@ -17,6 +17,10 @@ const NotFoundPage = lazy(() => import("./NotFoundPage"));
 const ComponentCatalog = import.meta.env.DEV
   ? lazy(() => import("../component-catalog").then((m) => ({ default: m.ComponentCatalog })))
   : null;
+/** Boards of every scenario with sample states: development only, like the catalog. */
+const DiagramPlayground = import.meta.env.DEV
+  ? lazy(() => import("../dev/DiagramPlayground"))
+  : null;
 
 export function AppRoutes() {
   return (
@@ -28,6 +32,7 @@ export function AppRoutes() {
         <Route path="escenarios/:id" element={<PlayPage />} />
         <Route path="perfil" element={<ProfilePage />} />
         <Route path="acerca" element={<AboutPage />} />
+        {DiagramPlayground !== null && <Route path="_diagrama" element={<DiagramPlayground />} />}
         <Route path="*" element={<NotFoundPage />} />
       </Route>
       {ComponentCatalog !== null && (

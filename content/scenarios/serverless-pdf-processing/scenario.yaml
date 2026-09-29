@@ -60,12 +60,12 @@ diagram:
       type: actor
       label: "Cliente del estudio"
       icon: browser
-      position: { x: 40, y: 330 }
+      position: { x: 40, y: 472 }
 
     - id: logs
       type: fixed
       service: cloudwatch
-      position: { x: 820, y: 660 }
+      position: { x: 840, y: 660 }
       group: cloud
 
     - id: api-entry
@@ -135,7 +135,7 @@ diagram:
     - id: upload-store
       type: slot
       role: "Almacenamiento durable donde el navegador sube el PDF original usando la URL temporal."
-      position: { x: 300, y: 460 }
+      position: { x: 300, y: 440 }
       group: cloud
       answers:
         - service: s3
@@ -162,7 +162,7 @@ diagram:
     - id: event-buffer
       type: slot
       role: "Buffer que desacopla la llegada de archivos del procesamiento: retiene los avisos y permite reintentos."
-      position: { x: 580, y: 460 }
+      position: { x: 580, y: 560 }
       group: cloud
       answers:
         - service: sqs
@@ -201,7 +201,7 @@ diagram:
     - id: processor
       type: slot
       role: "Lógica que toma cada aviso, lee el PDF, coordina la extracción de datos y guarda el resultado."
-      position: { x: 840, y: 460 }
+      position: { x: 840, y: 440 }
       group: cloud
       answers:
         - service: lambda
@@ -231,7 +231,7 @@ diagram:
     - id: extractor
       type: slot
       role: "Servicio administrado que detecta texto, pares clave-valor y tablas en documentos escaneados."
-      position: { x: 1100, y: 300 }
+      position: { x: 1100, y: 240 }
       group: cloud
       answers:
         - service: textract

@@ -145,7 +145,7 @@ references:                      # opcional: lecturas generales del escenario
 
 | Tipo | Ancho × alto |
 |---|---|
-| `slot` | 160 × 80 |
+| `slot` | 160 × 160 |
 | `fixed` | 160 × 80 |
 | `actor` | 120 × 80 |
 | `external` | 120 × 80 |

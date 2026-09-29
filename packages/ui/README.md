@@ -3,7 +3,7 @@
 Componentes y tokens de diseño compartidos ([ADR-0021](../../docs/adr/0021-ui-shadcn-tailwind-y-referencia-visual.md)). Se consume como código fuente: lo compila el Vite de cada app.
 
 - `src/styles/globals.css`: Tailwind v4 + tokens de [docs/design/tokens.css](../../docs/design/tokens.css) (fuente de verdad visual). Solo tema claro.
-- `src/components/`: componentes de shadcn/ui (copiados con la CLI) y componentes propios (`GradeBadge`, `ObjectiveTag`, `LevelBadge`). Reciben el estado por props; no importan `game-engine` (regla `ui-not-to-game-logic` de dependency-cruiser).
+- `src/components/`: componentes de shadcn/ui (copiados con la CLI) y componentes propios (`GradeBadge`, `ObjectiveTag`, `LevelBadge`, `ArchitectureSlot`). Reciben el estado por props; no importan `game-engine` (regla `ui-not-to-game-logic` de dependency-cruiser).
 
 ## Usarlo desde una app
 

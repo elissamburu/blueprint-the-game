@@ -11,20 +11,19 @@ import {
   CloudIcon,
   LightbulbIcon,
   LockIcon,
-  PlusIcon,
   TrophyIcon,
   XIcon,
 } from "lucide-react";
 import { Badge } from "@blueprint/ui/components/badge";
 import { Button } from "@blueprint/ui/components/button";
-import { GradeBadge, type SlotGrade } from "@blueprint/ui/components/grade-badge";
+import { ArchitectureSlot } from "@blueprint/ui/components/architecture-slot";
+import type { SlotGrade } from "@blueprint/ui/components/grade-badge";
 import { LevelBadge, type ScenarioLevel } from "@blueprint/ui/components/level-badge";
 import { ObjectiveTag } from "@blueprint/ui/components/objective-tag";
 import { Popover, PopoverContent, PopoverTrigger } from "@blueprint/ui/components/popover";
 import { Progress } from "@blueprint/ui/components/progress";
 import { RadioCardItem } from "@blueprint/ui/components/radio-card";
 import { RadioGroup } from "@blueprint/ui/components/radio-group";
-import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { Toggle } from "@blueprint/ui/components/toggle";
 import { cn } from "@blueprint/ui/lib/utils";
 import { serviceIconSrc } from "../service-icons";
@@ -246,21 +245,6 @@ export function ScenarioCards() {
 /** `id` and `category` are catalog ids: the icon comes from pnpm icons:fetch (ADR-0012). */
 type SampleService = { id: string; name: string; category: string };
 
-const SLOT_STATES: Record<SlotGrade, string> = {
-  optimal: "border-solid border-success bg-success-soft",
-  acceptable: "border-solid border-warning bg-warning-soft",
-  incorrect: "border-solid border-destructive bg-danger-soft",
-  // Accessibility change (docs/design/tokens.css): --slot-border (3,35:1) instead of --border.
-  empty: "border-dashed border-slot-border bg-card",
-};
-
-const GRADE_LABELS: Record<SlotGrade, string> = {
-  optimal: "Óptimo",
-  acceptable: "Aceptable",
-  incorrect: "Incorrecto",
-  empty: "Vacío",
-};
-
 type SampleSlot = {
   grade: SlotGrade;
   role: string;
@@ -352,72 +336,55 @@ function HintPopoverContent({ slot, onClose }: { slot: SampleSlot; onClose: () =
 
 export function SlotSample({ slot }: { slot: SampleSlot }) {
   const [hintOpen, setHintOpen] = useState(false);
-  const label = GRADE_LABELS[slot.grade];
+  const [selected, setSelected] = useState(false);
   const noMoreHints = slot.hintsUsed >= slot.hints.length;
   return (
-    <div
-      data-grade={slot.grade}
-      className={cn(
-        "flex min-h-[138px] w-[150px] flex-col items-stretch rounded-[7px] border-2 p-[0.52rem] shadow-[0_5px_16px_color-mix(in_oklab,var(--foreground)_6%,transparent)]",
-        SLOT_STATES[slot.grade],
-      )}
-    >
-      <button
-        type="button"
-        aria-label={`${slot.role}. ${label}${slot.service ? `: ${slot.service.name}` : ""}`}
-        className="flex flex-1 cursor-pointer flex-col text-left focus-visible:rounded-[5px] focus-visible:shadow-[0_0_0_3px_var(--ring)]"
-      >
-        <GradeBadge grade={slot.grade} />
-        {slot.service ? (
-          <span className="mt-2 flex items-center gap-[0.45rem] rounded-[5px] bg-card p-[0.45rem] text-[0.68rem]">
-            <ServiceIcon
-              src={serviceIconSrc(slot.service.id)}
-              name={slot.service.name}
-              category={slot.service.category}
-              decorative
-            />
-            <strong>{slot.service.name}</strong>
-          </span>
-        ) : (
-          <span className="mt-2 grid min-h-[68px] place-items-center gap-[0.3rem] rounded-[5px] border border-dashed border-border text-[0.61rem] text-muted-foreground">
-            <PlusIcon aria-hidden="true" className="size-[18px]" />
-            <span>Arrastrá o elegí un servicio</span>
-          </span>
-        )}
-        <span className="mt-[0.6rem] block text-[0.57rem] leading-[1.4] text-muted-foreground">
-          {slot.role}
-        </span>
-      </button>
-      {slot.grade !== "optimal" && (
-        <Popover open={hintOpen} onOpenChange={setHintOpen}>
-          <PopoverTrigger asChild>
-            <Button
-              variant="ghost"
-              size="sm"
-              disabled={noMoreHints}
-              aria-label={
-                noMoreHints
-                  ? `Sin más pistas para ${slot.role}`
-                  : `Ver pista para ${slot.role}, cuesta ${HINT_COST} puntos`
-              }
-              // Lovable: h-[25px] on one line, which overflows the 150px node (docs/design/README.md,
-              // problem 8). Here "Pistas n/m" stays on the "Ver pista" line when it fits and moves to a
-              // second line only when it does not; neither text breaks inside. With Lovable's sizes a
-              // 150px node leaves 129px and the row needs about 141px, so there it wraps. Hover underlines
-              // instead of painting the ghost background: over --accent the orange counter drops to 4.32:1.
-              className="mt-1 h-auto min-h-[25px] flex-wrap justify-start gap-x-2 gap-y-0 p-0 text-left text-[0.55rem] hover:bg-transparent hover:underline"
-            >
-              <CircleHelpIcon />
-              <span>{noMoreHints ? "Sin más pistas" : `Ver pista (−${HINT_COST} pts)`}</span>
-              <span className="ml-auto text-warning">
-                Pistas {slot.hintsUsed}/{slot.hints.length}
-              </span>
-            </Button>
-          </PopoverTrigger>
-          <HintPopoverContent slot={slot} onClose={() => setHintOpen(false)} />
-        </Popover>
-      )}
-    </div>
+    <ArchitectureSlot
+      grade={slot.grade}
+      role={slot.role}
+      service={
+        slot.service && {
+          name: slot.service.name,
+          category: slot.service.category,
+          iconSrc: serviceIconSrc(slot.service.id),
+        }
+      }
+      selected={selected}
+      onActivate={() => setSelected((current) => !current)}
+      className="size-[160px]"
+      hintAction={
+        slot.grade !== "optimal" && (
+          <Popover open={hintOpen} onOpenChange={setHintOpen}>
+            <PopoverTrigger asChild>
+              <Button
+                variant="ghost"
+                size="sm"
+                disabled={noMoreHints}
+                aria-label={
+                  noMoreHints
+                    ? `Sin más pistas para ${slot.role}`
+                    : `Ver pista para ${slot.role}, cuesta ${HINT_COST} puntos`
+                }
+                // Lovable: h-[25px] on one line, which overflows the node (docs/design/README.md,
+                // problem 8). Here "Pistas n/m" stays on the "Ver pista" line when it fits and moves to a
+                // second line only when it does not; neither text breaks inside. In the 160px slot the
+                // row needs about 141px of the 140px available, so it wraps: NODE_SIZE.slot reserves it.
+                // Hover underlines instead of painting the ghost background: over --accent the orange
+                // counter drops to 4.32:1.
+                className="mt-auto h-auto min-h-[25px] flex-wrap justify-start gap-x-2 gap-y-0 p-0 text-left text-[0.55rem] hover:bg-transparent hover:underline"
+              >
+                <CircleHelpIcon />
+                <span>{noMoreHints ? "Sin más pistas" : `Ver pista (−${HINT_COST} pts)`}</span>
+                <span className="ml-auto text-warning">
+                  Pistas {slot.hintsUsed}/{slot.hints.length}
+                </span>
+              </Button>
+            </PopoverTrigger>
+            <HintPopoverContent slot={slot} onClose={() => setHintOpen(false)} />
+          </Popover>
+        )
+      }
+    />
   );
 }
 

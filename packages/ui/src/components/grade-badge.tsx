@@ -16,6 +16,9 @@ const GRADES: Record<SlotGrade, { label: string; icon: LucideIcon; text: string 
   empty: { label: "Vacío", icon: PlusIcon, text: "text-muted-foreground" },
 };
 
+/** Visible text of a grade ("Óptimo", "Vacío"…), also for accessible names that include it. */
+export const gradeLabel = (grade: SlotGrade): string => GRADES[grade].label;
+
 export type GradeBadgeProps = Omit<React.ComponentProps<"span">, "children"> & {
   grade: SlotGrade;
 };
