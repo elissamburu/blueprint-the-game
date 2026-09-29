@@ -33,3 +33,5 @@ No decide grados ni importa `game-engine` (regla `diagram-not-to-game-logic` de 
 - Con `onServiceDrop`, cada casillero es un destino de `@dnd-kit/core`: el tablero tiene que estar dentro del `DndContext` de la app, y lo que se arrastra lleva `data: { type: "service", serviceId }` (`ServiceDragData`).
 - Con `slotHintAction`, lo que devuelve para un casillero reemplaza su contador "Pistas n/m" (p. ej. el botón "Ver pista" con su popover). Si devuelve `undefined`, queda el contador.
 - Con `onViewportChange`, la app se entera de cada cambio de zoom o posición (el juego lo usa para ubicar la tarjeta de feedback).
+- Con `insetLeft` (px), la app avisa que tapa una franja a la izquierda con un panel propio ("Ver caso"): los controles flotantes se corren a su derecha y un casillero al que se llega con Tab se centra en la parte libre (`revealViewport` en `viewport.ts`, que además muestra entero un casillero que creció).
+- Los textos de los nodos van en `px`: dentro del tablero escalan con el zoom del tablero, no con el tamaño de letra del navegador, así los nodos (de tamaño fijo en el canvas) no se superponen con letra grande (docs/design, problema 28).
