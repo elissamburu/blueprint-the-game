@@ -1,0 +1,105 @@
+{
+  "app": {
+    "name": "Blueprint",
+    "skipToContent": "Saltar al contenido",
+    "loading": "Cargando…",
+    "home": "Blueprint, ir al inicio",
+    "footer": "Proyecto comunitario, no afiliado a Amazon Web Services.",
+    "crash": {
+      "title": "Algo salió mal",
+      "description": "La página no se pudo mostrar. Recargá para intentar de nuevo.",
+      "reload": "Recargar"
+    }
+  },
+  "nav": {
+    "label": "Principal",
+    "scenarios": "Escenarios",
+    "profile": "Perfil",
+    "about": "Acerca de",
+    "rank": "Rango"
+  },
+  "content": {
+    "loading": "Cargando escenarios…",
+    "error": {
+      "title": "No se pudo cargar el contenido",
+      "network": "No se pudo descargar {{file}} ({{detail}}).",
+      "invalidJson": "{{file}} no es un JSON válido.",
+      "invalid": "{{file}} no tiene el formato esperado:",
+      "mismatch": "{{file}} no corresponde al escenario {{id}} v{{version}}.",
+      "hint": "Si estás desarrollando, corré pnpm content:validate y volvé a iniciar pnpm dev:web.",
+      "retry": "Reintentar"
+    }
+  },
+  "status": {
+    "draft": "Borrador",
+    "beta": "Beta"
+  },
+  "progress": {
+    "discarded": "Tu progreso guardado estaba dañado y se descartó: empezás de cero.",
+    "saveFailed": "No se pudo guardar tu progreso en este navegador."
+  },
+  "welcome": {
+    "title": "Te damos la bienvenida",
+    "kicker": "Primeros pasos",
+    "description": "Aprendé a diseñar arquitecturas completando diagramas. La configuración de tus áreas y tu experiencia está en construcción.",
+    "browse": "Ver escenarios"
+  },
+  "scenarios": {
+    "kicker": "Tu ruta",
+    "title": "Escenarios",
+    "description": "Elegí un desafío y poné a prueba tus decisiones.",
+    "count_one": "{{count}} escenario",
+    "count_other": "{{count}} escenarios",
+    "empty": "Todavía no hay escenarios publicados.",
+    "areas": "Áreas",
+    "minutes": "{{count}} min",
+    "play": "Jugar",
+    "playLabel": "Jugar «{{title}}»"
+  },
+  "play": {
+    "loading": "Cargando escenario…",
+    "notFound": {
+      "title": "Escenario no encontrado",
+      "description": "No hay ningún escenario disponible con el id «{{id}}»."
+    },
+    "underConstruction": "La pantalla de juego está en construcción.",
+    "back": "Volver a escenarios",
+    "feedback": {
+      "undeclared": "{{short}} No cumple el rol: {{role}}"
+    }
+  },
+  "profile": {
+    "kicker": "Perfil",
+    "title": "Tu progreso",
+    "rank": "Rango",
+    "xp": "{{xp}} XP",
+    "underConstruction": "El detalle del perfil está en construcción."
+  },
+  "about": {
+    "kicker": "Acerca de",
+    "title": "Acerca de Blueprint",
+    "description": "Un juego para aprender a diseñar arquitecturas en AWS completando diagramas con servicios ocultos.",
+    "licenses": {
+      "title": "Licencias",
+      "code": "El código está disponible bajo la licencia <1>PolyForm Noncommercial 1.0.0</1>: podés usarlo, estudiarlo y modificarlo sin fines comerciales.",
+      "content": "Los escenarios y el catálogo de servicios están bajo <1>Creative Commons BY-NC-SA 4.0</1>: podés compartirlos y adaptarlos sin fines comerciales, con atribución y con la misma licencia."
+    },
+    "repo": {
+      "title": "Código fuente",
+      "description": "El proyecto es abierto a contribuciones: los escenarios son archivos YAML y contribuir es abrir un pull request.",
+      "link": "Ver el repositorio en GitHub"
+    },
+    "trademarks": {
+      "title": "Marcas",
+      "notAffiliated": "Blueprint es un proyecto comunitario independiente. No está afiliado, patrocinado ni avalado por Amazon Web Services, Inc. ni sus afiliadas.",
+      "marks": "\"Amazon Web Services\", \"AWS\", los nombres de sus servicios y sus logotipos son marcas de Amazon.com, Inc. o sus afiliadas. Se mencionan solo para identificar los servicios sobre los que trata el contenido educativo.",
+      "icons": "Los íconos de servicios provienen del paquete oficial <1>AWS Architecture Icons</1> y se usan sin modificar, solo para representar servicios en los diagramas."
+    },
+    "external": "(se abre en otra pestaña)"
+  },
+  "notFound": {
+    "title": "Página no encontrada",
+    "description": "La dirección no existe o cambió.",
+    "back": "Ir a escenarios"
+  }
+}
