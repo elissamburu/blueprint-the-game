@@ -1,0 +1,107 @@
+// SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+import type { Diagram } from "@blueprint/scenario-schema";
+import { describe, expect, it } from "vitest";
+import { nodeBox } from "./geometry";
+import { pdfScenario, realScenarios } from "./testing/fixtures";
+import {
+  ANCHOR_MARGIN,
+  anchorNode,
+  contentBox,
+  fitZoom,
+  initialView,
+  MIN_INITIAL_ZOOM,
+  type Size,
+} from "./viewport";
+
+const OPTIONS = { padding: 0.04, minZoom: 0.2, maxZoom: 2 };
+
+/** Board sizes of the game screen at 1600 × 900 and 1366 × 768 (measured in Edge). */
+const GAME_BOARDS: Size[] = [
+  { width: 1090, height: 432 },
+  { width: 856, height: 300 },
+];
+
+describe("fitZoom", () => {
+  it("fits the bounds with padding and clamps to the zoom range", () => {
+    expect(fitZoom({ w: 1000, h: 500 }, { width: 1040, height: 1000 }, 0.04, 0.2, 2)).toBe(1);
+    expect(fitZoom({ w: 100, h: 100 }, { width: 1000, height: 1000 }, 0, 0.2, 2)).toBe(2);
+    expect(fitZoom({ w: 10000, h: 100 }, { width: 100, height: 1000 }, 0, 0.2, 2)).toBe(0.2);
+  });
+});
+
+describe("anchorNode", () => {
+  it("is the source of the first step of the flow", () => {
+    const first = [...pdfScenario.diagram.edges].sort((a, b) => a.step - b.step)[0];
+    const source = pdfScenario.diagram.nodes.find((n) => n.id === first?.from);
+    if (source === undefined) throw new Error("fixture without a first step");
+    expect(anchorNode(pdfScenario.diagram)).toEqual(nodeBox(source));
+  });
+
+  it("falls back to the first actor, and to nothing", () => {
+    const withoutEdges: Diagram = { ...pdfScenario.diagram, edges: [] };
+    const actor = withoutEdges.nodes.find((n) => n.type === "actor");
+    if (actor === undefined) throw new Error("fixture without actors");
+    expect(anchorNode(withoutEdges)).toEqual(nodeBox(actor));
+    expect(anchorNode({ nodes: [], edges: [] })).toBeNull();
+  });
+});
+
+describe("contentBox", () => {
+  it("spans every group and node, or the canvas when empty", () => {
+    const box = contentBox(pdfScenario.diagram);
+    for (const node of pdfScenario.diagram.nodes) {
+      const b = nodeBox(node);
+      expect(b.x).toBeGreaterThanOrEqual(box.x);
+      expect(b.y).toBeGreaterThanOrEqual(box.y);
+      expect(b.x + b.w).toBeLessThanOrEqual(box.x + box.w);
+      expect(b.y + b.h).toBeLessThanOrEqual(box.y + box.h);
+    }
+    expect(contentBox({ canvas: { width: 10, height: 20 }, groups: [], nodes: [] })).toEqual({
+      x: 0,
+      y: 0,
+      w: 10,
+      h: 20,
+    });
+  });
+});
+
+describe("initialView", () => {
+  it("fits when the fit zoom reaches the minimum opening zoom", () => {
+    expect(initialView(pdfScenario.diagram, { width: 2000, height: 1200 }, OPTIONS)).toEqual({
+      kind: "fit",
+    });
+  });
+
+  it("opens at the minimum zoom with the top-left of the content in view", () => {
+    const view = initialView(pdfScenario.diagram, { width: 1090, height: 900 }, OPTIONS);
+    const content = contentBox(pdfScenario.diagram);
+    expect(view).toEqual({
+      kind: "anchored",
+      viewport: {
+        zoom: MIN_INITIAL_ZOOM,
+        x: ANCHOR_MARGIN - content.x * MIN_INITIAL_ZOOM,
+        y: ANCHOR_MARGIN - content.y * MIN_INITIAL_ZOOM,
+      },
+    });
+  });
+
+  it.each(realScenarios.flatMap((s) => GAME_BOARDS.map((size) => [s.id, s, size] as const)))(
+    "%s on a %o board: never below 80 %% and the start of the flow in view",
+    (_id, scenario, size) => {
+      const view = initialView(scenario.diagram, size, OPTIONS);
+      if (view.kind === "fit") {
+        const canvas = { w: scenario.diagram.canvas.width, h: scenario.diagram.canvas.height };
+        expect(fitZoom(canvas, size, 0.04, 0.2, 2)).toBeGreaterThanOrEqual(MIN_INITIAL_ZOOM);
+        return;
+      }
+      const { x, y, zoom } = view.viewport;
+      expect(zoom).toBe(MIN_INITIAL_ZOOM);
+      const anchor = anchorNode(scenario.diagram);
+      if (anchor === null) throw new Error("scenario without an anchor");
+      expect(anchor.x * zoom + x).toBeGreaterThanOrEqual(0);
+      expect(anchor.y * zoom + y).toBeGreaterThanOrEqual(0);
+      expect((anchor.x + anchor.w) * zoom + x).toBeLessThanOrEqual(size.width);
+      expect((anchor.y + anchor.h) * zoom + y).toBeLessThanOrEqual(size.height);
+    },
+  );
+});

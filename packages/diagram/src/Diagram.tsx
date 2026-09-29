@@ -44,6 +44,7 @@ import { describeStep, flowSteps, type FlowStep } from "./steps";
 import { isServiceDragData, type ServiceLookup, type SlotView } from "./types";
 import { useFlowPlayer, type FlowPlayer } from "./use-flow-player";
 import { useReducedMotion } from "./use-reduced-motion";
+import { initialView } from "./viewport";
 
 export const MIN_ZOOM = 0.2;
 export const MAX_ZOOM = 2;
@@ -132,6 +133,27 @@ function DiagramBoard({
     [width, height, reducedMotion],
   );
 
+  /**
+   * Opening view: the fit, unless it would go below MIN_INITIAL_ZOOM; then the top-left of the
+   * diagram at that zoom (viewport.ts). The reset button keeps the plain fit.
+   */
+  const open = useCallback(
+    (instance: Pick<ReactFlowInstance, "fitBounds" | "setViewport">) => {
+      const board = boardRef.current;
+      const view =
+        board === null
+          ? ({ kind: "fit" } as const)
+          : initialView(
+              diagram,
+              { width: board.clientWidth, height: board.clientHeight },
+              { padding: FIT_PADDING, minZoom: MIN_ZOOM, maxZoom: MAX_ZOOM },
+            );
+      if (view.kind === "fit") fit(instance, false);
+      else void instance.setViewport(view.viewport);
+    },
+    [diagram, fit],
+  );
+
   const reveal = useCallback(
     (box: Box) => {
       const board = boardRef.current;
@@ -202,7 +224,7 @@ function DiagramBoard({
             nodeTypes={nodeTypes}
             edgeTypes={edgeTypes}
             zIndexMode="manual"
-            onInit={(instance) => fit(instance, false)}
+            onInit={open}
             minZoom={MIN_ZOOM}
             maxZoom={MAX_ZOOM}
             // Read-only canvas: nothing is dragged, connected, selected or deleted.
