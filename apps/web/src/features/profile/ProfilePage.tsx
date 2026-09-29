@@ -27,9 +27,14 @@ import {
 } from "@blueprint/ui/components/alert-dialog";
 import { Button, buttonVariants } from "@blueprint/ui/components/button";
 import { LevelBadge } from "@blueprint/ui/components/level-badge";
-import { toast } from "@blueprint/ui/components/sonner";
 import { cn } from "@blueprint/ui/lib/utils";
-import { ArrowRightIcon, AwardIcon, RotateCcwIcon, TriangleAlertIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  AwardIcon,
+  CircleCheckIcon,
+  RotateCcwIcon,
+  TriangleAlertIcon,
+} from "lucide-react";
 import { useId, useMemo, useState, type MouseEvent, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Navigate, useNavigate } from "react-router";
@@ -280,6 +285,16 @@ function Preferences({
   const [interests, setInterests] = useState<readonly string[]>(progress?.interests ?? []);
   const [experience, setExperience] = useState<Experience | null>(progress?.experience ?? null);
   const [saving, setSaving] = useState(false);
+  /** What the last save did; it stays until the player edits again or leaves the page. */
+  const [status, setStatus] = useState<string | null>(null);
+  const editInterests = (next: readonly string[]) => {
+    setStatus(null);
+    setInterests(next);
+  };
+  const editExperience = (next: Experience) => {
+    setStatus(null);
+    setExperience(next);
+  };
 
   const changed = useMemo(
     () =>
@@ -314,14 +329,22 @@ function Preferences({
     );
     await replace(update.progress);
     setSaving(false);
-    toast.success(t("profile.saved"));
-    for (const unlocked of update.events) {
-      toast.success(progressEventText(t, unlocked, bundle.index.areas));
-    }
+    setStatus(
+      update.events.length === 0
+        ? t("profile.saved")
+        : update.events.map((e) => progressEventText(t, e, bundle.index.areas)).join(" "),
+    );
   };
 
+  // After a save, its status explains why the button is off ("no changes" would repeat it).
   const describedBy =
-    progress === null ? "profile-incompatible" : reason === null ? undefined : `${id}-reason`;
+    progress === null
+      ? "profile-incompatible"
+      : status !== null
+        ? `${id}-status`
+        : reason === null
+          ? undefined
+          : `${id}-reason`;
 
   return (
     <Section
@@ -332,13 +355,13 @@ function Preferences({
       <AreaToggles
         areas={bundle.index.areas}
         value={interests}
-        onChange={setInterests}
+        onChange={editInterests}
         className="mt-5"
       />
       <ExperienceRadios
         rules={bundle.rules}
         value={experience}
-        onChange={setExperience}
+        onChange={editExperience}
         description={t("profile.experienceHelp")}
         className="mt-6"
       />
@@ -351,11 +374,25 @@ function Preferences({
         >
           {saving ? t("profile.saving") : t("profile.save")}
         </Button>
-        {reason !== null && (
+        {reason !== null && status === null && (
           <p id={`${id}-reason`} className="text-sm text-muted-foreground">
             {reason}
           </p>
         )}
+        {/* Always rendered, so screen readers announce the text when it arrives. */}
+        <p
+          id={`${id}-status`}
+          role="status"
+          aria-live="polite"
+          className="flex items-center gap-2 text-sm font-semibold text-success"
+        >
+          {status !== null && (
+            <>
+              <CircleCheckIcon aria-hidden className="size-4 shrink-0" />
+              {status}
+            </>
+          )}
+        </p>
       </div>
     </Section>
   );

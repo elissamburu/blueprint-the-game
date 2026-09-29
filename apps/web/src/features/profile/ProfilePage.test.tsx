@@ -147,9 +147,25 @@ describe("profile", () => {
     expect(stored?.interests).toEqual(["serverless", "networking"]);
     expect(stored?.experience).toBe("architect");
     expect(stored?.unlocked).toContainEqual({ area: "serverless", level: 300 });
-    expect(await screen.findByText("Guardamos tus preferencias.")).toBeTruthy();
-    expect(await screen.findByText(/Desbloqueaste el nivel 300 en/)).toBeTruthy();
+    // The new levels, by area, inline next to the button: no toast.
+    const areas = new Intl.ListFormat("es", { type: "conjunction" }).format(
+      [...new Set(bundle.index.scenarios.flatMap((s) => s.areas))]
+        .sort()
+        .map((id) => bundle.index.areas.find((a) => a.id === id)?.name ?? id),
+    );
+    const status = screen.getByRole("status");
+    await waitFor(() => expect(status.textContent).toBe(`Desbloqueaste el nivel 300 en ${areas}.`));
+    expect(status.getAttribute("aria-live")).toBe("polite");
+    expect(document.querySelector("[data-sonner-toast]")).toBeNull();
     expect(save.getAttribute("aria-disabled")).toBe("true");
+    expect(save.getAttribute("aria-describedby")).toBe(status.id);
+
+    // It does not go away by itself…
+    await new Promise((resolve) => setTimeout(resolve, 600));
+    expect(status.textContent).toBe(`Desbloqueaste el nivel 300 en ${areas}.`);
+    // …only when the player edits again.
+    await user.click(screen.getByRole("button", { name: "Datos y analítica" }));
+    expect(status.textContent).toBe("");
   });
 
   it("never closes a level when the experience goes down", async () => {
@@ -160,6 +176,10 @@ describe("profile", () => {
     await act(() => user.click(screen.getByRole("button", { name: "Guardar cambios" })));
     await waitFor(() => expect(storedProgress()?.experience).toBe("beginner"));
     expect(storedProgress()?.unlocked).toEqual(before.unlocked);
+    // Nothing new opened: just "saved", with the same mechanism.
+    expect(screen.getByRole("status").textContent).toBe("Cambios guardados");
+    await user.click(screen.getByRole("radio", { name: "Experto" }));
+    expect(screen.getByRole("status").textContent).toBe("");
   });
 
   it("does not save without an area", async () => {
