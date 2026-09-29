@@ -72,6 +72,10 @@ jobs:
       - name: Build
         run: pnpm build
 
+      # RNF-03: initial JS of the game under 250 KB gzip (reads the Vite manifest of the build).
+      - name: Check web bundle size
+        run: pnpm --filter @blueprint/web size
+
       # L014 compares each scenario's version against the PR base branch. The checkout is
       # shallow and only has the PR merge commit, so fetch the base ref explicitly.
       - name: Fetch PR base branch

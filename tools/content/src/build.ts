@@ -4,6 +4,7 @@ import { mkdir, readdir, rm, writeFile } from "node:fs/promises";
 import path from "node:path";
 import {
   BUNDLE_SCHEMA_VERSION,
+  listedStatuses,
   type BundleIndex,
   type BundleIndexEntry,
   type Scenario,
@@ -39,10 +40,6 @@ type Status = Scenario["status"];
  */
 const bundledStatuses = (includeDrafts: boolean): ReadonlySet<Status> =>
   new Set<Status>(includeDrafts ? ["draft", "beta", "published", "retired"] : ["beta", "published", "retired"]);
-
-/** Statuses shown in the game's listing (index.json); retired scenarios are never listed. */
-const listedStatuses = (includeDrafts: boolean): ReadonlySet<Status> =>
-  new Set<Status>(includeDrafts ? ["draft", "beta", "published"] : ["beta", "published"]);
 
 export const scenarioBundleFile = (scenario: Pick<Scenario, "id" | "version">): string =>
   `${scenario.id}.v${scenario.version}.json`;

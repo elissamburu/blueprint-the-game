@@ -46,6 +46,30 @@ describe("progress store", () => {
     expect(store.getState().notice).toBeNull();
   });
 
+  it("keeps the progress in memory only when the stored one is from a newer version", async () => {
+    let cleared = false;
+    const { repository, saved } = fakeRepository({ status: "incompatible", storedVersion: 2 });
+    const store = createProgressStore({
+      ...repository,
+      clear: () => {
+        cleared = true;
+        return Promise.resolve();
+      },
+    });
+    await store.getState().hydrate();
+    expect(store.getState()).toMatchObject({
+      status: "ready",
+      progress: null,
+      incompatible: true,
+      notice: null,
+    });
+    await store.getState().replace(progress);
+    await store.getState().reset();
+    expect(saved).toEqual([]);
+    expect(cleared).toBe(false);
+    expect(store.getState().notice).toBeNull();
+  });
+
   it("saves the progress it is given", async () => {
     const { repository, saved } = fakeRepository({ status: "empty" });
     const store = createProgressStore(repository);

@@ -36,7 +36,9 @@
   },
   "progress": {
     "discarded": "Tu progreso guardado estaba dañado y se descartó: empezás de cero.",
-    "saveFailed": "No se pudo guardar tu progreso en este navegador."
+    "saveFailed": "No se pudo guardar tu progreso en este navegador.",
+    "incompatible": "Tu progreso fue guardado con una versión más nueva del juego; recargá la página.",
+    "reload": "Recargar"
   },
   "welcome": {
     "title": "Te damos la bienvenida",

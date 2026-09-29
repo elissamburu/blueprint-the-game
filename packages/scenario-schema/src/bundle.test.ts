@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { describe, expect, it } from "vitest";
-import { parseBundleCatalog, parseBundleIndex, type ParseResult } from "./index.js";
+import { listedStatuses, parseBundleCatalog, parseBundleIndex, type ParseResult } from "./index.js";
 
 const messages = <T>(result: ParseResult<T>): string[] =>
   result.success ? [] : result.issues.map((i) => `${i.where}: ${i.message}`);
@@ -42,6 +42,16 @@ describe("parseBundleIndex", () => {
 
   it("rejects unknown fields in an entry", () => {
     expect(parseBundleIndex(index({ scenarios: [{ ...entry, answers: [] }] })).success).toBe(false);
+  });
+});
+
+describe("listedStatuses", () => {
+  it("lists beta and published, never retired", () => {
+    expect([...listedStatuses(false)].sort()).toEqual(["beta", "published"]);
+  });
+
+  it("adds drafts only when asked", () => {
+    expect([...listedStatuses(true)].sort()).toEqual(["beta", "draft", "published"]);
   });
 });
 
