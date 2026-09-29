@@ -70,6 +70,43 @@ describe("parseServices", () => {
   });
 });
 
+describe("service icon", () => {
+  const base = {
+    id: "sqs",
+    name: "Amazon SQS",
+    category: "application-integration",
+    leakPatterns: ["SQS"],
+    short: "Colas de mensajes administradas.",
+    docs: "https://docs.aws.amazon.com/sqs/",
+    status: "active",
+  };
+
+  it("is optional", () => {
+    const [service] = ok(parseServices([base]));
+    expect(service?.icon).toBeUndefined();
+  });
+
+  it.each([
+    "Arch_Amazon-Simple-Queue-Service_48",
+    "Res_Amazon-VPC_NAT-Gateway_48",
+    "Res_Elastic-Load-Balancing_Application-Load-Balancer_48",
+  ])("accepts %s", (icon) => {
+    expect(ok(parseServices([{ ...base, icon }]))[0]?.icon).toBe(icon);
+  });
+
+  it.each([
+    "Arch_Amazon-Simple-Queue-Service_48.svg",
+    "Arch_Amazon-Simple-Queue-Service_64",
+    "Amazon-Simple-Queue-Service",
+    "Arch_Amazon-Simple-Queue-Service_48_Dark",
+    "../Arch_X_48",
+  ])("rejects %s", (icon) => {
+    expect(messages(parseServices([{ ...base, icon }]))).toEqual([
+      `[0] (sqs).icon: ${JSON.stringify(icon)} no es un ícono válido: usá el nombre base de un ícono de 48 px del paquete oficial, sin extensión (Arch_…_48 o Res_…_48)`,
+    ]);
+  });
+});
+
 describe("parseCategories", () => {
   it("accepts categories with adjacencies", () => {
     const categories = ok(

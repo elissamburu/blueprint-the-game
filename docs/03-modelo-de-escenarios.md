@@ -237,10 +237,12 @@ Un servicio que viola un objetivo `hard` **debe** declararse en `incorrect` con 
   whenNotToUse: "…"
   docs: https://docs.aws.amazon.com/s3/
   ssmNamespaces: [s3]                     # namespaces de /aws/service/global-infrastructure/services
-  icon: Arch_Amazon-Simple-Storage-Service_48   # nombre base en el paquete oficial (sin versionar el archivo)
+  icon: Arch_Amazon-Simple-Storage-Service_48   # opcional: nombre base del ícono de 48 px en el paquete oficial (Arch_… o Res_…)
   status: active                          # active | deprecated
   since: 2006
 ```
+
+`icon` es el nombre base (sin carpeta ni extensión) de un ícono de 48 px del paquete oficial de íconos de arquitectura de AWS: `Arch_…_48` para servicios y `Res_…_48` para recursos que no son servicios (Internet Gateway, NAT Gateway, endpoints de VPC, ALB). `pnpm icons:fetch` lo resuelve contra el paquete descargado y genera `apps/web/public/icons/<id>.svg`, que no se versiona ([ADR-0012](adr/0012-iconos.md)). Si falta, la UI muestra las iniciales del servicio sobre el color de su categoría.
 
 `ssmNamespaces` existe porque los parámetros públicos de SSM listan **namespaces de API** (p. ej. `apigateway`, `apigatewayv2`, `apigatewaymanagementapi`), no productos 1:1. El mapeo producto ↔ namespaces es curación humana.
 

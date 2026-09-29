@@ -1,0 +1,29 @@
+{
+  "name": "@blueprint/tools-icons-fetch",
+  "version": "0.0.0",
+  "private": true,
+  "description": "Descarga el paquete oficial de íconos de arquitectura de AWS y genera apps/web/public/icons (ADR-0012). Se ejecuta con tsx.",
+  "license": "PolyForm-Noncommercial-1.0.0",
+  "type": "module",
+  "scripts": {
+    "typecheck": "tsc --noEmit",
+    "lint": "eslint .",
+    "test": "vitest run",
+    "clean": "rimraf .turbo"
+  },
+  "dependencies": {
+    "@blueprint/scenario-schema": "workspace:*",
+    "fflate": "^0.8.3",
+    "tsx": "catalog:",
+    "yaml": "catalog:",
+    "zod": "catalog:"
+  },
+  "devDependencies": {
+    "@blueprint/config": "workspace:*",
+    "@types/node": "catalog:",
+    "eslint": "catalog:",
+    "rimraf": "catalog:",
+    "typescript": "catalog:",
+    "vitest": "catalog:"
+  }
+}

@@ -5,6 +5,13 @@ import { httpsUrl, kebabId, oneOf, positiveInt, text } from "./common.js";
 
 export const SERVICE_STATUSES = ["active", "deprecated"] as const;
 
+/**
+ * Base name of a 48 px icon in the official AWS Architecture Icons package (ADR-0012):
+ * `Arch_…_48` for service icons, `Res_…_48` for resources that are not services (NAT Gateway,
+ * ALB…). tools/icons-fetch resolves it against the downloaded package.
+ */
+export const ICON_NAME = /^(Arch|Res)_[A-Za-z0-9][A-Za-z0-9.-]*(_[A-Za-z0-9][A-Za-z0-9.-]*)*_48$/;
+
 export const ServiceSchema = z.strictObject({
   id: kebabId().describe("Id estable que usan los escenarios."),
   name: text(),
@@ -20,7 +27,16 @@ export const ServiceSchema = z.strictObject({
   whenNotToUse: text().optional(),
   docs: httpsUrl(),
   ssmNamespaces: z.array(text()).default([]),
-  icon: text().describe("Nombre base del ícono en el paquete oficial de AWS."),
+  icon: z
+    .string()
+    .regex(ICON_NAME, {
+      error: (iss) =>
+        `${JSON.stringify(iss.input)} no es un ícono válido: usá el nombre base de un ícono de 48 px del paquete oficial, sin extensión (Arch_…_48 o Res_…_48)`,
+    })
+    .optional()
+    .describe(
+      "Nombre base del ícono de 48 px en el paquete oficial de AWS (Arch_…_48 o Res_…_48). Sin ícono, la UI muestra las iniciales sobre el color de la categoría.",
+    ),
   status: oneOf(SERVICE_STATUSES, "status"),
   since: positiveInt().optional().describe("Año de lanzamiento."),
 });

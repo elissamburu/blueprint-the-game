@@ -23,7 +23,9 @@
     "content:prepare": "turbo run build --filter=@blueprint/tools-content... --output-logs=errors-only 1>&2",
     "content:validate": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts validate",
     "content:gen": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts gen",
-    "content:build": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts build"
+    "content:build": "pnpm --reporter=silent content:prepare && pnpm --reporter=silent --dir tools/content exec tsx src/bin.ts build",
+    "icons:prepare": "turbo run build --filter=@blueprint/tools-icons-fetch... --output-logs=errors-only 1>&2",
+    "icons:fetch": "pnpm --reporter=silent icons:prepare && pnpm --reporter=silent --dir tools/icons-fetch exec tsx src/bin.ts"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",
