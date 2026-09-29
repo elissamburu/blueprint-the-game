@@ -67,6 +67,11 @@ export interface DiagramProps {
    * @dnd-kit drop target, so the board has to be inside the app's `DndContext`.
    */
   onServiceDrop?: ((slotId: string, serviceId: string) => void) | undefined;
+  /**
+   * Replaces the hint counter of a slot (e.g. a "Ver pista" button with its popover). Return
+   * undefined to keep the counter.
+   */
+  slotHintAction?: ((slotId: string) => ReactNode) | undefined;
   /** Accessible name of the board. */
   label?: string | undefined;
   /** Left side of the toolbar (e.g. the progress status of the game). */
@@ -88,6 +93,7 @@ function DiagramBoard({
   slots,
   onSlotActivate,
   onServiceDrop,
+  slotHintAction,
   label = "Diagrama de la arquitectura",
   toolbarStart,
   className,
@@ -150,12 +156,13 @@ function DiagramBoard({
   const context = useMemo(
     (): DiagramContextValue => ({
       onSlotActivate,
+      slotHintAction,
       droppable: onServiceDrop !== undefined,
       reveal,
       animate: !reducedMotion,
       markers,
     }),
-    [onSlotActivate, onServiceDrop, reveal, reducedMotion, markers],
+    [onSlotActivate, slotHintAction, onServiceDrop, reveal, reducedMotion, markers],
   );
 
   return (

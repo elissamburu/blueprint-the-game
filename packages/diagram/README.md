@@ -18,8 +18,10 @@ No decide grados ni importa `game-engine` (regla `diagram-not-to-game-logic` de 
   slots={{ [slotId]: { grade, serviceId, hints: { used, total }, selected } }}
   onSlotActivate={(slotId) => dispatch(commands.selectSlot(slotId))}
   onServiceDrop={(slotId, serviceId) => dispatch(commands.placeService(slotId, serviceId))}
+  slotHintAction={(slotId) => <HintAction … />}
 />
 ```
 
 - Sin `onSlotActivate`, el tablero es de solo lectura: los casilleros no son enfocables. Con él, cada casillero se enfoca con Tab y se activa con Enter o Espacio (`aria-label` "<rol>. <estado>[: <servicio>]").
 - Con `onServiceDrop`, cada casillero es un destino de `@dnd-kit/core`: el tablero tiene que estar dentro del `DndContext` de la app, y lo que se arrastra lleva `data: { type: "service", serviceId }` (`ServiceDragData`).
+- Con `slotHintAction`, lo que devuelve para un casillero reemplaza su contador "Pistas n/m" (p. ej. el botón "Ver pista" con su popover). Si devuelve `undefined`, queda el contador.

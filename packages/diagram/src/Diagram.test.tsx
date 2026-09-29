@@ -119,3 +119,14 @@ describe("Diagram text alternative", () => {
     expect(screen.getByRole("button", { name: "Reproducir flujo" })).toBeDefined();
   });
 });
+
+describe("Diagram slot hint action", () => {
+  it("replaces the hint counter of the slots it returns content for", () => {
+    renderBoard({
+      slotHintAction: (slotId) =>
+        slotId === slotIds[0] ? <button type="button">Pista de {slotId}</button> : undefined,
+    });
+    expect(screen.getByRole("button", { name: `Pista de ${slotIds[0]}` })).toBeTruthy();
+    expect(screen.queryByRole("button", { name: `Pista de ${slotIds[1]}` })).toBeNull();
+  });
+});
