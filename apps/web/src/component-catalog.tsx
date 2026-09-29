@@ -38,6 +38,7 @@ import {
   SelectValue,
 } from "@blueprint/ui/components/select";
 import { Separator } from "@blueprint/ui/components/separator";
+import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { Toaster, toast } from "@blueprint/ui/components/sonner";
 import { Toggle } from "@blueprint/ui/components/toggle";
 import {
@@ -48,6 +49,7 @@ import {
 } from "@blueprint/ui/components/tooltip";
 import { PageHeading, PageShell, Panel, Section } from "./catalog/layout";
 import { ReferencePairs } from "./catalog/reference";
+import { serviceIconSrc } from "./service-icons";
 
 const GRADES: readonly SlotGrade[] = ["optimal", "acceptable", "incorrect", "empty"];
 const LEVELS: readonly ScenarioLevel[] = [100, 200, 300, 400];
@@ -61,19 +63,22 @@ const BUTTON_VARIANTS = [
 ] as const;
 const BUTTON_SIZES = ["sm", "default", "lg"] as const;
 const BADGE_VARIANTS = ["default", "secondary", "outline", "destructive"] as const;
+/** Catalog ids and categories: the icons come from pnpm icons:fetch (ADR-0012). */
 const SERVICES = [
-  "API Gateway",
-  "Lambda",
-  "S3",
-  "DynamoDB",
-  "SQS",
-  "SNS",
-  "EventBridge",
-  "Step Functions",
-  "CloudFront",
-  "Route 53",
-  "Application Load Balancer",
-  "EC2",
+  { id: "apigateway", name: "API Gateway", category: "networking-content-delivery" },
+  { id: "lambda", name: "Lambda", category: "compute" },
+  { id: "s3", name: "S3", category: "storage" },
+  { id: "dynamodb", name: "DynamoDB", category: "databases" },
+  { id: "sqs", name: "SQS", category: "application-integration" },
+  { id: "sns", name: "SNS", category: "application-integration" },
+  { id: "eventbridge", name: "EventBridge", category: "application-integration" },
+  { id: "step-functions", name: "Step Functions", category: "application-integration" },
+  { id: "cloudfront", name: "CloudFront", category: "networking-content-delivery" },
+  { id: "route53", name: "Route 53", category: "networking-content-delivery" },
+  { id: "alb", name: "Application Load Balancer", category: "networking-content-delivery" },
+  { id: "ec2", name: "EC2", category: "compute" },
+  // Not in the catalog: always shows the fallback.
+  { id: "sin-icono", name: "Servicio sin ícono", category: "security-identity" },
 ];
 
 export function ComponentCatalog() {
@@ -411,14 +416,17 @@ function Layout() {
             <ul className="grid gap-[0.4rem] p-[0.55rem]">
               {SERVICES.map((service) => (
                 <li
-                  key={service}
+                  key={service.id}
                   className="flex min-h-[46px] items-center gap-[0.55rem] rounded-md border bg-background p-[0.45rem] text-[0.68rem] font-bold"
                 >
-                  <span
-                    aria-hidden="true"
-                    className="size-7 flex-none rounded-[4px] bg-muted-foreground opacity-35"
+                  <ServiceIcon
+                    src={serviceIconSrc(service.id)}
+                    name={service.name}
+                    category={service.category}
+                    decorative
+                    className="size-7 rounded-[4px]"
                   />
-                  {service}
+                  {service.name}
                 </li>
               ))}
             </ul>

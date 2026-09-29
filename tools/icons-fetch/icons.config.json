@@ -1,0 +1,6 @@
+{
+  "$comment": "Paquete oficial de íconos de arquitectura de AWS (ADR-0012). url y sha256 se copian de https://aws.amazon.com/architecture/icons/ y del zip descargado; al actualizar el release, revisá el campo icon de content/catalog/services.yaml con pnpm icons:fetch.",
+  "release": "07312026",
+  "url": "https://d1.awsstatic.com/onedam/marketing-channels/website/public/shared/architecture-icon-release/Icon-package_07312026.5846e92413caa21490223536cc97f1269e44fa92.zip",
+  "sha256": "d2d166c453526471749d520e0db022c459abef759d2946cf2dd1d1c992dc6526"
+}

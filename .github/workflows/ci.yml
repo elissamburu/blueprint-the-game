@@ -57,6 +57,18 @@ jobs:
       - name: Test
         run: pnpm test
 
+      # Official AWS Architecture Icons (ADR-0012): a public download, no AWS credentials. The
+      # zip is cached by the config that pins its URL and SHA-256; icons:fetch verifies the hash
+      # of the cached copy too.
+      - name: Cache AWS icons package
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/aws-icons
+          key: aws-icons-${{ hashFiles('tools/icons-fetch/icons.config.json') }}
+
+      - name: Fetch AWS icons
+        run: pnpm icons:fetch
+
       - name: Build
         run: pnpm build
 

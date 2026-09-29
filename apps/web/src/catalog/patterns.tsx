@@ -24,8 +24,10 @@ import { Popover, PopoverContent, PopoverTrigger } from "@blueprint/ui/component
 import { Progress } from "@blueprint/ui/components/progress";
 import { RadioCardItem } from "@blueprint/ui/components/radio-card";
 import { RadioGroup } from "@blueprint/ui/components/radio-group";
+import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { Toggle } from "@blueprint/ui/components/toggle";
 import { cn } from "@blueprint/ui/lib/utils";
+import { serviceIconSrc } from "../service-icons";
 
 const HINT_COST = 15;
 
@@ -241,29 +243,8 @@ export function ScenarioCards() {
 // .placed-service, .empty-slot, .slot-main-action > p, .architecture-slot > button,
 // .hint-popover) and board background (.architecture-board)
 
-type SampleService = { name: string; initials: string; tone: "network" | "compute" | "default" };
-
-// Lovable's fallback for missing icons (.service-icon-fallback); the official icons arrive with
-// icons:fetch (ADR-0012). .service-icon-integration uses --chart-2, which v1 tokens do not have.
-const SERVICE_TONES: Record<SampleService["tone"], string> = {
-  network: "bg-blueprint-soft text-primary",
-  compute: "bg-warning-soft text-warning",
-  default: "bg-muted text-muted-foreground",
-};
-
-function ServiceIcon({ service }: { service: SampleService }) {
-  return (
-    <span
-      aria-hidden="true"
-      className={cn(
-        "inline-grid size-8 flex-none place-items-center rounded-md border border-current/22 text-[0.58rem] font-[850]",
-        SERVICE_TONES[service.tone],
-      )}
-    >
-      {service.initials}
-    </span>
-  );
-}
+/** `id` and `category` are catalog ids: the icon comes from pnpm icons:fetch (ADR-0012). */
+type SampleService = { id: string; name: string; category: string };
 
 const SLOT_STATES: Record<SlotGrade, string> = {
   optimal: "border-solid border-success bg-success-soft",
@@ -292,14 +273,14 @@ export const SAMPLE_SLOTS: SampleSlot[] = [
   {
     grade: "optimal",
     role: "Entrada HTTPS",
-    service: { name: "API Gateway", initials: "AG", tone: "network" },
+    service: { id: "apigateway", name: "API Gateway", category: "networking-content-delivery" },
     hints: ["Buscá un servicio administrado que exponga una API HTTPS."],
     hintsUsed: 0,
   },
   {
     grade: "acceptable",
     role: "Buffer de avisos con reintentos",
-    service: { name: "EventBridge", initials: "EVE", tone: "default" },
+    service: { id: "eventbridge", name: "EventBridge", category: "application-integration" },
     hints: [
       "Buscá un servicio que retenga mensajes hasta que se procesen.",
       "Pensá en una cola, no en un bus de eventos.",
@@ -309,7 +290,7 @@ export const SAMPLE_SLOTS: SampleSlot[] = [
   {
     grade: "incorrect",
     role: "Lógica que genera URL temporal",
-    service: { name: "EC2", initials: "EC2", tone: "compute" },
+    service: { id: "ec2", name: "EC2", category: "compute" },
     hints: ["La restricción pide no administrar servidores."],
     hintsUsed: 0,
   },
@@ -389,7 +370,12 @@ export function SlotSample({ slot }: { slot: SampleSlot }) {
         <GradeBadge grade={slot.grade} />
         {slot.service ? (
           <span className="mt-2 flex items-center gap-[0.45rem] rounded-[5px] bg-card p-[0.45rem] text-[0.68rem]">
-            <ServiceIcon service={slot.service} />
+            <ServiceIcon
+              src={serviceIconSrc(slot.service.id)}
+              name={slot.service.name}
+              category={slot.service.category}
+              decorative
+            />
             <strong>{slot.service.name}</strong>
           </span>
         ) : (
