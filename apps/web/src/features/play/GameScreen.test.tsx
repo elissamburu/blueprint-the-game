@@ -11,6 +11,7 @@ import { AppRoutes } from "../../app/App";
 import { useContentStore } from "../../content/content-store";
 import { bundleFiles, fetchFrom } from "../../content/testing/bundle-fixture";
 import "../../i18n";
+import { formatNumber } from "../../i18n/format";
 import { PROGRESS_STORAGE_KEY } from "../../progress/local-storage-progress-repository";
 import { PALETTE_COLLAPSED_KEY } from "./ui-preferences";
 import { PROGRESS_SCHEMA_VERSION } from "../../progress/progress-schema";
@@ -304,8 +305,8 @@ describe("finishing", () => {
     const figures = await screen.findByRole("region", { name: "Resultado" });
     expect(within(figures).getByText(String(score))).toBeTruthy();
     expect(within(figures).getByText(`de ${score}`)).toBeTruthy();
-    expect(within(figures).getByText(`+${xp}`)).toBeTruthy();
-    expect(screen.queryByText(`+${xp} XP (total: ${xp} XP)`)).toBeNull();
+    expect(within(figures).getByText(`+${formatNumber(xp)}`)).toBeTruthy();
+    expect(screen.queryByText(/XP \(total:/)).toBeNull();
     const stored = JSON.parse(localStorage.getItem(PROGRESS_STORAGE_KEY) ?? "{}") as {
       progress?: { xp?: number };
     };

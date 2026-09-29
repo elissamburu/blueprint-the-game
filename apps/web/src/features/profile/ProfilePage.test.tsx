@@ -79,15 +79,12 @@ describe("profile", () => {
     storeProgress({ ...newProgress("aws-user"), xp: 1840 });
     await renderProfile();
     expect(within(rankBand()).getByText("Constructor")).toBeTruthy();
-    expect(
-      // Spanish groups thousands from five digits on: 1840, 45.000.
-      within(rankBand()).getByText("1840 de 5000 XP para alcanzar Arquitecto"),
-    ).toBeTruthy();
+    expect(within(rankBand()).getByText("1.840 de 5.000 XP para alcanzar Arquitecto")).toBeTruthy();
     const bar = within(rankBand()).getByRole("progressbar", { name: "Progreso hacia Arquitecto" });
     expect(bar.getAttribute("aria-valuemin")).toBe("1000");
     expect(bar.getAttribute("aria-valuemax")).toBe("5000");
     expect(bar.getAttribute("aria-valuenow")).toBe("1840");
-    expect(bar.getAttribute("aria-valuetext")).toBe("1840 de 5000 XP");
+    expect(bar.getAttribute("aria-valuetext")).toBe("1.840 de 5.000 XP");
     // Only the rank: no "Nv. N", badges, mastery, album nor streak.
     expect(
       screen.queryByText(/Nv\.|Nivel 7|Insignias|Maestría|Álbum|racha|Meta diaria/i),

@@ -40,6 +40,7 @@ import { useProgressStore } from "../../progress/progress-store";
 import { usePlayerProgress } from "../../progress/use-player-progress";
 import { AreaToggles, ExperienceRadios } from "../onboarding/PreferenceFields";
 import { progressEventText } from "../play/finish";
+import { formatNumber } from "../../i18n/format";
 
 export default function ProfilePage() {
   const { t } = useTranslation();
@@ -64,7 +65,12 @@ function Profile({ bundle }: { bundle: ContentBundle }) {
         title={t("profile.title")}
         {...(progress === null
           ? {}
-          : { description: t("profile.completedCount", { count: completed }) })}
+          : {
+              description: t("profile.completedCount", {
+                count: completed,
+                formatted: formatNumber(completed),
+              }),
+            })}
       />
       {progress === null ? (
         <IncompatibleNotice />
@@ -129,8 +135,7 @@ function IncompatibleNotice() {
 }
 
 function RankBand({ xp, bundle }: { xp: number; bundle: ContentBundle }) {
-  const { t, i18n } = useTranslation();
-  const format = new Intl.NumberFormat(i18n.language);
+  const { t } = useTranslation();
   const { rank, next, percent } = rankProgress(xp, bundle.rules);
   const labelId = useId();
   return (
@@ -152,13 +157,13 @@ function RankBand({ xp, bundle }: { xp: number; bundle: ContentBundle }) {
       </div>
       <div className="col-span-2 md:col-start-2">
         {next === null ? (
-          <p className="opacity-90">{t("profile.top", { xp: format.format(xp) })}</p>
+          <p className="opacity-90">{t("profile.top", { xp: formatNumber(xp) })}</p>
         ) : (
           <>
             <p id={`${labelId}-next`} className="opacity-90">
               {t("profile.toNext", {
-                xp: format.format(xp),
-                next: format.format(next.minXp),
+                xp: formatNumber(xp),
+                next: formatNumber(next.minXp),
                 rank: next.name,
               })}
             </p>
@@ -169,8 +174,8 @@ function RankBand({ xp, bundle }: { xp: number; bundle: ContentBundle }) {
               aria-valuemax={next.minXp}
               aria-valuenow={xp}
               aria-valuetext={t("profile.progressValue", {
-                xp: format.format(xp),
-                next: format.format(next.minXp),
+                xp: formatNumber(xp),
+                next: formatNumber(next.minXp),
               })}
               className="mt-3 h-2 w-full max-w-[560px] overflow-hidden rounded-full bg-primary-foreground/20"
             >
@@ -190,8 +195,7 @@ function CompletedScenarios({
   progress: PlayerProgress;
   bundle: ContentBundle;
 }) {
-  const { t, i18n } = useTranslation();
-  const format = new Intl.NumberFormat(i18n.language);
+  const { t } = useTranslation();
   const titles = new Map(bundle.index.scenarios.map((s) => [s.id, s.title]));
   const entries = Object.entries(progress.best).sort(
     ([a, x], [b, y]) => x.level - y.level || a.localeCompare(b),
@@ -218,10 +222,10 @@ function CompletedScenarios({
                 <p className="font-semibold break-words">{titles.get(id) ?? id}</p>
                 <p className="mt-1 text-sm text-muted-foreground">
                   {t("profile.best", {
-                    score: format.format(best.score),
-                    max: format.format(best.maxScore),
+                    score: formatNumber(best.score),
+                    max: formatNumber(best.maxScore),
                   })}{" "}
-                  · {t("profile.bestXp", { xp: format.format(best.xp) })}
+                  · {t("profile.bestXp", { xp: formatNumber(best.xp) })}
                 </p>
               </div>
               <LevelBadge level={best.level} className="justify-self-start" />

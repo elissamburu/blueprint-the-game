@@ -44,6 +44,7 @@ import { serviceIconSrc } from "../../service-icons";
 import { areaList, SummaryStateSchema, type SummaryState } from "./finish";
 import { InlineMarkdown } from "./InlineMarkdown";
 import { repositoryUrl, reportIssueUrl } from "./report-issue";
+import { formatNumber } from "../../i18n/format";
 
 const REPOSITORY = repositoryUrl(import.meta.env.VITE_REPO_URL);
 /** Time between focusing the title and filling the live region. */
@@ -130,8 +131,7 @@ function SummaryView({
   state: SummaryState;
   bundle: ContentBundle;
 }) {
-  const { t, i18n } = useTranslation();
-  const format = useMemo(() => new Intl.NumberFormat(i18n.language), [i18n.language]);
+  const { t } = useTranslation();
   const services = useMemo(
     () => new Map<string, Service>(bundle.catalog.services.map((s) => [s.id, s])),
     [bundle],
@@ -148,7 +148,7 @@ function SummaryView({
   const announcementText = [
     state.saved
       ? gained > 0
-        ? t("play.summary.announce", { xp: format.format(gained) })
+        ? t("play.summary.announce", { xp: formatNumber(gained) })
         : t("play.summary.announceNone")
       : null,
     ...achievements.map((event) => achievementText(t, event, bundle.index.areas)),
@@ -198,22 +198,24 @@ function SummaryView({
         >
           <Figure icon={TargetIcon} label={t("play.summary.score")}>
             <strong className="text-[1.9rem] leading-tight tabular-nums">
-              {format.format(state.score)}
+              {formatNumber(state.score)}
             </strong>
             <span className="text-sm text-muted-foreground">
-              {t("play.summary.scoreMax", { max: format.format(state.maxScore) })}
+              {t("play.summary.scoreMax", { max: formatNumber(state.maxScore) })}
             </span>
           </Figure>
           <Figure icon={ZapIcon} label={t("play.summary.xp")}>
             <strong className="text-[1.9rem] leading-tight tabular-nums">
               {state.saved
-                ? t("play.summary.xpGained", { xp: format.format(gained) })
+                ? t("play.summary.xpGained", { xp: formatNumber(gained) })
                 : t("play.summary.xpNotSaved")}
             </strong>
-            <XpDetail state={state} format={format} />
+            <XpDetail state={state} />
           </Figure>
           <Figure icon={CircleCheckIcon} label={t("play.summary.slots")}>
-            <strong className="text-[1.9rem] leading-tight tabular-nums">{review.length}</strong>
+            <strong className="text-[1.9rem] leading-tight tabular-nums">
+              {formatNumber(review.length)}
+            </strong>
             <ul className="flex flex-wrap justify-center gap-x-3 text-sm">
               <li className="inline-flex items-center gap-1 text-success">
                 <CircleCheckIcon aria-hidden className="size-4" />
@@ -340,20 +342,20 @@ function Figure({
 }
 
 /** How the XP was computed and, when the scenario was already completed, what it added. */
-function XpDetail({ state, format }: { state: SummaryState; format: Intl.NumberFormat }) {
+function XpDetail({ state }: { state: SummaryState }) {
   const { t } = useTranslation();
   const attempt = t("play.summary.xpAttempt", {
-    score: format.format(state.score),
-    multiplier: format.format(state.multiplier),
+    score: formatNumber(state.score),
+    multiplier: formatNumber(state.multiplier),
     level: state.level,
-    xp: format.format(state.xp),
+    xp: formatNumber(state.xp),
   });
   const comparison = state.comparison;
   const note =
     comparison === null || comparison.kind === "first"
       ? null
       : comparison.kind === "improved"
-        ? t("play.summary.xpImproved", { previous: format.format(comparison.previousXp) })
+        ? t("play.summary.xpImproved", { previous: formatNumber(comparison.previousXp) })
         : comparison.kind === "equal"
           ? t("play.summary.xpEqual")
           : t("play.summary.xpLower");
@@ -440,7 +442,7 @@ function ReviewItem({
   const meta = [
     t("play.summary.hints", { count: item.hintsUsed }),
     ...(item.errors > 0 ? [t("play.summary.errors", { count: item.errors })] : []),
-    t("play.summary.points", { points: item.points }),
+    t("play.summary.points", { points: formatNumber(item.points) }),
   ];
 
   return (
