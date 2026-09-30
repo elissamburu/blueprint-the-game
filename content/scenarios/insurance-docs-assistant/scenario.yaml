@@ -1,0 +1,253 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: insurance-docs-assistant
+version: 1
+status: draft
+lang: es
+level: 200
+areas: [ml, serverless]
+title: "Asistente de pólizas para los clientes de una aseguradora"
+summary: "Los clientes registrados preguntan en lenguaje natural por coberturas, carencias y exclusiones, y el asistente responde citando las condiciones generales."
+estimatedMinutes: 8
+authors:
+  - github: elissamburu
+
+context: |
+  Una **aseguradora** quiere sumar a su web un **asistente** donde los **clientes registrados**
+  pregunten en lenguaje natural por las condiciones de sus productos: qué cubre una póliza,
+  cuánto dura la carencia, qué exclusiones tiene.
+
+  La fuente de verdad son unos **2.000 PDF de condiciones generales**. El área legal los
+  actualiza **cada semana**: agrega productos, corrige cláusulas y da de baja versiones viejas.
+
+  Legal es clara: el asistente **no puede inventar** ni opinar. Tiene que responder solo con
+  lo que dicen esos documentos y **mostrar de qué documento sale** cada respuesta, para que el
+  cliente pueda leer la cláusula completa.
+
+  El equipo es chico: programa bien, pero **no tiene científicos de datos** y **no quiere
+  administrar servidores**. Las consultas vienen por rachas: muchas cuando se renuevan las
+  pólizas y casi ninguna de noche.
+
+objectives:
+  - id: grounded-answers
+    kind: hard
+    category: compliance
+    text: "Las respuestas se basan solo en los documentos de la aseguradora y muestran de qué documento sale cada una."
+  - id: registered-only
+    kind: hard
+    category: security
+    text: "Solo los clientes registrados pueden usar el asistente."
+  - id: no-own-models
+    kind: hard
+    category: team
+    text: "Sin entrenar, ajustar ni hospedar modelos propios: el equipo no tiene científicos de datos."
+  - id: auto-refresh
+    kind: soft
+    category: operations
+    text: "Los documentos nuevos o modificados se incorporan sin intervención manual ni reentrenamiento."
+  - id: no-servers
+    kind: soft
+    category: operations
+    text: "Sin servidores ni sistemas operativos que administrar."
+  - id: pay-per-use
+    kind: soft
+    category: cost
+    text: "Pagar por uso: sin capacidad encendida cuando nadie consulta."
+
+diagram:
+  canvas: { width: 1400, height: 800 }
+  groups:
+    - id: cloud
+      kind: aws-cloud
+      label: "Nube"
+      rect: { x: 200, y: 60, w: 1160, h: 700 }
+      parent: null
+
+  nodes:
+    - id: legal
+      type: actor
+      label: "Área legal"
+      icon: users
+      position: { x: 40, y: 160 }
+
+    - id: customer
+      type: actor
+      label: "Cliente registrado"
+      icon: browser
+      position: { x: 40, y: 480 }
+
+    - id: docs-store
+      type: slot
+      role: "Repositorio durable donde legal publica los PDF de condiciones generales y desde donde se sincronizan con el asistente."
+      position: { x: 360, y: 120 }
+      group: cloud
+      answers:
+        - service: s3
+          grade: optimal
+          objectives: [auto-refresh, no-servers, pay-per-use]
+          rationale: >
+            Almacenamiento de objetos durable, pago por lo guardado y sin servidores. Es uno de
+            los conectores nativos de la base de conocimiento administrada, que sincroniza el
+            bucket con una frecuencia programada: los PDF que legal agrega, cambia o borra se
+            incorporan solos, de forma incremental.
+          references:
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/kb-managed-create.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/kb-managed-sync.html
+      incorrect:
+        - service: efs
+          violates: [auto-refresh]
+          rationale: "Es un sistema de archivos que se monta desde cómputo. No es un conector de la base de conocimiento: habría que copiar los PDF a mano o con código propio para que se incorporen."
+        - service: ebs
+          violates: [no-servers, auto-refresh]
+          rationale: "Es un disco en bloque conectado a una instancia: requiere un servidor y la base de conocimiento no lo puede leer como fuente de documentos."
+      hints:
+        - "Buscá almacenamiento de objetos, no de archivos ni de bloques."
+        - "Tiene que ser una fuente que el servicio del asistente sepa leer y sincronizar solo."
+
+    - id: rag
+      type: slot
+      role: "Servicio administrado que indexa los documentos, recupera los fragmentos relevantes y genera la respuesta con un modelo, citando la fuente."
+      position: { x: 1100, y: 120 }
+      group: cloud
+      answers:
+        - service: bedrock
+          grade: optimal
+          objectives: [grounded-answers, no-own-models, auto-refresh, no-servers]
+          rationale: >
+            Una base de conocimiento administrada se encarga de la ingesta, los embeddings, el
+            almacenamiento y la recuperación, y sincroniza la fuente con un cronograma diario o
+            semanal. La consulta genera la respuesta a partir de lo recuperado, con citas que
+            apuntan a cada fragmento; la recuperación devuelve la ubicación del documento de
+            origen. Usa modelos fundacionales administrados: nada que entrenar ni hospedar.
+          references:
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/kb-build-managed.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/kb-managed-sync.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-agentic-retrieve.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/kb-test-retrieve.html
+      incorrect:
+        - service: sagemaker-ai
+          violates: [no-own-models]
+          rationale: "Sirve para entrenar, ajustar y desplegar modelos en endpoints propios: justo lo que el equipo no puede hacer. Además, la indexación y la recuperación de los documentos quedarían a cargo del equipo."
+        - service: comprehend
+          rationale: "Analiza texto (entidades, frases clave, sentimiento, clasificación), pero no genera respuestas a preguntas ni recupera fragmentos de una colección de documentos."
+        - service: textract
+          rationale: "Extrae texto, formularios y tablas de documentos. Podría ser un paso previo de lectura, pero no busca en la colección ni redacta respuestas."
+      hints:
+        - "Necesitás modelos generativos ya entrenados, consumidos como servicio."
+        - "Buscá una opción que además indexe tus documentos y responda citándolos."
+
+    - id: api-entry
+      type: slot
+      role: "Punto de entrada HTTPS que recibe las preguntas del navegador, valida el token del cliente y las pasa a la lógica."
+      position: { x: 620, y: 420 }
+      group: cloud
+      answers:
+        - service: apigateway
+          grade: optimal
+          objectives: [registered-only, no-servers, pay-per-use]
+          rationale: >
+            Un API administrado cobra por pedido y valida el token del cliente con un
+            autorizador JWT antes de invocar la lógica: un pedido sin token válido se rechaza
+            sin llegar al backend.
+          references:
+            - https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html
+        - service: alb
+          grade: acceptable
+          objectives: [pay-per-use]
+          rationale: >
+            Un balanceador de aplicaciones puede invocar funciones como destino y no requiere
+            servidores, pero cobra por hora aunque nadie consulte: de noche pagás capacidad
+            ociosa.
+          references:
+            - https://docs.aws.amazon.com/elasticloadbalancing/latest/application/lambda-functions.html
+      incorrect:
+        - service: nlb
+          rationale: "Balancea conexiones TCP y UDP en capa 4: no entiende pedidos HTTP ni valida el token del cliente."
+        - service: route53
+          rationale: "Resuelve nombres DNS hacia un destino; no recibe ni procesa pedidos HTTP."
+      hints:
+        - "Pensá en un servicio que cobre por pedido y no por hora."
+        - "Tiene que rechazar a quien no traiga un token válido antes de ejecutar la lógica."
+
+    - id: assistant-logic
+      type: slot
+      role: "Lógica breve que recibe la pregunta autenticada, consulta la base de conocimiento y devuelve la respuesta con sus fuentes."
+      position: { x: 880, y: 420 }
+      group: cloud
+      answers:
+        - service: lambda
+          grade: optimal
+          objectives: [no-servers, pay-per-use]
+          rationale: >
+            Cómputo por evento: corre solo cuando llega una pregunta, escala solo en las rachas
+            de renovaciones y no cobra de noche. Recibe del API los datos del token validado y
+            llama a la base de conocimiento con el SDK.
+          references:
+            - https://docs.aws.amazon.com/lambda/latest/dg/welcome.html
+            - https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html
+        - service: fargate
+          grade: acceptable
+          objectives: [pay-per-use]
+          rationale: >
+            Correr contenedores sin administrar servidores cumple con la operación, pero un
+            servicio web tiene tareas encendidas todo el tiempo: pagás capacidad aunque nadie
+            pregunte.
+          references:
+            - https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html
+      incorrect:
+        - service: ec2
+          violates: [no-servers, pay-per-use]
+          rationale: "Funciona, pero implica administrar instancias, sistema operativo, parches y escalado, y pagar por hora aunque no haya consultas."
+        - service: app-runner
+          rationale: "Correría la lógica como servicio web en contenedores, pero ya no acepta clientes nuevos: un proyecto que arranca hoy no puede adoptarlo."
+      hints:
+        - "La tarea dura segundos y ocurre solo cuando un cliente pregunta."
+
+    - id: customer-auth
+      type: slot
+      role: "Directorio de clientes de la aseguradora: registro, inicio de sesión y emisión de los tokens que presenta el navegador."
+      position: { x: 360, y: 580 }
+      group: cloud
+      answers:
+        - service: cognito
+          grade: optimal
+          objectives: [registered-only, no-servers]
+          rationale: >
+            Un grupo de usuarios administrado maneja el registro y el inicio de sesión de los
+            clientes de la app y emite tokens JWT, que el API valida con un autorizador antes de
+            dejar pasar la pregunta.
+          references:
+            - https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools.html
+            - https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html
+      incorrect:
+        - service: iam-identity-center
+          rationale: "Conecta a la fuerza laboral (empleados) con aplicaciones y cuentas de AWS. No es un directorio de clientes finales con registro propio en la web."
+        - service: iam
+          rationale: "Administra identidades y permisos para acceder a recursos de AWS; no es un directorio de clientes finales con registro e inicio de sesión en una web."
+      hints:
+        - "Son clientes de la aseguradora, no empleados ni administradores de la nube."
+
+  edges:
+    - { id: e1, from: legal,           to: docs-store,      step: 1, style: data,    label: "Publica condiciones nuevas",
+        description: "Legal agrega, reemplaza o borra PDF cada semana." }
+    - { id: e2, from: docs-store,      to: rag,             step: 2, style: async,   label: "Sincronización programada",
+        description: "Incremental: solo se reprocesan los documentos agregados, modificados o borrados desde la última sincronización." }
+    - { id: e3, from: customer,        to: customer-auth,   step: 3, style: sync,    label: "Inicia sesión" }
+    - { id: e4, from: customer-auth,   to: customer,        step: 4, style: sync,    label: "Devuelve un token" }
+    - { id: e5, from: customer,        to: api-entry,       step: 5, style: sync,    label: "Pregunta con el token" }
+    - { id: e6, from: api-entry,       to: customer-auth,   step: 6, style: control, label: "Valida el token",
+        description: "Firma, emisor, audiencia y vencimiento; sin token válido, el pedido se rechaza." }
+    - { id: e7, from: api-entry,       to: assistant-logic, step: 7, style: sync,    label: "Reenvía la pregunta" }
+    - { id: e8, from: assistant-logic, to: rag,             step: 8, style: sync,    label: "Consulta los documentos" }
+    - { id: e9, from: rag,             to: assistant-logic, step: 9, style: sync,    label: "Respuesta con citas" }
+    - { id: e10, from: assistant-logic, to: api-entry,      step: 10, style: sync,   label: "Respuesta y documentos fuente" }
+    - { id: e11, from: api-entry,       to: customer,       step: 11, style: sync,   label: "Muestra la respuesta citada",
+        description: "El cliente ve de qué documento sale cada parte de la respuesta." }
+
+palette:
+  mode: auto
+
+references:
+  - title: "Bases de conocimiento administradas vs administradas por el cliente"
+    url: https://docs.aws.amazon.com/bedrock/latest/userguide/kb-build-managed.html

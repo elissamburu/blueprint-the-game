@@ -1,0 +1,25 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: insurance-docs-assistant v1
+flowchart LR
+  n_legal(["Área legal"])
+  n_customer(["Cliente registrado"])
+  subgraph g_cloud["Nube"]
+    n_docs_store["Amazon S3"]
+    n_rag["Amazon Bedrock"]
+    n_api_entry["Amazon API Gateway"]
+    n_assistant_logic["AWS Lambda"]
+    n_customer_auth["Amazon Cognito"]
+  end
+  n_legal ==>|"1. Publica condiciones nuevas"| n_docs_store
+  n_docs_store -.->|"2. Sincronización programada"| n_rag
+  n_customer -->|"3. Inicia sesión"| n_customer_auth
+  n_customer_auth -->|"4. Devuelve un token"| n_customer
+  n_customer -->|"5. Pregunta con el token"| n_api_entry
+  n_api_entry --o|"6. Valida el token"| n_customer_auth
+  n_api_entry -->|"7. Reenvía la pregunta"| n_assistant_logic
+  n_assistant_logic -->|"8. Consulta los documentos"| n_rag
+  n_rag -->|"9. Respuesta con citas"| n_assistant_logic
+  n_assistant_logic -->|"10. Respuesta y documentos fuente"| n_api_entry
+  n_api_entry -->|"11. Muestra la respuesta citada"| n_customer
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_docs_store,n_rag,n_api_entry,n_assistant_logic,n_customer_auth slot
