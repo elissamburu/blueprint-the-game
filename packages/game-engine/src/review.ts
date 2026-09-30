@@ -28,7 +28,10 @@ export interface SlotReview {
 }
 
 /** Status of a slot result, with the meaning of `slotStatus`. */
-export const slotResultStatus = (slot: Pick<SlotResult, "grade" | "accepted">): SlotStatus => {
+export const slotResultStatus = (
+  slot: Pick<SlotResult, "grade" | "accepted" | "revealed">,
+): SlotStatus => {
+  if (slot.revealed) return "revealed";
   if (slot.grade === null) return "empty";
   if (slot.grade === "acceptable" && slot.accepted) return "accepted";
   return slot.grade;
@@ -65,7 +68,10 @@ export const scenarioReview = (
   });
 };
 
-/** Slots of the review by status, for the summary header ("5 óptimos · 2 aceptables"). */
+/**
+ * Slots of the review by status, for the summary header ("5 óptimos · 2 aceptables · 1 solución
+ * vista").
+ */
 export const reviewCounts = (review: readonly Pick<SlotReview, "status">[]) => {
   const counts: Record<SlotStatus, number> = {
     optimal: 0,
@@ -73,6 +79,7 @@ export const reviewCounts = (review: readonly Pick<SlotReview, "status">[]) => {
     acceptable: 0,
     incorrect: 0,
     empty: 0,
+    revealed: 0,
   };
   for (const item of review) counts[item.status] += 1;
   return counts;

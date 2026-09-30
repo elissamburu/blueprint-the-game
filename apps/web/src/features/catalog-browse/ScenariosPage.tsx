@@ -194,12 +194,7 @@ function BandNode({ children }: { children: ReactNode }) {
   );
 }
 
-const STATUSES: readonly ScenarioStatus[] = [
-  "new",
-  "in-progress",
-  "completed-green",
-  "completed-orange",
-];
+const STATUSES: readonly ScenarioStatus[] = ["new", "in-progress", "completed-green", "completed"];
 
 const selectClass =
   "h-10 rounded-md border bg-card py-2 pr-[1.8rem] pl-[0.65rem] text-sm text-foreground";
@@ -328,7 +323,7 @@ function ScenarioCard({
   const best = progress?.best[scenario.id];
   const mainArea = scenario.areas[0];
   const Icon = mainArea === undefined ? undefined : AREA_ICONS[mainArea];
-  const completed = status === "completed-green" || status === "completed-orange";
+  const completed = status === "completed-green" || status === "completed";
   return (
     <article
       aria-labelledby={titleId}
@@ -428,7 +423,9 @@ const PROGRESS_BADGE: Record<ScenarioStatus, string> = {
   new: "border-transparent bg-secondary text-secondary-foreground",
   "in-progress": "border-primary bg-card text-primary",
   "completed-green": "border-transparent bg-success-soft text-success",
-  "completed-orange": "border-transparent bg-warning-soft text-warning",
+  // Neutral: warning means "aceptable" in the game, and a completion without every slot green
+  // may have no orange at all (only viewed solutions, RF-PLAY-14).
+  completed: "border-slot-border bg-muted text-foreground",
 };
 
 function ProgressBadge({ status }: { status: ScenarioStatus }) {

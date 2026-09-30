@@ -92,6 +92,8 @@ const SlotResultSchema = z.object({
   serviceId: z.string().nullable(),
   grade: z.enum(["optimal", "acceptable", "incorrect"]).nullable(),
   accepted: z.boolean(),
+  // A summary opened from a navigation state saved before RF-PLAY-14 has no viewed solutions.
+  revealed: z.boolean().default(false),
   errors: count,
   hintsUsed: count,
   firstTry: z.boolean(),

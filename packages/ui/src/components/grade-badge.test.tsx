@@ -18,6 +18,7 @@ describe("GradeBadge", () => {
     ["acceptable", "Aceptable", "text-warning"],
     ["incorrect", "Incorrecto", "text-destructive"],
     ["empty", "Vacío", "text-muted-foreground"],
+    ["revealed", "Solución vista", "text-blueprint"],
   ])("%s → accessible text %j, colored with %s", (grade, text, colorClass) => {
     const badge = renderBadge(grade);
     expect(badge.textContent).toBe(text);
@@ -26,11 +27,13 @@ describe("GradeBadge", () => {
   });
 
   it("pairs every grade with a decorative icon (color is not the only cue, RNF-02)", () => {
-    const icons = (["optimal", "acceptable", "incorrect", "empty"] as const).map((grade) => {
-      const icon = renderBadge(grade).querySelector("svg");
-      expect(icon?.getAttribute("aria-hidden")).toBe("true");
-      return icon?.getAttribute("class");
-    });
+    const icons = (["optimal", "acceptable", "incorrect", "empty", "revealed"] as const).map(
+      (grade) => {
+        const icon = renderBadge(grade).querySelector("svg");
+        expect(icon?.getAttribute("aria-hidden")).toBe("true");
+        return icon?.getAttribute("class");
+      },
+    );
     expect(new Set(icons).size).toBe(icons.length);
   });
 });

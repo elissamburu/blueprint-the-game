@@ -217,6 +217,84 @@ describe("summary", () => {
     expect(report.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
+  it("reviews viewed solutions as «Solución vista» with 0 points: completed, not green", async () => {
+    // First slot after an error, the rest revealed with "Ver solución completa".
+    const session = [
+      commands.placeService(nodes[0]?.id ?? "", "route53"),
+      commands.revealSolution(nodes[0]?.id ?? ""),
+      commands.revealSolution(null),
+    ].reduce((state, cmd) => applyCommand(state, cmd).state, newSession());
+    renderSummary(stateFor({ kind: "first", gained: 0 }, [], session));
+    await title();
+    expect(
+      screen.getByText(`Completado viendo la solución de ${nodes.length} casilleros`),
+    ).toBeTruthy();
+    const figures = screen.getByRole("region", { name: "Resultado" });
+    expect(within(figures).getByText(`${nodes.length} soluciones vistas`)).toBeTruthy();
+    const review = document.querySelectorAll("section[aria-labelledby=summary-review] ol > li");
+    expect(review).toHaveLength(nodes.length);
+    for (const [index, item] of [...review].entries()) {
+      const optimal = services.get(optimalOf(index).service)?.name ?? "";
+      expect(item.querySelector("[data-grade=revealed]")?.textContent).toBe("Solución vista");
+      expect(within(item as HTMLElement).getByRole("heading", { level: 3 }).textContent).toBe(
+        `Solución vista: ${optimal}`,
+      );
+      expect(item.textContent).toContain("0 pts");
+    }
+    expect(review[0]?.textContent).toContain("1 intento incorrecto");
+    expect(
+      (
+        await axe.run(document.body, {
+          resultTypes: ["violations"],
+          rules: { "color-contrast": { enabled: false } },
+        })
+      ).violations,
+    ).toEqual([]);
+  });
+
+  it("names the other optimal answers of a viewed solution", async () => {
+    // The PDF scenario with alb (acceptable in content) as a second optimal answer of api-entry.
+    const files = bundleFiles(["published", "published", "published"]);
+    const raw = files["serverless-pdf-processing.v1.json"] as typeof pdfScenario;
+    const twoOptimal = {
+      ...raw,
+      diagram: {
+        ...raw.diagram,
+        nodes: raw.diagram.nodes.map((node) =>
+          node.type === "slot" && node.id === "api-entry"
+            ? {
+                ...node,
+                answers: node.answers.map((a) =>
+                  a.service === "alb" ? { ...a, grade: "optimal" as const } : a,
+                ),
+              }
+            : node,
+        ),
+      },
+    };
+    // Under another file name: the content store keeps the scenarios it loaded, by file.
+    const file = "serverless-pdf-processing.v99.json";
+    const index = files["index.json"] as { scenarios: { id: string; file: string }[] };
+    const withFile = {
+      ...index,
+      scenarios: index.scenarios.map((s) => (s.id === raw.id ? { ...s, file } : s)),
+    };
+    vi.stubGlobal("fetch", fetchFrom({ ...files, "index.json": withFile, [file]: twoOptimal }));
+    const session = applyCommand(
+      newSession(twoOptimal),
+      commands.revealSolution("api-entry"),
+    ).state;
+    renderSummary(stateFor({ kind: "first", gained: 0 }, [], session));
+    await title();
+    const first = document.querySelector("section[aria-labelledby=summary-review] ol > li");
+    expect(first?.textContent).toContain("Solución vista: Amazon API Gateway");
+    expect(first?.textContent).toContain(
+      `También es óptimo: ${services.get("alb")?.name ?? "alb"}`,
+    );
+    // Only for viewed solutions: a green chosen by the player does not get the line.
+    expect(document.body.textContent).not.toMatch(/También son óptimos/);
+  });
+
   it("has no axe violations, with and without a rank up", async () => {
     if (aprendiz === undefined || constructor === undefined) throw new Error("< 2 ranks");
     const options: RunOptions = {

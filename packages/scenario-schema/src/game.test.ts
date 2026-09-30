@@ -38,6 +38,7 @@ scoring:
   greenAfterErrors: { penaltyPerError: 25, min: 25 }
   acceptedAcceptable: 50
   hintCost: 15
+  revealedSolution: 0
 levelMultipliers: { 100: 1, 200: 1.5, 300: 2, 400: 3 }
 ranks:
   - { id: aprendiz, name: Aprendiz, minXp: 0 }
@@ -76,6 +77,28 @@ describe("parseGameRules", () => {
       'levelMultipliers.400: Falta el campo obligatorio "400"',
       'unlock.byExperience.expert: Falta el campo obligatorio "expert"',
     ]);
+  });
+
+  it("requires the points of a viewed solution, never above solving the slot", () => {
+    const missing = gameRules();
+    delete section(missing, "scoring")["revealedSolution"];
+    expect(messages(parseGameRules(missing))).toEqual([
+      'scoring.revealedSolution: Falta el campo obligatorio "revealedSolution"',
+    ]);
+
+    const atLimit = gameRules();
+    section(atLimit, "scoring")["revealedSolution"] = 25;
+    expect(ok(parseGameRules(atLimit)).scoring.revealedSolution).toBe(25);
+
+    const above = gameRules();
+    section(above, "scoring")["revealedSolution"] = 26;
+    expect(messages(parseGameRules(above))).toEqual([
+      "scoring.revealedSolution: No puede ser mayor que acceptedAcceptable ni que greenAfterErrors.min (25): ver la solución nunca suma más que resolver el casillero",
+    ]);
+
+    const negative = gameRules();
+    section(negative, "scoring")["revealedSolution"] = -1;
+    expect(parseGameRules(negative).success).toBe(false);
   });
 
   it("rejects auto as the palette mode of a level", () => {

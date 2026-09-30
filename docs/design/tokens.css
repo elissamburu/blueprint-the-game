@@ -24,6 +24,9 @@
  *   warning / warning-soft .......... 4,77  (original 3,44)
  *   destructive / danger-soft ....... 4,95  (original 4,03)
  *   slot-border / card .............. 3,35  (borde de UI, mínimo 3)
+ *   blueprint / blueprint-soft ...... 7,25  ("Solución vista", RF-PLAY-14: texto e ícono)
+ *   blueprint / canvas .............. 7,71  (borde del casillero revelado sobre el tablero)
+ *   blueprint / card ................ 8,40
  */
 
 @theme inline {

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Game screen (RF-PLAY-01..08, RF-PLAY-13), in its own chunk with React Flow and @dnd-kit
+// Game screen (RF-PLAY-01..08, RF-PLAY-13..15), in its own chunk with React Flow and @dnd-kit
 // (ADR-0004, RNF-03). Layout v2 (docs/design, capturas 12–17): the brief when it opens, then a
 // single bar instead of the global header, the board over the whole space with the feedback card
 // floating on it, and the collapsible palette. "Ver caso" shows the case on demand and focus mode
@@ -46,6 +46,7 @@ import { Palette } from "./Palette";
 import { repositoryUrl, reportIssueUrl } from "./report-issue";
 import { ScenarioBrief } from "./ScenarioBrief";
 import { createSessionStore } from "./session-store";
+import { SolutionDialog, type SolutionChoice, type SolutionRequest } from "./SolutionDialog";
 import { PALETTE_COLLAPSED_KEY, useFlagPreference } from "./ui-preferences";
 import { useFeedbackPlacement } from "./use-feedback-placement";
 import { useFocusMode } from "./use-focus-mode";
@@ -114,9 +115,9 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     completed: session.completed,
   };
 
-  // The first placement makes the scenario "en curso" in the listing (RF-NAV-01). Without
-  // progress nothing is saved, as with the result.
-  const started = session.slots.some((slot) => slot.placements > 0);
+  // The first placement (or viewed solution) makes the scenario "en curso" in the listing
+  // (RF-NAV-01). Without progress nothing is saved, as with the result.
+  const started = session.slots.some((slot) => slot.placements > 0 || slot.revealed);
   useEffect(() => {
     if (!started) return;
     const { progress: stored, replace } = useProgressStore.getState();
@@ -133,10 +134,13 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
   const [paletteCollapsed, setPaletteCollapsed] = useFlagPreference(PALETTE_COLLAPSED_KEY);
   const focus = useFocusMode();
   const [layout, setLayout] = useState<HTMLDivElement | null>(null);
+  const [screenRoot, setScreenRoot] = useState<HTMLDivElement | null>(null);
   const diagramRef = useRef<DiagramHandle>(null);
   const searchRef = useRef<HTMLInputElement>(null);
   const focusModeRef = useRef<HTMLButtonElement>(null);
   const exitFocusRef = useRef<HTMLButtonElement>(null);
+  const moreRef = useRef<HTMLButtonElement>(null);
+  const finishRef = useRef<HTMLButtonElement>(null);
 
   // Entering or leaving focus mode unmounts the button that did it: its counterpart takes the
   // focus (only after a change, not when the screen opens).
@@ -244,6 +248,47 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     [nodes, session, rules, revealHint],
   );
 
+  // "Ver solución" (RF-PLAY-14). The target is the selected slot or, after a placement released
+  // the selection, the slot whose feedback is showing. The engine says whether each is possible.
+  const solutionTarget = session.selectedSlotId ?? game.feedbackSlotId;
+  const [solution, setSolution] = useState<{
+    request: SolutionRequest | null;
+    open: boolean;
+  }>({ request: null, open: false });
+  const askSolution = (request: SolutionRequest) => setSolution({ request, open: true });
+  const solutionActions = {
+    slotAvailable:
+      solutionTarget !== null && canApply(session, commands.revealSolution(solutionTarget)),
+    allAvailable: canApply(session, commands.revealSolution(null)),
+    onSlot: () => {
+      if (solutionTarget === null) return;
+      askSolution({
+        kind: "slot",
+        slotId: solutionTarget,
+        role: names.slotRole(solutionTarget),
+        canUseHint: canApply(session, commands.useHint(solutionTarget)),
+      });
+    },
+    onAll: () =>
+      askSolution({
+        kind: "all",
+        pending: session.slots.filter((slot) => !isSlotResolved(slot)).length,
+      }),
+  };
+  /** Where the focus goes when the notice closes: back to "⋯", or to what changed. */
+  const onSolutionClosed = (choice: SolutionChoice, request: SolutionRequest) => {
+    if (choice === "cancel") moreRef.current?.focus();
+    else if (request.kind === "all") finishRef.current?.focus();
+    else if (choice === "hint") {
+      // The hint button of the slot, which now opens the revealed hints.
+      (
+        document.querySelector<HTMLElement>(
+          `[data-slot-id="${request.slotId}"] [aria-haspopup=dialog]`,
+        ) ?? document.querySelector<HTMLElement>(`[data-slot-id="${request.slotId}"] button`)
+      )?.focus();
+    } else focusSlot(request.slotId);
+  };
+
   const [finishing, setFinishing] = useState(false);
   const onFinish = async () => {
     setFinishing(true);
@@ -283,6 +328,7 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
 
   return (
     <div
+      ref={setScreenRoot}
       onKeyDown={onKeyDown}
       data-focus-mode={focus.active ? "" : undefined}
       className="flex min-h-0 flex-1 flex-col overflow-hidden bg-canvas"
@@ -294,8 +340,12 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
           {...actions}
           onFocusMode={() => toggleFocus(true)}
           onPlayFlow={() => diagramRef.current?.playFlow()}
+          solution={solutionActions}
           reportUrl={reportUrl}
           focusModeRef={focusModeRef}
+          moreRef={moreRef}
+          finishRef={finishRef}
+          menuContainer={screenRoot}
         />
       )}
       <ServiceDndContext
@@ -384,6 +434,14 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
         open={briefOpen}
         onStart={() => setBriefOpen(false)}
         onClosed={() => diagramRef.current?.element()?.focus()}
+      />
+      <SolutionDialog
+        request={solution.request}
+        open={solution.open}
+        onOpenChange={(open) => setSolution((current) => ({ ...current, open }))}
+        onUseHint={game.revealHint}
+        onReveal={(request) => game.revealSolution(request.kind === "slot" ? request.slotId : null)}
+        onClosed={onSolutionClosed}
       />
       <CaseDrawer
         scenario={scenario}

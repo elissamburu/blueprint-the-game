@@ -1,10 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The single bar of the game screen (layout v2; it replaces the global header): back, level and
-// title, progress, score, "Ver caso", "Modo foco", "Finalizar" and the "⋯" menu with "Reproducir
-// flujo" and "Reportar un problema" (RF-PLAY-03, RF-PLAY-13). In focus mode, a minimal floating
-// bar: progress, "Ver caso", "Finalizar" and "Salir del foco". On narrow screens (or a large
-// browser zoom) the bar wraps and "Ver caso" and "Modo foco" keep only their icon, with the same
-// accessible name: every action stays visible.
+// title, progress, score, "Ver caso", "Reproducir flujo" (RF-PLAY-03, RF-PLAY-15), "Modo foco",
+// "Finalizar" and the "⋯" menu with "Ver solución de este casillero", "Ver solución completa"
+// (RF-PLAY-14) and "Reportar un problema" (RF-PLAY-13). In focus mode, a minimal
+// floating bar: progress, "Ver caso", "Finalizar" and "Salir del foco". On narrow screens (or a
+// large browser zoom) the bar wraps, the progress bar goes first and then "Ver caso" and "Modo
+// foco" keep only their icon, with the same accessible name; "Reproducir flujo" always keeps its
+// text (CA RF-PLAY-15). Every action stays visible.
 // Lovable: .game-topbar, .scenario-title, .game-progress, .score-box, .focus-bar (src/styles.css),
 // capturas 13 y 15.
 import type { Scenario } from "@blueprint/scenario-schema";
@@ -13,6 +15,7 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
+  DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@blueprint/ui/components/dropdown-menu";
 import { LevelBadge } from "@blueprint/ui/components/level-badge";
@@ -21,6 +24,7 @@ import {
   ArrowLeftIcon,
   EllipsisIcon,
   EyeIcon,
+  EyeOffIcon,
   FlagIcon,
   FocusIcon,
   Minimize2Icon,
@@ -52,13 +56,28 @@ interface Actions {
   onFinish: () => void;
 }
 
+/** "Ver solución" entries of the "⋯" menu (RF-PLAY-14); availability comes from game-engine. */
+export interface SolutionActions {
+  /** A selected (or just evaluated) slot is unresolved: revealSolution(slot) would be accepted. */
+  slotAvailable: boolean;
+  /** Some slot is unresolved: revealSolution(null) would be accepted. */
+  allAvailable: boolean;
+  onSlot: () => void;
+  onAll: () => void;
+}
+
 export interface GameBarProps extends Actions {
   scenario: Scenario;
   progress: GameProgress;
   onFocusMode: () => void;
   onPlayFlow: () => void;
+  solution: SolutionActions;
   reportUrl: string;
   focusModeRef?: Ref<HTMLButtonElement>;
+  moreRef?: Ref<HTMLButtonElement>;
+  finishRef?: Ref<HTMLButtonElement>;
+  /** Element the "⋯" menu is portaled into: inside `main`, so its items are in a landmark. */
+  menuContainer?: HTMLElement | null;
 }
 
 const percent = ({ resolved, total }: GameProgress) =>
@@ -73,8 +92,12 @@ export function GameBar({
   finishing,
   onFinish,
   onPlayFlow,
+  solution,
   reportUrl,
   focusModeRef,
+  moreRef,
+  finishRef,
+  menuContainer,
 }: GameBarProps) {
   const { t } = useTranslation();
   return (
@@ -100,6 +123,10 @@ export function GameBar({
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <ViewCaseButton open={caseOpen} onClick={onViewCase} />
+        <Button variant="outline" className="text-sm" onClick={onPlayFlow}>
+          <PlayIcon aria-hidden />
+          {t("play.top.playFlow")}
+        </Button>
         <Button
           ref={focusModeRef}
           variant="outline"
@@ -109,18 +136,43 @@ export function GameBar({
           <FocusIcon aria-hidden />
           <span className="sr-only lg:not-sr-only">{t("play.top.focusMode")}</span>
         </Button>
-        <FinishButton progress={progress} finishing={finishing} onFinish={onFinish} />
-        <DropdownMenu>
+        <FinishButton
+          ref={finishRef}
+          progress={progress}
+          finishing={finishing}
+          onFinish={onFinish}
+        />
+        {/* Not modal: a modal menu hides the rest of the screen with aria-hidden, the bar with it,
+            while it lives inside main (so its items are in a landmark). Esc and a click outside
+            still close it, and the focus still moves into it and back to "⋯". */}
+        <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <Button variant="ghost" size="icon" aria-label={t("play.top.more")}>
+            <Button ref={moreRef} variant="ghost" size="icon" aria-label={t("play.top.more")}>
               <EllipsisIcon aria-hidden />
             </Button>
           </DropdownMenuTrigger>
-          <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onPlayFlow}>
-              <PlayIcon aria-hidden />
-              {t("play.top.playFlow")}
+          <DropdownMenuContent align="end" container={menuContainer}>
+            {/* Disabled items stay in the menu and say why, so the option is not a mystery. */}
+            <DropdownMenuItem
+              disabled={!solution.slotAvailable}
+              onSelect={solution.onSlot}
+              className="items-start"
+            >
+              <EyeIcon aria-hidden className="mt-[0.2rem]" />
+              <span className="flex flex-col">
+                {t("play.top.solutionSlot")}
+                {!solution.slotAvailable && (
+                  <span className="text-sm text-muted-foreground">
+                    {t("play.top.solutionSlotUnavailable")}
+                  </span>
+                )}
+              </span>
             </DropdownMenuItem>
+            <DropdownMenuItem disabled={!solution.allAvailable} onSelect={solution.onAll}>
+              <EyeOffIcon aria-hidden />
+              {t("play.top.solutionAll")}
+            </DropdownMenuItem>
+            <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
               <a href={reportUrl} target="_blank" rel="noreferrer">
                 <FlagIcon aria-hidden />
@@ -237,11 +289,13 @@ function FinishButton({
   finishing,
   onFinish,
   size,
+  ref,
 }: {
   progress: GameProgress;
   finishing: boolean;
   onFinish: () => void;
   size?: "sm";
+  ref?: Ref<HTMLButtonElement> | undefined;
 }) {
   const { t } = useTranslation();
   const id = useId();
@@ -256,6 +310,7 @@ function FinishButton({
         <Tooltip open={reason !== null && tooltipOpen} onOpenChange={setTooltipOpen}>
           <TooltipTrigger asChild>
             <Button
+              ref={ref}
               size={size}
               className="text-sm aria-disabled:cursor-not-allowed aria-disabled:opacity-50"
               aria-disabled={blocked}

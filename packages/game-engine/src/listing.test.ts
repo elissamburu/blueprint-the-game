@@ -44,7 +44,7 @@ describe("scenarioStatus", () => {
     expect(scenarioStatus(progress, "started")).toBe("in-progress");
     // A completed scenario is completed even if it was started before.
     expect(scenarioStatus(progress, "green")).toBe("completed-green");
-    expect(scenarioStatus(progress, "orange")).toBe("completed-orange");
+    expect(scenarioStatus(progress, "orange")).toBe("completed");
   });
 });
 

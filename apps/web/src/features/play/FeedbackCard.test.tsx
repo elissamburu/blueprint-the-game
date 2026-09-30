@@ -155,4 +155,43 @@ describe("FeedbackCard", () => {
     await user.click(screen.getByRole("button", { name: "Cerrar explicación" }));
     expect(onClose).toHaveBeenCalled();
   });
+
+  describe("revealed (RF-PLAY-14)", () => {
+    /** The PDF scenario with a second optimal answer in api-entry (alb, acceptable in content). */
+    const twoOptimal = {
+      ...pdfScenario,
+      diagram: {
+        ...pdfScenario.diagram,
+        nodes: pdfScenario.diagram.nodes.map((node) =>
+          node.type === "slot" && node.id === "api-entry"
+            ? {
+                ...node,
+                answers: node.answers.map((a) =>
+                  a.service === "alb" ? { ...a, grade: "optimal" as const } : a,
+                ),
+              }
+            : node,
+        ),
+      },
+    };
+    const reveal = (scenario = pdfScenario) =>
+      applyCommand(newSession(scenario), commands.revealSolution("api-entry")).state;
+
+    it("explains the first optimal answer as «Solución vista», without actions", () => {
+      const { panel } = renderPanel(reveal(), "api-entry");
+      expect(panel.dataset.status).toBe("revealed");
+      expect(within(panel).getByRole("heading").textContent).toContain("Solución vista");
+      expect(panel.textContent).toContain("No suma puntos");
+      expect(panel.textContent).not.toMatch(/También (es|son) óptimo/);
+      expect(within(panel).queryByRole("button", { name: "Probar otra" })).toBeNull();
+    });
+
+    it("names the other optimal answers when there is more than one", () => {
+      const { panel } = renderPanel(reveal(twoOptimal), "api-entry");
+      expect(panel.textContent).toContain("Amazon API Gateway");
+      expect(panel.textContent).toContain(
+        `También es óptimo: ${services.get("alb")?.name ?? "alb"}`,
+      );
+    });
+  });
 });

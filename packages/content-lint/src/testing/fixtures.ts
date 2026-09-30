@@ -95,6 +95,7 @@ export const gameRules: GameRules = {
     greenAfterErrors: { penaltyPerError: 25, min: 25 },
     acceptedAcceptable: 50,
     hintCost: 15,
+    revealedSolution: 0,
   },
   levelMultipliers: { "100": 1, "200": 1.5, "300": 2, "400": 3 },
   ranks: [

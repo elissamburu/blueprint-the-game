@@ -98,8 +98,15 @@ describe("slotPoints (docs/01 Reglas de puntaje)", () => {
       greenAfterErrors: { penaltyPerError: 4, min: 3 },
       acceptedAcceptable: 7,
       hintCost: 1,
+      revealedSolution: 2,
     };
-    const base = { slotId: "a", accepted: false, placements: 1, hintsRevealed: 1 };
+    const base = {
+      slotId: "a",
+      accepted: false,
+      placements: 1,
+      hintsRevealed: 1,
+      revealed: false,
+    };
     const green = {
       ...base,
       placed: "lambda",
@@ -126,6 +133,9 @@ describe("slotPoints (docs/01 Reglas de puntaje)", () => {
         scoring,
       ),
     ).toBe(6);
+    // A viewed solution scores revealedSolution, minus its hints like any slot.
+    expect(slotPoints({ ...green, errors: 3, revealed: true }, scoring)).toBe(1);
+    expect(slotPoints({ ...green, errors: 0, hintsRevealed: 0, revealed: true }, scoring)).toBe(2);
   });
 });
 
@@ -190,6 +200,45 @@ describe("scenarioResult", () => {
       commands.placeService("a", "lambda"),
     );
     expect(scenarioResult(retried)).toMatchObject({ perfect: false, score: 100 });
+  });
+
+  it("gives 0 for a viewed solution and never counts it as green (RF-PLAY-14)", () => {
+    const state = play(
+      createSession(scenario([slot("a"), slot("b"), slot("c")], { level: 200 }), gameRules),
+      commands.placeService("a", "lambda"), // 100
+      commands.useHint("b"),
+      commands.placeService("b", "ec2"),
+      commands.revealSolution("b"), // 0, not 100 − 25 − 15
+      commands.revealSolution("c"), // 0, never placed
+    );
+    const result = scenarioResult(state);
+    expect(result).toMatchObject({
+      completed: true,
+      score: 100,
+      xp: 150,
+      solutionsViewed: 2,
+      hintsUsed: 1,
+      perfect: false,
+    });
+    expect(result.slots.map((s) => [s.slotId, s.grade, s.revealed, s.points, s.firstTry])).toEqual([
+      ["a", "optimal", false, 100, true],
+      ["b", "optimal", true, 0, false],
+      ["c", "optimal", true, 0, false],
+    ]);
+  });
+
+  it("is not perfect when every slot was revealed", () => {
+    const state = play(
+      createSession(scenario([slot("a"), slot("b")]), gameRules),
+      commands.revealSolution(null),
+    );
+    expect(scenarioResult(state)).toMatchObject({
+      completed: true,
+      perfect: false,
+      score: 0,
+      xp: 0,
+      solutionsViewed: 2,
+    });
   });
 
   it("reports an unfinished session as not completed", () => {

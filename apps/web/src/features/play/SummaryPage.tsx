@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// /escenarios/:id/resumen (RF-PLAY-09, RF-PLAY-13, RF-GAM-10; docs/design, capturas 09–11 and
-// problemas 16–20). The result arrives through the navigation state, validated at the boundary;
+// /escenarios/:id/resumen (RF-PLAY-09, RF-PLAY-13, RF-PLAY-14, RF-GAM-10; docs/design, capturas
+// 09–11 and problemas 16–20). Slots whose solution was viewed are reviewed as "Solución vista"
+// with 0 points, and the hero says the scenario was completed that way (completed, not green). The result arrives through the navigation state, validated at the boundary;
 // the review, the counts and every number come from game-engine. No badges: they are F4.
 // The title takes the focus when the page opens and the XP, rank and unlocks are announced in a
 // polite live region (the game screen does not toast them, so they are read once).
@@ -22,6 +23,7 @@ import {
   AwardIcon,
   CircleCheckIcon,
   ExternalLinkIcon,
+  EyeIcon,
   FlagIcon,
   LockOpenIcon,
   MinusIcon,
@@ -189,6 +191,12 @@ function SummaryView({
           {t("play.summary.title")}
         </h1>
         <p className="mx-auto mt-2 max-w-[640px] text-lg opacity-90">{scenario.title}</p>
+        {counts.revealed > 0 && (
+          <p className="mx-auto mt-3 inline-flex items-center gap-2 rounded-md border border-dashed border-primary-foreground/60 px-3 py-1 text-base">
+            <EyeIcon aria-hidden className="size-4 shrink-0" />
+            {t("play.summary.solutionsViewed", { count: counts.revealed })}
+          </p>
+        )}
       </section>
 
       <div className="mx-auto max-w-[860px] px-4 md:px-6">
@@ -225,6 +233,12 @@ function SummaryView({
                 <li className="inline-flex items-center gap-1 text-warning">
                   <MinusIcon aria-hidden className="size-4" />
                   {t("play.summary.counts.accepted", { count: counts.accepted })}
+                </li>
+              )}
+              {counts.revealed > 0 && (
+                <li className="inline-flex items-center gap-1 text-blueprint">
+                  <EyeIcon aria-hidden className="size-4" />
+                  {t("play.summary.counts.revealed", { count: counts.revealed })}
                 </li>
               )}
             </ul>
@@ -439,6 +453,11 @@ function ReviewItem({
   const chosenName = chosen?.name ?? item.chosen ?? t("play.summary.empty");
   const choseOptimal = item.optimal.some((answer) => answer.serviceId === item.chosen);
   const name = (id: string) => services.get(id)?.name ?? id;
+  // A viewed solution shows the first optimal answer; the others are named after it.
+  const alsoOptimal =
+    item.status === "revealed"
+      ? item.optimal.filter((a) => a.serviceId !== item.chosen).map((a) => name(a.serviceId))
+      : [];
   const meta = [
     t("play.summary.hints", { count: item.hintsUsed }),
     ...(item.errors > 0 ? [t("play.summary.errors", { count: item.errors })] : []),
@@ -466,11 +485,24 @@ function ReviewItem({
         <p className="text-sm text-muted-foreground">{item.role}</p>
         <h3 className="mt-1 text-base font-semibold">
           <span className="text-sm font-normal text-muted-foreground">
-            {t("play.summary.yourChoice")}:{" "}
+            {t(
+              item.status === "revealed"
+                ? "play.summary.solutionViewed"
+                : "play.summary.yourChoice",
+            )}
+            :{" "}
           </span>
           {chosenName}
         </h3>
         <p className="mt-1 text-sm text-muted-foreground">{meta.join(" · ")}</p>
+        {alsoOptimal.length > 0 && (
+          <p className="mt-2 text-sm font-bold">
+            {t("play.summary.alsoOptimal", {
+              count: alsoOptimal.length,
+              services: new Intl.ListFormat("es", { type: "conjunction" }).format(alsoOptimal),
+            })}
+          </p>
+        )}
         {!choseOptimal && (
           <p className="mt-3 flex items-center gap-1 text-sm font-bold">
             <CircleCheckIcon aria-hidden className="size-4 text-success" />

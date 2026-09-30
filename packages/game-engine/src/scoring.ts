@@ -12,6 +12,8 @@ export interface SlotResult {
   readonly serviceId: string | null;
   readonly grade: EvaluationGrade | null;
   readonly accepted: boolean;
+  /** The player viewed the solution (RF-PLAY-14): `serviceId` is the optimal answer shown. */
+  readonly revealed: boolean;
   readonly errors: number;
   readonly hintsUsed: number;
   /** Green with a single placement. */
@@ -32,6 +34,8 @@ export interface ScenarioResult {
   /** `score × multiplier`, rounded to the nearest integer. */
   readonly xp: number;
   readonly hintsUsed: number;
+  /** Slots whose solution the player viewed (RF-PLAY-14). */
+  readonly solutionsViewed: number;
   /** Completed with every slot green at the first attempt. */
   readonly perfect: boolean;
   readonly slots: readonly SlotResult[];
@@ -41,6 +45,7 @@ export interface ScenarioResult {
  * Points of one slot:
  * - green: `firstTryGreen` with no red placements, else `max(min, firstTryGreen − penaltyPerError·N)`;
  * - accepted orange: `acceptedAcceptable`;
+ * - solution viewed (RF-PLAY-14): `revealedSolution` (0 in content/game-rules.yaml);
  * - anything else (unfinished): 0;
  * minus `hintCost` per hint, never below 0.
  */
@@ -56,7 +61,9 @@ export const slotPoints = (slot: SlotState, scoring: GameRules["scoring"]): numb
           )
       : status === "accepted"
         ? scoring.acceptedAcceptable
-        : 0;
+        : status === "revealed"
+          ? scoring.revealedSolution
+          : 0;
   return Math.max(0, base - scoring.hintCost * slot.hintsRevealed);
 };
 
@@ -80,8 +87,10 @@ export const scenarioResult = (state: SessionState): ScenarioResult => {
     serviceId: slot.placed,
     grade: slot.evaluation?.grade ?? null,
     accepted: slot.accepted,
+    revealed: slot.revealed,
     errors: slot.errors,
     hintsUsed: slot.hintsRevealed,
+    // A revealed slot is never "optimal" for slotStatus, so it is never a first-try green.
     firstTry: slotStatus(slot) === "optimal" && slot.placements === 1,
     points: slotPoints(slot, rules.scoring),
   }));
@@ -98,6 +107,7 @@ export const scenarioResult = (state: SessionState): ScenarioResult => {
     multiplier,
     xp: Math.round(score * multiplier),
     hintsUsed: slots.reduce((sum, slot) => sum + slot.hintsUsed, 0),
+    solutionsViewed: slots.filter((slot) => slot.revealed).length,
     perfect: state.completed && slots.every((slot) => slot.firstTry),
     slots,
   };
