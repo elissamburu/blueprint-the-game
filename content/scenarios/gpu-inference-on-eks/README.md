@@ -27,12 +27,16 @@ opera el clúster. Los nodos corren en **subredes privadas** y las imágenes se 
 El equipo de datos ajustó un **modelo de lenguaje open-weights** para **clasificar y resumir
 reclamos**. Le cambió la arquitectura (agregó una cabeza de clasificación propia) y entrenó
 **adaptadores** por tipo de reclamo que el motor carga **en caliente**, sin reiniciar. Lo
-sirve con un **motor de inferencia de código abierto** en un contenedor, que expone una API
-HTTP y **devuelve el resumen a medida que lo genera**.
+sirve con un **motor de inferencia de código abierto** en un contenedor.
+
+Los sistemas internos de reclamos **no necesitan la respuesta en el momento**: dejan cada
+reclamo **en espera de procesamiento**, los pods de inferencia lo toman cuando pueden y
+devuelven la clasificación y el resumen a la API interna del sistema de reclamos. La
+cantidad de réplicas sigue a la **cantidad de reclamos pendientes**.
 
 La demanda sigue el día: **picos a la mañana**, cuando entran los reclamos de la noche, y
-**casi nada de noche**. Los pedidos duran desde un segundo (clasificar) hasta varios minutos
-(resumir un expediente largo).
+**casi nada de noche**. Procesar un reclamo lleva desde un segundo (clasificar) hasta
+varios minutos (resumir un expediente largo).
 
 Los **pesos del modelo pesan decenas de GB**: en el pico, varios nodos nuevos los descargan
 a la vez, y cada minuto que tardan es un minuto de GPU pagada sin responder.
@@ -47,7 +51,8 @@ a la vez, y cada minuto que tardan es un minuto de GPU pagada sin responder.
 | `no-idle-capacity` | Meta | cost | No pagar capacidad ociosa de noche: ni GPUs ni almacenamiento aprovisionado que nadie usa. |
 | `fast-node-ready` | Meta | scalability | Que un nodo nuevo sirva pedidos lo antes posible en el pico de la mañana, aunque los pesos pesen decenas de GB. |
 | `gpu-metrics` | Meta | operations | Tener métricas de uso y de memoria de GPU por nodo y por pod para dimensionar instancias y réplicas. |
-| `balanced-load` | Meta | latency | Repartir los pedidos según la carga real de cada réplica: duran de un segundo a varios minutos y la respuesta llega de a partes. |
+| `absorb-peaks` | Meta | availability | En el pico de la mañana ningún reclamo se pierde ni se rechaza mientras arrancan los nodos, y la capacidad crece con los reclamos pendientes. |
+| `model-updates` | Meta | operations | El equipo de datos publica pesos y adaptadores nuevos sin reconstruir la imagen del motor. |
 
 ## Diagrama con las respuestas óptimas
 
@@ -64,24 +69,26 @@ flowchart LR
         n_gpu_compute["Amazon EC2"]
       end
       n_weights_private_path["Gateway VPC endpoint"]
-      n_entry["Application Load Balancer"]
     end
     n_registry["Amazon ECR"]
     n_platform["Amazon EKS"]
     n_weights_store["Amazon S3"]
     n_gpu_metrics["Amazon CloudWatch"]
+    n_claims_queue["Amazon SQS"]
   end
   n_data_team ==>|"1. Publica pesos y adaptadores"| n_weights_store
   n_gitops --o|"1. Sincroniza el chart de Helm"| n_platform
-  n_platform --o|"2. Crea un nodo con GPU por demanda"| n_gpu_compute
-  n_gpu_compute ==>|"3. Descarga la imagen del motor"| n_registry
-  n_gpu_compute ==>|"4. Pide los pesos del modelo"| n_weights_private_path
-  n_weights_private_path ==>|"5. Lee los pesos por la red privada"| n_weights_store
-  n_consumers -->|"6. Pide clasificar o resumir"| n_entry
-  n_entry -->|"7. Envía a la réplica menos cargada"| n_gpu_compute
-  n_gpu_compute -.->|"8. Métricas de uso de GPU"| n_gpu_metrics
+  n_consumers -.->|"2. Deja el reclamo pendiente"| n_claims_queue
+  n_claims_queue --o|"3. Cantidad de reclamos pendientes"| n_platform
+  n_platform --o|"4. Crea un nodo con GPU por demanda"| n_gpu_compute
+  n_gpu_compute ==>|"5. Descarga la imagen del motor"| n_registry
+  n_gpu_compute ==>|"6. Pide los pesos del modelo"| n_weights_private_path
+  n_weights_private_path ==>|"7. Lee los pesos por la red privada"| n_weights_store
+  n_gpu_compute -->|"8. Toma reclamos y los confirma"| n_claims_queue
+  n_gpu_compute -->|"9. Devuelve clasificación y resumen"| n_consumers
+  n_gpu_compute -.->|"9. Métricas de uso de GPU"| n_gpu_metrics
   classDef slot stroke-dasharray: 6 4,stroke-width:2px
-  class n_platform,n_gpu_compute,n_weights_store,n_weights_private_path,n_gpu_metrics,n_entry slot
+  class n_platform,n_gpu_compute,n_weights_store,n_weights_private_path,n_gpu_metrics,n_claims_queue slot
 ```
 
 ## Respuestas
@@ -110,7 +117,7 @@ Pistas:
 |---|---|---|---|---|
 | Amazon EC2 (`ec2`) | 🟢 Óptimo | `gpu`, `no-idle-capacity` | Instancias con GPU (familias G y P) como nodos. Con Auto Mode o Karpenter se crean cuando hay pods de GPU pendientes y se eliminan cuando quedan vacías: de noche queda casi nada. Auto Mode trae los drivers de NVIDIA y el plugin de dispositivos; con nodos propios, la AMI acelerada trae el driver y el toolkit, y el plugin se instala aparte. | [1](https://docs.aws.amazon.com/eks/latest/userguide/auto-accelerated.html) [2](https://docs.aws.amazon.com/eks/latest/userguide/ml-eks-optimized-ami.html) |
 | AWS Fargate (`fargate`) | 🔴 Incorrecto | viola `gpu` | Las consideraciones de uso con Kubernetes lo dicen explícitamente: las GPU no están disponibles en esta capacidad serverless. Tampoco corre DaemonSets, que usan los agentes de GPU y de métricas. |  |
-| AWS Lambda (`lambda`) | 🔴 Incorrecto | viola `gpu`, `same-platform` | No ofrece GPU y no forma parte del clúster: no puede ser el nodo donde corren los pods de inferencia. |  |
+| AWS Lambda (`lambda`) | 🔴 Incorrecto | viola `same-platform` | No es un nodo del clúster: no puede alojar los pods de inferencia. Y sus cuotas documentadas no alcanzan para este modelo: hasta 10.240 MB de memoria por función y 15 minutos por invocación (90 en algunos casos con Managed Instances), con pesos de decenas de GB y resúmenes que tardan minutos. |  |
 
 Pistas:
 
@@ -123,11 +130,11 @@ Pistas:
 
 | Servicio | Grado | Objetivos | Justificación | Referencias |
 |---|---|---|---|---|
-| Amazon S3 (`s3`) | 🟢 Óptimo | `fast-node-ready`, `no-idle-capacity` | Los pesos quedan en un bucket y cada réplica nueva los lee en paralelo. La guía de inferencia de AWS usa Run:ai Model Streamer, una herramienta de código abierto de NVIDIA que el motor usa para llevarlos directo a la memoria de la GPU; el driver CSI de Mountpoint es otra opción. Se paga lo guardado y los pedidos: de noche no queda capacidad aprovisionada ociosa. | [1](https://docs.aws.amazon.com/eks/latest/userguide/ml-inference.html) [2](https://docs.aws.amazon.com/eks/latest/userguide/ml-inference-fast-model-loading.html) [3](https://docs.aws.amazon.com/eks/latest/userguide/s3-csi.html) |
+| Amazon S3 (`s3`) | 🟢 Óptimo | `fast-node-ready`, `no-idle-capacity`, `model-updates` | Los pesos quedan en un bucket y cada réplica nueva los lee en paralelo. La guía de inferencia de AWS usa Run:ai Model Streamer, una herramienta de código abierto de NVIDIA que el motor usa para llevarlos directo a la memoria de la GPU; el driver CSI de Mountpoint es otra opción. Se paga lo guardado y los pedidos: de noche no queda capacidad aprovisionada ociosa. | [1](https://docs.aws.amazon.com/eks/latest/userguide/ml-inference.html) [2](https://docs.aws.amazon.com/eks/latest/userguide/ml-inference-fast-model-loading.html) [3](https://docs.aws.amazon.com/eks/latest/userguide/s3-csi.html) |
 | Amazon FSx (`fsx`) | 🟠 Aceptable | `no-idle-capacity` | Funciona y es rápido: vinculado al bucket y precalentado, sirve los pesos a muchos nodos a la vez, y la guía de almacenamiento para IA lo recomienda con varias instancias con GPU. Pero se aprovisiona por capacidad, con throughput proporcional a ella, y se paga también de noche, cuando no hay GPUs. | [1](https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html) [2](https://docs.aws.amazon.com/fsx/latest/LustreGuide/ssd-storage.html) |
 | Amazon EFS (`efs`) | 🟠 Aceptable | `fast-node-ready` | Un sistema de archivos compartido y elástico que no se aprovisiona: se paga lo guardado y lo leído. La guía lo propone para caches de modelos con necesidades de rendimiento moderadas; cada cliente llega a 1.500 MiBps como máximo, así que decenas de GB por nodo tardan más que leerlos en paralelo. | [1](https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html) [2](https://docs.aws.amazon.com/efs/latest/ug/performance.html) |
+| Amazon ECR (`ecr`) | 🟠 Aceptable | `fast-node-ready`, `model-updates` | Funciona: los pesos viajan dentro de la imagen del motor. Pero cada nodo nuevo baja una imagen de decenas de GB antes de arrancar, y cada modelo o adaptador nuevo obliga a reconstruir la imagen y redesplegar. La guía de almacenamiento para IA recomienda no embeber los pesos en la imagen porque agranda la imagen y el tiempo de descarga. | [1](https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html) |
 | Amazon EBS (`ebs`) | 🔴 Incorrecto | — | Un volumen de bloques se conecta, en general, a un solo nodo y vive en una zona: cada nodo nuevo necesitaría su propia copia de los pesos, y alguien tendría que cargarla antes de que el nodo arranque. |  |
-| Amazon ECR (`ecr`) | 🔴 Incorrecto | — | Meter decenas de GB de pesos en la imagen del motor agranda cada descarga y obliga a reconstruir la imagen por cada adaptador nuevo. La guía recomienda montar los pesos como volumen y no embeberlos en la imagen. |  |
 
 Pistas:
 
@@ -164,20 +171,21 @@ Pistas:
 
 1. Buscá el servicio de métricas y logs que ya tiene una vista específica para contenedores.
 
-### Casillero `entry`
+### Casillero `claims-queue`
 
-> Puerta de entrada interna que reparte los pedidos HTTP entre las réplicas del motor, con respuestas que llegan de a partes.
+> Donde esperan los reclamos hasta que una réplica los toma; su cantidad de pendientes decide cuántas réplicas corren.
 
 | Servicio | Grado | Objetivos | Justificación | Referencias |
 |---|---|---|---|---|
-| Application Load Balancer (`alb`) | 🟢 Óptimo | `balanced-load`, `same-platform` | Se crea desde un Ingress con el controlador de balanceadores, como el resto de la plataforma: interno y con targets IP, directo a los pods. Balancea HTTP y permite el algoritmo de menos pedidos pendientes, que no apila pedidos largos en una réplica. El streaming mantiene viva la conexión; si el primer token tarda, se sube el idle timeout (60 s por defecto, hasta 4000 s). | [1](https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html) [2](https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html) |
-| Network Load Balancer (`nlb`) | 🟠 Aceptable | `balanced-load` | Funciona: el streaming viaja sobre TCP y también se crea desde el clúster, con un Service de tipo LoadBalancer. Pero balancea en capa 4, por conexión, sin ver los pedidos HTTP, así que no puede elegir la réplica con menos pedidos pendientes. La guía lo recomienda para TCP o UDP, o para preservar la IP de origen. | [1](https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html) |
-| Amazon API Gateway (`apigateway`) | 🔴 Incorrecto | — | Para llegar a un servicio privado del clúster necesita un VPC link hacia un balanceador interno: no lo reemplaza, se sumaría delante sin resolver cómo repartir los pedidos entre las réplicas. |  |
+| Amazon SQS (`sqs`) | 🟢 Óptimo | `absorb-peaks`, `no-idle-capacity` | Cada reclamo espera en la cola (4 días por defecto, hasta 14) y los pods lo toman a su ritmo: en el pico nada se pierde mientras arrancan los nodos. KEDA, un proyecto graduado de la CNCF (no de AWS), escala las réplicas según los mensajes pendientes y las baja a cero sin mensajes; los nodos vacíos se eliminan. El visibility timeout (hasta 12 h) tiene que cubrir el resumen más largo. | [1](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html) [2](https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html) [3](https://keda.sh/docs/2.17/scalers/aws-sqs/) |
+| Amazon Kinesis Data Streams (`kinesis-data-streams`) | 🟠 Aceptable | `absorb-peaks`, `no-idle-capacity` | Retiene los registros, así que el pico no se pierde. Pero no es una cola de trabajo: cada shard se lee en orden (un resumen largo frena a los que vienen detrás) y no hay confirmación por mensaje. El escalador de KEDA para este servicio dimensiona por cantidad de shards, no por trabajo pendiente: las réplicas no crecen con el pico ni bajan a cero de noche. | [1](https://docs.aws.amazon.com/streams/latest/dev/how-do-i-size-a-stream.html) [2](https://keda.sh/docs/2.17/scalers/aws-kinesis/) |
+| Amazon SNS (`sns`) | 🔴 Incorrecto | viola `absorb-peaks` | Es pub/sub: empuja cada mensaje a sus suscriptores en el momento y no lo guarda para que los pods lo tomen a su ritmo. Con los nodos todavía arrancando, no hay quién lo reciba. Para trabajo pendiente se lo pone delante de una cola, no en su lugar. |  |
+| Amazon EventBridge (`eventbridge`) | 🔴 Incorrecto | — | Enruta eventos a destinos según reglas; no es una cola de trabajo de la que los pods tomen reclamos cuando pueden, ni expone cuántos quedan pendientes para escalar. |  |
 
 Pistas:
 
-1. El motor habla HTTP: elegí algo que entienda los pedidos, no solo las conexiones.
-2. Hay un algoritmo de balanceo que mira cuántos pedidos tiene pendientes cada réplica.
+1. Nadie espera la respuesta en el momento: el trabajo puede esperar a que haya una réplica libre.
+2. Buscá algo de lo que los pods tomen mensajes cuando pueden, y que diga cuántos quedan pendientes.
 
 ## Referencias
 

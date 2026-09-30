@@ -22,12 +22,16 @@ context: |
   El equipo de datos ajustó un **modelo de lenguaje open-weights** para **clasificar y resumir
   reclamos**. Le cambió la arquitectura (agregó una cabeza de clasificación propia) y entrenó
   **adaptadores** por tipo de reclamo que el motor carga **en caliente**, sin reiniciar. Lo
-  sirve con un **motor de inferencia de código abierto** en un contenedor, que expone una API
-  HTTP y **devuelve el resumen a medida que lo genera**.
+  sirve con un **motor de inferencia de código abierto** en un contenedor.
+
+  Los sistemas internos de reclamos **no necesitan la respuesta en el momento**: dejan cada
+  reclamo **en espera de procesamiento**, los pods de inferencia lo toman cuando pueden y
+  devuelven la clasificación y el resumen a la API interna del sistema de reclamos. La
+  cantidad de réplicas sigue a la **cantidad de reclamos pendientes**.
 
   La demanda sigue el día: **picos a la mañana**, cuando entran los reclamos de la noche, y
-  **casi nada de noche**. Los pedidos duran desde un segundo (clasificar) hasta varios minutos
-  (resumir un expediente largo).
+  **casi nada de noche**. Procesar un reclamo lleva desde un segundo (clasificar) hasta
+  varios minutos (resumir un expediente largo).
 
   Los **pesos del modelo pesan decenas de GB**: en el pico, varios nodos nuevos los descargan
   a la vez, y cada minuto que tardan es un minuto de GPU pagada sin responder.
@@ -57,10 +61,14 @@ objectives:
     kind: soft
     category: operations
     text: "Tener métricas de uso y de memoria de GPU por nodo y por pod para dimensionar instancias y réplicas."
-  - id: balanced-load
+  - id: absorb-peaks
     kind: soft
-    category: latency
-    text: "Repartir los pedidos según la carga real de cada réplica: duran de un segundo a varios minutos y la respuesta llega de a partes."
+    category: availability
+    text: "En el pico de la mañana ningún reclamo se pierde ni se rechaza mientras arrancan los nodos, y la capacidad crece con los reclamos pendientes."
+  - id: model-updates
+    kind: soft
+    category: operations
+    text: "El equipo de datos publica pesos y adaptadores nuevos sin reconstruir la imagen del motor."
 
 diagram:
   canvas: { width: 1500, height: 900 }
@@ -161,8 +169,8 @@ diagram:
           violates: [gpu]
           rationale: "Las consideraciones de uso con Kubernetes lo dicen explícitamente: las GPU no están disponibles en esta capacidad serverless. Tampoco corre DaemonSets, que usan los agentes de GPU y de métricas."
         - service: lambda
-          violates: [gpu, same-platform]
-          rationale: "No ofrece GPU y no forma parte del clúster: no puede ser el nodo donde corren los pods de inferencia."
+          violates: [same-platform]
+          rationale: "No es un nodo del clúster: no puede alojar los pods de inferencia. Y sus cuotas documentadas no alcanzan para este modelo: hasta 10.240 MB de memoria por función y 15 minutos por invocación (90 en algunos casos con Managed Instances), con pesos de decenas de GB y resúmenes que tardan minutos."
       hints:
         - "La capacidad serverless de contenedores no tiene lo que este modelo necesita."
         - "Pensá en máquinas virtuales con aceleradores que el clúster crea y destruye solo."
@@ -175,7 +183,7 @@ diagram:
       answers:
         - service: s3
           grade: optimal
-          objectives: [fast-node-ready, no-idle-capacity]
+          objectives: [fast-node-ready, no-idle-capacity, model-updates]
           rationale: >
             Los pesos quedan en un bucket y cada réplica nueva los lee en paralelo. La guía de
             inferencia de AWS usa Run:ai Model Streamer, una herramienta de código abierto de
@@ -208,11 +216,19 @@ diagram:
           references:
             - https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html
             - https://docs.aws.amazon.com/efs/latest/ug/performance.html
+        - service: ecr
+          grade: acceptable
+          objectives: [fast-node-ready, model-updates]
+          rationale: >
+            Funciona: los pesos viajan dentro de la imagen del motor. Pero cada nodo nuevo baja
+            una imagen de decenas de GB antes de arrancar, y cada modelo o adaptador nuevo obliga
+            a reconstruir la imagen y redesplegar. La guía de almacenamiento para IA recomienda
+            no embeber los pesos en la imagen porque agranda la imagen y el tiempo de descarga.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html
       incorrect:
         - service: ebs
           rationale: "Un volumen de bloques se conecta, en general, a un solo nodo y vive en una zona: cada nodo nuevo necesitaría su propia copia de los pesos, y alguien tendría que cargarla antes de que el nodo arranque."
-        - service: ecr
-          rationale: "Meter decenas de GB de pesos en la imagen del motor agranda cada descarga y obliga a reconstruir la imagen por cada adaptador nuevo. La guía recomienda montar los pesos como volumen y no embeberlos en la imagen."
       hints:
         - "Nada de lo que elijas debería cobrarse de noche si no hay nodos."
         - "La guía de inferencia de AWS lee los pesos en paralelo, directo a la memoria de la GPU, desde el almacén más barato."
@@ -284,54 +300,62 @@ diagram:
       hints:
         - "Buscá el servicio de métricas y logs que ya tiene una vista específica para contenedores."
 
-    - id: entry
+    - id: claims-queue
       type: slot
-      role: "Puerta de entrada interna que reparte los pedidos HTTP entre las réplicas del motor, con respuestas que llegan de a partes."
-      position: { x: 520, y: 540 }
-      group: vpc
+      role: "Donde esperan los reclamos hasta que una réplica los toma; su cantidad de pendientes decide cuántas réplicas corren."
+      position: { x: 280, y: 480 }
+      group: region
       answers:
-        - service: alb
+        - service: sqs
           grade: optimal
-          objectives: [balanced-load, same-platform]
+          objectives: [absorb-peaks, no-idle-capacity]
           rationale: >
-            Se crea desde un Ingress con el controlador de balanceadores, como el resto de la
-            plataforma: interno y con targets IP, directo a los pods. Balancea HTTP y permite el
-            algoritmo de menos pedidos pendientes, que no apila pedidos largos en una réplica. El
-            streaming mantiene viva la conexión; si el primer token tarda, se sube el idle
-            timeout (60 s por defecto, hasta 4000 s).
+            Cada reclamo espera en la cola (4 días por defecto, hasta 14) y los pods lo toman a su
+            ritmo: en el pico nada se pierde mientras arrancan los nodos. KEDA, un proyecto
+            graduado de la CNCF (no de AWS), escala las réplicas según los mensajes pendientes y
+            las baja a cero sin mensajes; los nodos vacíos se eliminan. El visibility timeout
+            (hasta 12 h) tiene que cubrir el resumen más largo.
           references:
-            - https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html
-            - https://docs.aws.amazon.com/elasticloadbalancing/latest/application/edit-load-balancer-attributes.html
-        - service: nlb
+            - https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html
+            - https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
+            - https://keda.sh/docs/2.17/scalers/aws-sqs/
+        - service: kinesis-data-streams
           grade: acceptable
-          objectives: [balanced-load]
+          objectives: [absorb-peaks, no-idle-capacity]
           rationale: >
-            Funciona: el streaming viaja sobre TCP y también se crea desde el clúster, con un
-            Service de tipo LoadBalancer. Pero balancea en capa 4, por conexión, sin ver los
-            pedidos HTTP, así que no puede elegir la réplica con menos pedidos pendientes. La
-            guía lo recomienda para TCP o UDP, o para preservar la IP de origen.
+            Retiene los registros, así que el pico no se pierde. Pero no es una cola de trabajo:
+            cada shard se lee en orden (un resumen largo frena a los que vienen detrás) y no hay
+            confirmación por mensaje. El escalador de KEDA para este servicio dimensiona por
+            cantidad de shards, no por trabajo pendiente: las réplicas no crecen con el pico ni
+            bajan a cero de noche.
           references:
-            - https://docs.aws.amazon.com/eks/latest/best-practices/load-balancing.html
+            - https://docs.aws.amazon.com/streams/latest/dev/how-do-i-size-a-stream.html
+            - https://keda.sh/docs/2.17/scalers/aws-kinesis/
       incorrect:
-        - service: apigateway
-          rationale: "Para llegar a un servicio privado del clúster necesita un VPC link hacia un balanceador interno: no lo reemplaza, se sumaría delante sin resolver cómo repartir los pedidos entre las réplicas."
+        - service: sns
+          violates: [absorb-peaks]
+          rationale: "Es pub/sub: empuja cada mensaje a sus suscriptores en el momento y no lo guarda para que los pods lo tomen a su ritmo. Con los nodos todavía arrancando, no hay quién lo reciba. Para trabajo pendiente se lo pone delante de una cola, no en su lugar."
+        - service: eventbridge
+          rationale: "Enruta eventos a destinos según reglas; no es una cola de trabajo de la que los pods tomen reclamos cuando pueden, ni expone cuántos quedan pendientes para escalar."
       hints:
-        - "El motor habla HTTP: elegí algo que entienda los pedidos, no solo las conexiones."
-        - "Hay un algoritmo de balanceo que mira cuántos pedidos tiene pendientes cada réplica."
+        - "Nadie espera la respuesta en el momento: el trabajo puede esperar a que haya una réplica libre."
+        - "Buscá algo de lo que los pods tomen mensajes cuando pueden, y que diga cuántos quedan pendientes."
 
   edges:
     - { id: e1,  from: data-team,            to: weights-store,        step: 1, style: data,    label: "Publica pesos y adaptadores" }
     - { id: e2,  from: gitops,               to: platform,             step: 1, style: control, label: "Sincroniza el chart de Helm" }
-    - { id: e3,  from: platform,             to: gpu-compute,          step: 2, style: control, label: "Crea un nodo con GPU por demanda",
+    - { id: e3,  from: consumers,            to: claims-queue,         step: 2, style: async,   label: "Deja el reclamo pendiente" }
+    - { id: e4,  from: claims-queue,         to: platform,             step: 3, style: control, label: "Cantidad de reclamos pendientes",
+        description: "El escalador (KEDA) ajusta las réplicas según los pendientes; sin mensajes, baja a cero." }
+    - { id: e5,  from: platform,             to: gpu-compute,          step: 4, style: control, label: "Crea un nodo con GPU por demanda",
         description: "En el pico de la mañana aparecen nodos nuevos; de noche se eliminan los que quedan vacíos." }
-    - { id: e4,  from: gpu-compute,          to: registry,             step: 3, style: data,    label: "Descarga la imagen del motor" }
-    - { id: e5,  from: gpu-compute,          to: weights-private-path, step: 4, style: data,    label: "Pide los pesos del modelo",
+    - { id: e6,  from: gpu-compute,          to: registry,             step: 5, style: data,    label: "Descarga la imagen del motor" }
+    - { id: e7,  from: gpu-compute,          to: weights-private-path, step: 6, style: data,    label: "Pide los pesos del modelo",
         description: "Decenas de GB por réplica nueva: es el tramo que define cuánto tarda un nodo en servir." }
-    - { id: e6,  from: weights-private-path, to: weights-store,        step: 5, style: data,    label: "Lee los pesos por la red privada" }
-    - { id: e7,  from: consumers,            to: entry,                step: 6, style: sync,    label: "Pide clasificar o resumir" }
-    - { id: e8,  from: entry,                to: gpu-compute,          step: 7, style: sync,    label: "Envía a la réplica menos cargada",
-        description: "La respuesta vuelve de a partes, a medida que el motor genera el resumen." }
-    - { id: e9,  from: gpu-compute,          to: gpu-metrics,          step: 8, style: async,   label: "Métricas de uso de GPU" }
+    - { id: e8,  from: weights-private-path, to: weights-store,        step: 7, style: data,    label: "Lee los pesos por la red privada" }
+    - { id: e9,  from: gpu-compute,          to: claims-queue,         step: 8, style: sync,    label: "Toma reclamos y los confirma" }
+    - { id: e10, from: gpu-compute,          to: consumers,            step: 9, style: sync,    label: "Devuelve clasificación y resumen" }
+    - { id: e11, from: gpu-compute,          to: gpu-metrics,          step: 9, style: async,   label: "Métricas de uso de GPU" }
 
 palette:
   mode: auto
