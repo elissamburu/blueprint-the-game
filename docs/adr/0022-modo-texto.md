@@ -6,7 +6,7 @@
 ## Contexto
 El diagrama es el centro del juego y es una imagen compleja: nodos posicionados en dos dimensiones, grupos anidados (Cloud, Región, VPC, subredes) y aristas numeradas que describen el flujo. Aunque cada casillero sea enfocable y tenga nombre accesible ([ADR-0008](0008-interaccion-desacoplada.md)), recorrer un lienzo 2D con lector de pantalla no transmite la estructura: el orden de Tab no es el orden del flujo y las relaciones entre nodos no se leen.
 
-Con lupa o zoom al 400 % pasa algo parecido: el diagrama necesita scroll en dos dimensiones y se pierde el contexto. WCAG admite ese scroll para contenido que requiere dos dimensiones ([1.4.10 Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)), pero el juego tiene que poder jugarse igual.
+Con lupa o zoom al 400 % pasa algo parecido: el diagrama necesita scroll en dos dimensiones y se pierde el contexto. WCAG admite ese scroll para contenido que requiere dos dimensiones ([1.4.10 Reflow](https://www.w3.org/WAI/WCAG22/Understanding/reflow.html)), pero el juego tiene que poder jugarse igual. Además, el texto del tablero va en `px` y escala con el zoom propio del tablero, no con el tamaño de letra del navegador ([accesibilidad, "Tamaños en `rem`"](../accesibilidad.md#2-baja-visión)): quien agranda solo la letra no ve cambios en el diagrama.
 
 La guía de W3C para imágenes complejas pide una alternativa textual equivalente que transmita la misma información, no solo una descripción corta ([Complex Images](https://www.w3.org/WAI/tutorials/images/complex/)). En este juego la alternativa además tiene que ser **operable**: no alcanza con describir el diagrama, hay que poder completarlo.
 
