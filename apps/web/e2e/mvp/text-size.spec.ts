@@ -107,6 +107,8 @@ test("fuera del tablero ningún texto visible baja de 12 px", async ({ page }) =
   await expect(page.getByRole("menu")).toBeVisible();
   await expectReadable(page, "juego, con el menú abierto");
   await page.keyboard.press("Escape");
+  // Gone, not just closing: a click on "⋯" while it fades out would leave it closed.
+  await expect(page.getByRole("menu")).toBeHidden();
 
   await slot(page, store.role).click();
   await page.getByRole("button", { name: "Más acciones" }).click();

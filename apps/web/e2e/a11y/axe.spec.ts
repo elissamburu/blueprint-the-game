@@ -91,6 +91,8 @@ test("juego: «Ver caso», menú, aviso de solución, casillero revelado y palet
   await expect(page.getByRole("menu")).toBeVisible();
   await expectNoBlockingViolations(page, "juego, con el menú abierto");
   await page.keyboard.press("Escape");
+  // Gone, not just closing: a click on "⋯" while it fades out would leave it closed.
+  await expect(page.getByRole("menu")).toBeHidden();
 
   await revealStore(page);
   const notice = page.getByRole("alertdialog", { name: "¿Ver la solución de este casillero?" });
