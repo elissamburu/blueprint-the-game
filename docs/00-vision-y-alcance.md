@@ -42,7 +42,7 @@ La clave pedagógica: **"óptimo" siempre se justifica contra objetivos explíci
 - Certificaciones/acreditaciones con valor externo (las insignias son internas).
 - Anti-trampa: las respuestas son públicas por diseño; el objetivo es no hacerse trampa a uno mismo.
 - Multijugador en tiempo real, leaderboards globales (candidato a v2, opt-in).
-- Contenido multilenguaje (v1 = español; la UI sí nace con i18n; ver [ADR-0017](adr/0017-i18n.md)).
+- Contenido multilenguaje (v1 = español; la UI sí nace con i18n; ver [ADR-0017](adr/0017-i18n.md) y, para el formato futuro, [ADR-0023](adr/0023-contenido-multiidioma.md)).
 - Casilleros que aceptan combinaciones de varios servicios (v1 = un servicio por casillero).
 - Studio hosteado públicamente (v1 = local; ver [ADR-0013](adr/0013-scenario-studio-local-con-ia.md)).
 
@@ -71,6 +71,8 @@ La clave pedagógica: **"óptimo" siempre se justifica contra objetivos explíci
 4. **Seguro por defecto.** Sin secretos en el repo, OIDC, mínimo privilegio, PRs de forks sin credenciales.
 5. **Barato en reposo.** Sin recursos con costo fijo por hora en la arquitectura base (todo serverless / pago por uso).
 6. **Contribuir en menos de 10 minutos.** `pnpm i && pnpm dev` levanta juego + Studio sin cuenta de AWS.
+7. **Aprender con desafíos, no competir ni rendir examen.** El objetivo es que el jugador entienda; el puntaje y la progresión acompañan, no juzgan. Por eso existen las pistas y la opción de **mostrar la solución** (RF-PLAY-14): trabarse no puede ser un callejón sin salida, y ver una respuesta nunca quita progreso. Las rutas de certificación y el modo examen son práctica, no una evaluación con valor externo.
+8. **La accesibilidad es un requisito de producto, no una fase.** Todo el sitio apunta a WCAG 2.2 AA desde la primera pantalla ([accesibilidad](accesibilidad.md)); un RF no está terminado si no se puede usar con teclado, lector de pantalla, lupa o zoom. F6 hace la auditoría completa y agrega el modo texto ([ADR-0022](adr/0022-modo-texto.md)), pero no es donde "empieza" la accesibilidad.
 
 ## 7. Documentos relacionados
 
@@ -79,5 +81,6 @@ La clave pedagógica: **"óptimo" siempre se justifica contra objetivos explíci
 - [03 · Modelo de escenarios](03-modelo-de-escenarios.md)
 - [04 · Estructura del monorepo](04-estructura-monorepo.md)
 - [05 · Roadmap](05-roadmap.md)
+- [Accesibilidad](accesibilidad.md)
 - [ADRs](adr/README.md)
 - [Guía: configurar AWS en tu fork](guias/configurar-aws-en-tu-fork.md)

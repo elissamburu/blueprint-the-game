@@ -81,6 +81,7 @@
 | RF-NAV-04 | Cada tarjeta muestra: título, resumen, nivel, áreas, duración estimada, mejor resultado del jugador. | M | F1 |
 | RF-NAV-05 | Solo se listan escenarios con `status: published` (y `beta` con etiqueta "Beta"). `draft` y `retired` no se listan. | M | F1 |
 | RF-NAV-06 | **Escenario destacado de la semana** (configurable en contenido). | C | F7 |
+| RF-NAV-07 | **Rutas de certificación**: los escenarios se etiquetan con los **dominios publicados** en la guía oficial de cada examen de AWS ([AWS Certification Exam Guides](https://docs.aws.amazon.com/aws-certification/latest/examguides/aws-certification-exam-guides.html)); el listado permite filtrar por certificación y dominio, y cada certificación tiene una ruta ordenada de escenarios. Se vincula con el modo examen (RF-PLAY-12). | C | F7 |
 
 **CA RF-NAV-03**
 - El desbloqueo es por par **(área, nivel)**. XP y rango siguen siendo globales.
@@ -94,6 +95,11 @@
 - Un escenario es jugable si su nivel está desbloqueado en **al menos una** de sus áreas.
 - Los desbloqueos son permanentes: el progreso guarda los pares (área, nivel) abiertos como un conjunto que solo crece. Si después se publican más escenarios en el nivel N, el nivel N+1 ya abierto sigue abierto.
 - Jugar niveles inferiores o repetir escenarios nunca bloquea nada.
+
+**CA RF-NAV-07**
+- Las etiquetas usan **solo** el código del examen (p. ej. `SAA-C03`) y el nombre y número de dominio tal como figuran en su guía oficial pública. Nunca se incluyen preguntas reales de examen, preguntas "parecidas a las del examen" reconstruidas de memoria ni ningún otro contenido protegido por el acuerdo de certificación ([AWS Certification policies](https://aws.amazon.com/certification/policies/)).
+- La lista de exámenes y dominios vive en contenido (un archivo en `content/`, con el enlace a la guía y la versión del examen de la que salió), no en el código. Cuando AWS publica una versión nueva de un examen, se actualiza ese archivo por PR y el lint avisa de etiquetas que apuntan a dominios que ya no existen.
+- La UI aclara que las rutas son práctica de diseño relacionada con los dominios del examen, no una preparación oficial ni una garantía de aprobarlo, y mantiene el aviso de no afiliación con AWS (RF-OPS-03).
 
 ---
 
@@ -114,6 +120,10 @@
 | RF-PLAY-11 | Zoom/pan del diagrama y **ajuste automático a pantalla**. | M | F1 |
 | RF-PLAY-12 | **Modo examen** (opcional, niveles 300–400): el feedback de colores se muestra al enviar todo, no por casillero. | C | F7 |
 | RF-PLAY-13 | Botón **"Reportar un problema en este escenario"** que abre un issue de GitHub pre-cargado (id, versión, casillero, comentario). | S | F1 |
+| RF-PLAY-14 | **Mostrar solución**: desde el menú del juego, "Ver solución de este casillero" (con un casillero seleccionado) y "Ver solución completa", siempre con un aviso previo que invita a usar las pistas. Ver CA. | S | F1 |
+| RF-PLAY-15 | **"Reproducir flujo" visible**: el reproductor de flujo (RF-PLAY-03) se abre con un botón en la barra del juego, no escondido en el menú. "Reportar un problema" (RF-PLAY-13) sigue en el menú y en el resumen. | S | F1 |
+| RF-PLAY-16 | **Versión imprimible** del escenario, con estilos de impresión y "Guardar como PDF" del navegador, sin servidor. Ver CA. | C | F1 |
+| RF-PLAY-17 | **Animaciones**: microinteracciones al colocar un servicio, al mostrar el resultado de un casillero y al subir de rango, diseñadas en la herramienta de diseño como referencia visual ([ADR-0021](adr/0021-ui-shadcn-tailwind-y-referencia-visual.md)) y con alternativa sin movimiento bajo `prefers-reduced-motion` ([accesibilidad](accesibilidad.md#3-preferencias-del-sistema)). | C | F1 |
 
 **CA RF-PLAY-01**
 - Al entrar a cada escenario se abre el **brief**: nivel, áreas, duración estimada, contexto, restricciones, metas y una vista previa del diagrama de solo lectura con los casilleros vacíos. "Empezar a diseñar" (o Esc) lo cierra y deja el tablero.
@@ -128,6 +138,28 @@
 
 **CA RF-PLAY-05**
 - Todo lo que se puede hacer con drag se puede hacer con teclado (Tab/Enter/flechas) y con toque. Ambos caminos emiten el mismo comando del motor ([ADR-0008](adr/0008-interaccion-desacoplada.md)).
+
+**CA RF-PLAY-14**
+- Antes de revelar se muestra un aviso **sin tono de castigo**, que invita a probar una pista si al casillero le quedan (p. ej. "¿Querés probar con una pista primero? Si preferís ver la solución, este casillero no suma puntos, pero podés terminar el escenario igual"). Opciones: "Usar una pista" (si quedan), "Ver solución" y "Cancelar". "Ver solución completa" muestra un único aviso para todos los casilleros pendientes.
+- El casillero revelado muestra el servicio óptimo, su explicación, los objetivos que cumple y las referencias, igual que un verde (RF-EVAL-04), pero marcado como **"Solución vista"** con texto e ícono propios, no con el verde de acierto.
+- Un casillero revelado da **0 puntos** (ver la tabla de puntaje en EVAL) y no cuenta como verde al primer intento ni para insignias como `perfect_scenario` o `no_hints`.
+- Con casilleros revelados, el escenario **se puede completar y cuenta como completado** (para el listado, los desbloqueos de RF-NAV-03 y `complete_count`), pero **no "en verde"**: en RF-NAV-01 figura como completado, no como completado verde.
+- Mostrar la solución **nunca resta** progreso ni XP ya ganada y **nunca baja el mejor resultado** guardado del escenario: si una partida con soluciones vistas da menos puntos, se conserva el mejor anterior.
+- La decisión de qué se revela y cuánto puntúa la toma el motor (`game-engine`) con un comando nuevo, no la UI. Ese comando se suma a los de [ADR-0008](adr/0008-interaccion-desacoplada.md) con un ADR que lo extienda, propuesto en el PR que lo implementa.
+- Existe también en el modo texto ([ADR-0022](adr/0022-modo-texto.md)).
+
+**CA RF-PLAY-15**
+- El botón "Reproducir flujo" está en la barra del juego con ícono y texto visible (no solo ícono), con el mismo comportamiento que tenía la opción del menú.
+- Si el ancho no alcanza, la barra colapsa antes otros elementos secundarios; "Reproducir flujo" sale de la barra solo en modo foco.
+- "Reportar un problema" queda en el menú "⋯" y en la pantalla de resumen (RF-PLAY-09).
+
+**CA RF-PLAY-16**
+- Se imprime desde el navegador ("Imprimir" → "Guardar como PDF"); no hay generación de PDF en el servidor ni dependencias nuevas.
+- **Hoja 1**: el caso (título, nivel, áreas, contexto) y los objetivos, con restricciones y metas distinguidas por texto.
+- **Hoja 2**: el diagrama con los casilleros vacíos **numerados** y, debajo, la tira de pasos del flujo (número, etiqueta, origen → destino), para completar a mano.
+- **Opcional** (casilla "Incluir soluciones" antes de imprimir): una hoja por casillero con el óptimo, los aceptables, los incorrectos típicos, el porqué de cada uno y los enlaces a la documentación oficial.
+- Cada sección empieza en una **página nueva** (`break-before: page`); la barra del juego, la paleta y los controles no se imprimen.
+- Se imprime legible en blanco y negro: los grados de las hojas de solución se distinguen por texto e ícono, no por color.
 
 ---
 
@@ -171,6 +203,7 @@
 | Verde tras N errores | `max(25, 100 − 25·N)` |
 | Naranja aceptado por el jugador | 50 |
 | Cada pista usada | −15 (mínimo 0) |
+| Casillero con la solución vista (RF-PLAY-14) | 0 |
 | XP del escenario | `Σ puntos × multiplicador` (100: ×1 · 200: ×1,5 · 300: ×2 · 400: ×3) |
 
 ---

@@ -3,7 +3,7 @@
 | ID | Categoría | Requisito | Cómo se verifica |
 |---|---|---|---|
 | RNF-01 | Usabilidad / dispositivos | Desktop-first en v1 (≥ 1024 px). La capa de interacción y los componentes se diseñan para funcionar en mobile sin reescritura ([ADR-0008](adr/0008-interaccion-desacoplada.md)). En < 768 px, v1 muestra el juego en modo selección por toque (sin drag). | Test e2e en viewport 1280 y 390 |
-| RNF-02 | Accesibilidad | WCAG 2.1 AA. El color **nunca** es el único indicador: verde/naranja/rojo llevan además ícono y texto (✓ / ~ / ✗). Todo operable por teclado. | axe en CI + auditoría manual en F6 |
+| RNF-02 | Accesibilidad | WCAG 2.2 AA en todo el sitio ([accesibilidad](accesibilidad.md)). El color **nunca** es el único indicador: verde/naranja/rojo llevan además ícono y texto (✓ / ~ / ✗). Todo operable por teclado. | axe en CI + protocolo de pruebas manuales ([accesibilidad §7](accesibilidad.md#7-protocolo-de-pruebas)) + auditoría completa en F6 |
 | RNF-03 | Performance | LCP < 2,5 s en 4G simulado para la home y la pantalla de juego. Bundle JS inicial < 250 KB gzip (React Flow y editor YAML con carga diferida). | Lighthouse CI |
 | RNF-04 | Performance | Evaluar una colocación < 50 ms en el cliente (motor puro, sin red). | Test unitario con benchmark |
 | RNF-05 | Costo | **Sin recursos con costo fijo por hora** en la arquitectura base (sin NAT Gateway, ALB, RDS ni instancias). Todo pago por uso. Alarma de presupuesto AWS Budgets configurada por Terraform. | Revisión de `infra/` + checkov |
