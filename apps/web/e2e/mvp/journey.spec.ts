@@ -4,9 +4,11 @@
 // level it unlocked. Numbers come from the fixture game-rules.yaml (e2e/fixtures/content).
 import { expect, test } from "@playwright/test";
 import {
+  emptySlotName,
   feedback,
   finish,
   headerRank,
+  hintButton,
   onboard,
   paletteService,
   place,
@@ -43,7 +45,7 @@ test("un invitado completa un escenario, sube de rango y desbloquea el nivel sig
   await test.step("error: rojo con su explicación y la restricción que viola", async () => {
     await place(page, thumbnailer.role, thumbnailer.incorrect);
     await expect(slot(page, thumbnailer.role)).toHaveAccessibleName(
-      slotName(thumbnailer.role, "Incorrecto", thumbnailer.incorrect),
+      slotName(thumbnailer.number, "Incorrecto", thumbnailer.incorrect),
     );
     const card = feedback(page, "Incorrecto");
     await expect(card).toContainText("Hay que administrar instancias.");
@@ -53,7 +55,7 @@ test("un invitado completa un escenario, sube de rango y desbloquea el nivel sig
   });
 
   await test.step("pista: se revela y cuesta puntos", async () => {
-    await page.getByRole("button", { name: "Ver pista (−15 pts)" }).click();
+    await hintButton(page, "Ver pista (−15 pts)", thumbnailer.number).click();
     const hints = page.getByRole("dialog", { name: /^Pistas · / });
     await expect(hints).toContainText(thumbnailer.hints[0]);
     await expect(hints).not.toContainText(thumbnailer.hints[1]);
@@ -65,7 +67,7 @@ test("un invitado completa un escenario, sube de rango y desbloquea el nivel sig
   await test.step("aceptable: «Me quedo con esta»", async () => {
     await feedback(page, "Incorrecto").getByRole("button", { name: "Probar otra" }).click();
     await expect(slot(page, thumbnailer.role)).toHaveAccessibleName(
-      slotName(thumbnailer.role, "Vacío"),
+      emptySlotName(thumbnailer.number),
     );
     await paletteService(page, thumbnailer.acceptable).click();
     const card = feedback(page, "Aceptable");
@@ -79,7 +81,7 @@ test("un invitado completa un escenario, sube de rango y desbloquea el nivel sig
   await test.step("óptimo: verde al primer intento", async () => {
     await place(page, store.role, store.optimal);
     await expect(slot(page, store.role)).toHaveAccessibleName(
-      slotName(store.role, "Óptimo", store.optimal),
+      slotName(store.number, "Óptimo", store.optimal),
     );
     await expect(feedback(page, "Óptimo")).toContainText(
       "Almacenamiento de objetos durable con pago por uso.",
@@ -87,7 +89,7 @@ test("un invitado completa un escenario, sube de rango y desbloquea el nivel sig
     await page.getByRole("button", { name: "Cerrar explicación" }).click();
     await place(page, index.role, index.optimal);
     await expect(slot(page, index.role)).toHaveAccessibleName(
-      slotName(index.role, "Óptimo", index.optimal),
+      slotName(index.number, "Óptimo", index.optimal),
     );
     await expect(page.getByText("3 de 3 casilleros")).toBeVisible();
   });

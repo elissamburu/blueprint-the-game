@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Hints of a slot (RF-PLAY-06): "Ver pista (−N pts)" reveals the first one (useHint) and opens a
 // popover with the revealed hints, "Ver otra pista" and "Sin más pistas". The cost comes from
-// game-rules.yaml and whether a hint can be revealed from game-engine (canApply).
+// game-rules.yaml and whether a hint can be revealed from game-engine (canApply). The button is
+// named with the number of its slot, so the hint buttons of a board have different names
+// (WCAG 2.4.6); the role of the slot is its description.
 // Lovable: .hint-popover (src/styles.css), captura docs/design/pantallas/08.
 import { Button } from "@blueprint/ui/components/button";
 import { Popover, PopoverContent, PopoverTrigger } from "@blueprint/ui/components/popover";
@@ -11,6 +13,10 @@ import { useTranslation } from "react-i18next";
 
 export interface HintActionProps {
   role: string;
+  /** Number of the slot (game-engine `slotNumbers`), the one the summary shows. */
+  slotNumber: number;
+  /** Id of the visible role text of the slot: the description of the button. */
+  roleId?: string | undefined;
   revealed: readonly string[];
   total: number;
   /** Points each hint costs (`scoring.hintCost`). */
@@ -27,7 +33,16 @@ export interface HintActionProps {
 export const showsHintAction = (total: number, revealed: number, canReveal: boolean): boolean =>
   total > 0 && (revealed > 0 || canReveal);
 
-export function HintAction({ role, revealed, total, cost, canReveal, onReveal }: HintActionProps) {
+export function HintAction({
+  role,
+  slotNumber,
+  roleId,
+  revealed,
+  total,
+  cost,
+  canReveal,
+  onReveal,
+}: HintActionProps) {
   const { t } = useTranslation();
   const [open, setOpen] = useState(false);
   const titleId = useId();
@@ -46,6 +61,9 @@ export function HintAction({ role, revealed, total, cost, canReveal, onReveal }:
         <PopoverTrigger asChild>
           <button
             type="button"
+            // The visible text first (WCAG 2.5.3), then the slot: "Ver pista (−15 pts), casillero 3".
+            aria-label={t("play.hints.buttonName", { label, number: slotNumber })}
+            aria-describedby={roleId}
             onClick={() => {
               if (!open && revealed.length === 0) onReveal();
             }}

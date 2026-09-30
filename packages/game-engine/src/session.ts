@@ -110,6 +110,13 @@ export interface CommandResult {
 export const slotNodes = (scenario: Pick<Scenario, "diagram">): SlotNode[] =>
   scenario.diagram.nodes.filter((node): node is SlotNode => node.type === "slot");
 
+/**
+ * 1-based number of every slot, by slot id, in diagram order. The one number of a slot: the board
+ * names its controls with it and the summary reviews the slots in that order.
+ */
+export const slotNumbers = (scenario: Pick<Scenario, "diagram">): ReadonlyMap<string, number> =>
+  new Map(slotNodes(scenario).map((node, index) => [node.id, index + 1]));
+
 export const slotStatus = (slot: SlotState): SlotStatus => {
   if (slot.revealed) return "revealed";
   const grade = slot.evaluation?.grade;

@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The game screen through the real routes, against the content bundle served by a fake fetch.
-import { createProgress, slotNodes } from "@blueprint/game-engine";
+import { createProgress, scenarioReview, slotNodes } from "@blueprint/game-engine";
 import type { Experience } from "@blueprint/scenario-schema";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
@@ -268,7 +268,9 @@ describe("game screen keyboard adapters", () => {
     await press(user, slotButton("api-entry"));
     await user.click(paletteButton("alb"));
     await user.click(within(feedback()).getByRole("button", { name: "Probar otra" }));
-    expect(slotButton("api-entry").getAttribute("aria-label")).toContain("Vacío");
+    expect(slotButton("api-entry").getAttribute("aria-label")).toBe(
+      "Arrastrá o elegí un servicio, casillero 1",
+    );
     expect(slotButton("api-entry").getAttribute("aria-pressed")).toBe("true");
     expect(document.activeElement).toBe(screen.getByRole("searchbox"));
   });
@@ -279,13 +281,67 @@ describe("game screen keyboard adapters", () => {
     const cost = bundle.rules.scoring.hintCost;
     const slot = slotButton("api-entry").closest<HTMLElement>("[data-slot=architecture-slot]");
     if (slot === null) throw new Error("no slot");
-    await press(user, within(slot).getByRole("button", { name: `Ver pista (−${cost} pts)` }));
+    await press(
+      user,
+      within(slot).getByRole("button", { name: `Ver pista (−${cost} pts), casillero 1` }),
+    );
     const popover = await screen.findByRole("dialog");
     expect(popover.textContent).toContain(hints[0]);
     await user.keyboard("{Escape}");
     await press(user, slotButton("api-entry"));
     await user.click(paletteButton("apigateway"));
     expect(screen.getByText(String(bundle.rules.scoring.firstTryGreen - cost))).toBeTruthy();
+  });
+});
+
+describe("accessible names of the slot controls (WCAG 2.4.6)", () => {
+  /** Every button of the board: the slots and their hint buttons. */
+  const boardButtons = () =>
+    within(screen.getByRole("group", { name: /^Diagrama de «/ })).getAllByRole("button");
+  const description = (element: HTMLElement) =>
+    document.getElementById(element.getAttribute("aria-describedby") ?? "")?.textContent;
+  const slotBox = (slotId: string) => {
+    const box = slotButton(slotId).closest<HTMLElement>("[data-slot=architecture-slot]");
+    if (box === null) throw new Error(`no slot ${slotId}`);
+    return box;
+  };
+
+  it("are different in every slot, numbered as the summary and described by the role", async () => {
+    await open();
+    const slots = slotNodes(pdfScenario);
+    const review = scenarioReview(pdfScenario, []);
+    const names = boardButtons().map((button) => button.getAttribute("aria-label"));
+    expect(new Set(names).size).toBe(names.length);
+    // More than one slot with hints, or the hint buttons could not repeat a name.
+    expect(slots.filter((node) => node.hints.length > 0).length).toBeGreaterThan(1);
+
+    for (const node of slots) {
+      const number = review.find((item) => item.slotId === node.id)?.number;
+      const controls = within(slotBox(node.id)).getAllByRole("button");
+      expect(controls.map((control) => control.getAttribute("aria-label"))).toEqual([
+        `Arrastrá o elegí un servicio, casillero ${number}`,
+        ...(node.hints.length > 0
+          ? [`Ver pista (−${bundle.rules.scoring.hintCost} pts), casillero ${number}`]
+          : []),
+      ]);
+      // The role stays out of the name: it is the visible text that describes each control.
+      for (const control of controls) expect(description(control)).toBe(node.role);
+    }
+  });
+
+  it("stay different once services are placed and hints revealed", async () => {
+    const user = await open();
+    await press(user, slotButton("upload-store"));
+    await user.click(paletteButton("s3"));
+    await press(user, within(slotBox("api-entry")).getByRole("button", { name: /^Ver pista/ }));
+    await screen.findByRole("dialog");
+    await user.keyboard("{Escape}");
+    const names = boardButtons().map((button) => button.getAttribute("aria-label"));
+    expect(new Set(names).size).toBe(names.length);
+    expect(names).toContain("Ver pistas, casillero 1");
+    expect(slotButton("upload-store").getAttribute("aria-label")).toMatch(
+      /^Óptimo: Amazon S3, casillero \d+$/,
+    );
   });
 });
 
@@ -434,7 +490,7 @@ describe('"Ver solución" (RF-PLAY-14)', () => {
     const serviceName = bundle.catalog.services.find((s) => s.id === optimal?.service)?.name ?? "";
     await waitFor(() => expect(slotBox("api-entry").dataset.grade).toBe("revealed"));
     expect(slotButton("api-entry").getAttribute("aria-label")).toBe(
-      `${roleOf(pdfScenario, "api-entry")}. Solución vista: ${serviceName}`,
+      `Solución vista: ${serviceName}, casillero 1`,
     );
     const card = screen.getByRole("region", { name: /Solución vista/ });
     expect(card.textContent).toContain("No suma puntos");
@@ -460,7 +516,7 @@ describe('"Ver solución" (RF-PLAY-14)', () => {
     await user.click(within(notice).getByRole("button", { name: "Usar una pista" }));
     await waitFor(() =>
       expect(document.activeElement).toBe(
-        within(slotBox("api-entry")).getByRole("button", { name: "Ver pistas" }),
+        within(slotBox("api-entry")).getByRole("button", { name: "Ver pistas, casillero 1" }),
       ),
     );
     expect(announcements()).toEqual([`Pista 1: ${slotOf(pdfScenario, "api-entry").hints[0]}`]);

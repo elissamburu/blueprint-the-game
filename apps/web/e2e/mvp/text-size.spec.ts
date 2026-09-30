@@ -7,6 +7,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   feedback,
   finish,
+  hintButton,
   onboard,
   paletteService,
   place,
@@ -78,7 +79,7 @@ test("fuera del tablero ningún texto visible baja de 12 px", async ({ page }) =
   await expect(feedback(page, "Incorrecto")).toBeVisible();
   await expectReadable(page, "juego, con feedback");
 
-  await page.getByRole("button", { name: "Ver pista (−15 pts)" }).click();
+  await hintButton(page, "Ver pista (−15 pts)", thumbnailer.number).click();
   const hints = page.getByRole("dialog", { name: /^Pistas · / });
   await expect(hints).toBeVisible();
   await expectReadable(page, "juego, con la pista abierta");

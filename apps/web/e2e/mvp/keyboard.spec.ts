@@ -9,6 +9,7 @@ import {
   board,
   feedback,
   headerRank,
+  hintButton,
   palette,
   slot,
   slotName,
@@ -144,7 +145,7 @@ test("el recorrido completo se hace solo con teclado", async ({ page }) => {
     await page.keyboard.type("EC2");
     await page.keyboard.press("Enter");
     await expect(target).toHaveAccessibleName(
-      slotName(thumbnailer.role, "Incorrecto", thumbnailer.incorrect),
+      slotName(thumbnailer.number, "Incorrecto", thumbnailer.incorrect),
     );
     await expect(target).toBeFocused();
     await expect(feedback(page, "Incorrecto")).toBeVisible();
@@ -153,14 +154,14 @@ test("el recorrido completo se hace solo con teclado", async ({ page }) => {
   await test.step("pista: se abre al lado del casillero y Esc devuelve el foco", async () => {
     // The hint control is the next stop after its slot.
     await page.keyboard.press("Tab");
-    const hint = page.getByRole("button", { name: "Ver pista (−15 pts)" });
+    const hint = hintButton(page, "Ver pista (−15 pts)", thumbnailer.number);
     await expect(hint).toBeFocused();
     await page.keyboard.press("Enter");
     const hints = page.getByRole("dialog", { name: /^Pistas · / });
     await expect(hints).toContainText(thumbnailer.hints[0]);
     await page.keyboard.press("Escape");
     await expect(hints).toBeHidden();
-    await expect(page.getByRole("button", { name: "Ver pistas" })).toBeFocused();
+    await expect(hintButton(page, "Ver pistas", thumbnailer.number)).toBeFocused();
   });
 
   await test.step("aceptable: «Probar otra» y «Me quedo con esta»", async () => {
@@ -171,7 +172,7 @@ test("el recorrido completo se hace solo con teclado", async ({ page }) => {
     await page.keyboard.press("Enter");
     const target = slot(page, thumbnailer.role);
     await expect(target).toHaveAccessibleName(
-      slotName(thumbnailer.role, "Aceptable", thumbnailer.acceptable),
+      slotName(thumbnailer.number, "Aceptable", thumbnailer.acceptable),
     );
     await tabTo(
       page,
@@ -195,7 +196,7 @@ test("el recorrido completo se hace solo con teclado", async ({ page }) => {
       await page.keyboard.type(query);
       await page.keyboard.press("Enter");
       await expect(slot(page, target.role)).toHaveAccessibleName(
-        slotName(target.role, "Óptimo", target.optimal),
+        slotName(target.number, "Óptimo", target.optimal),
       );
       await expect(slot(page, target.role)).toBeFocused();
       // Closing the explanation removes the button that had the focus: it goes back to the slot.

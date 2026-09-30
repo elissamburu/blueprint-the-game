@@ -2,7 +2,14 @@
 import { describe, expect, it } from "vitest";
 import { reviewCounts, scenarioReview, slotResultStatus } from "./review.js";
 import { scenarioMaxScore, scenarioResult, type SlotResult } from "./scoring.js";
-import { applyCommand, commands, createSession, slotNodes, type Command } from "./session.js";
+import {
+  applyCommand,
+  commands,
+  createSession,
+  slotNodes,
+  slotNumbers,
+  type Command,
+} from "./session.js";
 import { gameRules, pdfScenario, scenario, slot } from "./testing/fixtures.js";
 
 const twoSlots = scenario([
@@ -59,6 +66,21 @@ describe("slotResultStatus", () => {
     expect(status("acceptable", true)).toBe("accepted");
     expect(status("incorrect")).toBe("incorrect");
     expect(status("optimal", false, true)).toBe("revealed");
+  });
+});
+
+describe("slotNumbers", () => {
+  it("numbers the slots from 1 in diagram order, skipping the nodes that are not slots", () => {
+    const slots = slotNodes(pdfScenario);
+    expect(slots.length).toBeLessThan(pdfScenario.diagram.nodes.length);
+    expect([...slotNumbers(pdfScenario)]).toEqual(slots.map((node, index) => [node.id, index + 1]));
+  });
+
+  it("gives every slot the number the review shows for it", () => {
+    const numbers = slotNumbers(pdfScenario);
+    for (const item of scenarioReview(pdfScenario, [])) {
+      expect(numbers.get(item.slotId)).toBe(item.number);
+    }
   });
 });
 

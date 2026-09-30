@@ -7,7 +7,7 @@
 // font never makes slots overlap (docs/design, problem 28); the board zoom goes up to 300 %.
 // Lovable: ArchitectureSlot, .architecture-slot, .slot-status, .placed-service, .empty-slot,
 // .slot-main-action > p, .architecture-slot > button (src/components/blueprint-app.tsx, styles.css).
-import type * as React from "react";
+import * as React from "react";
 import { CircleHelpIcon, PlusIcon } from "lucide-react";
 import { GradeBadge, gradeLabel, type SlotGrade } from "@blueprint/ui/components/grade-badge";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
@@ -37,6 +37,17 @@ export type ArchitectureSlotProps = Omit<React.ComponentProps<"div">, "children"
   grade: SlotGrade;
   /** Role of the slot in the architecture (scenario `role`). Always shown whole. */
   role: string;
+  /**
+   * Number of the slot in the scenario (game-engine `slotNumbers`, the one the summary shows).
+   * With it the slot has a short name that ends in "casillero N" and the role is its description;
+   * without it (a slot outside a game) the role is part of the name.
+   */
+  number?: number | undefined;
+  /**
+   * Id of the element with the role text, for the `aria-describedby` of the controls the app adds
+   * to the slot (`hintAction`). Generated when missing.
+   */
+  roleId?: string | undefined;
   /** Service placed in the slot; without it the slot shows the empty placeholder. */
   service?: ArchitectureSlotService | undefined;
   /** Hints revealed and available. The counter is hidden when the slot has none. */
@@ -59,16 +70,40 @@ export type ArchitectureSlotProps = Omit<React.ComponentProps<"div">, "children"
   hintAction?: React.ReactNode;
 };
 
+export interface SlotNameInput {
+  role: string;
+  grade: SlotGrade;
+  number?: number | undefined;
+  serviceName?: string | undefined;
+  /** Placeholder the empty slot shows ("" when it shows none). */
+  emptyText?: string | undefined;
+}
+
 /**
- * Accessible name of a slot: "<rol>. <estado>[: <servicio>]". Roles are sentences that often end
- * in a period already; it is not doubled.
+ * Accessible name of a slot. With its number it is short and unique on the board, and it starts
+ * with the text the slot shows (WCAG 2.5.3): "Óptimo: Amazon S3, casillero 2", "Arrastrá o elegí
+ * un servicio, casillero 3". The role is then the description of the slot, not part of its name
+ * (WCAG 2.4.6). Without a number: "<rol>. <estado>[: <servicio>]"; roles are sentences that often
+ * end in a period already, so it is not doubled.
  */
-export const slotAccessibleName = (role: string, grade: SlotGrade, serviceName?: string): string =>
-  `${role.trim().replace(/\.+$/, "")}. ${gradeLabel(grade)}${serviceName === undefined ? "" : `: ${serviceName}`}`;
+export const slotAccessibleName = ({
+  role,
+  grade,
+  number,
+  serviceName,
+  emptyText = "",
+}: SlotNameInput): string => {
+  const state = `${gradeLabel(grade)}${serviceName === undefined ? "" : `: ${serviceName}`}`;
+  if (number === undefined) return `${role.trim().replace(/\.+$/, "")}. ${state}`;
+  const shown = serviceName === undefined && emptyText !== "" ? emptyText : state;
+  return `${shown}, casillero ${number}`;
+};
 
 function ArchitectureSlot({
   grade,
   role,
+  number,
+  roleId,
   service,
   hints,
   selected = false,
@@ -79,6 +114,19 @@ function ArchitectureSlot({
   className,
   ...props
 }: ArchitectureSlotProps) {
+  const generatedId = React.useId();
+  const roleTextId = roleId ?? generatedId;
+  // Name and description of the slot, on the button or on the group that stands for it.
+  const labelling = {
+    "aria-label": slotAccessibleName({
+      role,
+      grade,
+      number,
+      serviceName: service?.name,
+      emptyText,
+    }),
+    "aria-describedby": number === undefined ? undefined : roleTextId,
+  };
   const body = (
     <>
       <GradeBadge grade={grade} className="gap-[4.8px] text-[9.76px] [&_svg]:size-[14px]" />
@@ -102,7 +150,12 @@ function ArchitectureSlot({
       )}
       {/* Never clamped nor clipped: the whole role is the clue. It wraps inside NODE_SIZE.slot and,
           if it ever needs more room, the slot grows downward instead of cutting it. */}
-      <span className="mt-[4.8px] text-[9.12px] leading-[1.3] text-muted-foreground">{role}</span>
+      <span
+        id={roleTextId}
+        className="mt-[4.8px] text-[9.12px] leading-[1.3] text-muted-foreground"
+      >
+        {role}
+      </span>
     </>
   );
 
@@ -126,7 +179,7 @@ function ArchitectureSlot({
         <button
           type="button"
           data-slot="architecture-slot-main"
-          aria-label={slotAccessibleName(role, grade, service?.name)}
+          {...labelling}
           aria-pressed={selected}
           onClick={onActivate}
           className="flex cursor-pointer flex-col text-left focus-visible:outline-none"
@@ -137,7 +190,7 @@ function ArchitectureSlot({
         <div
           data-slot="architecture-slot-main"
           role="group"
-          aria-label={slotAccessibleName(role, grade, service?.name)}
+          {...labelling}
           className="flex flex-col"
         >
           {body}

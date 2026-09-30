@@ -3,7 +3,15 @@
 // prefers-reduced-motion the flow player is still usable, step by step; with forced-colors the
 // states of a slot are told apart without color, by their names and by the style of the border.
 import { expect, test, type Locator, type Page } from "@playwright/test";
-import { board, onboard, place, playFromListing, slot, slotName } from "../support/app";
+import {
+  board,
+  emptySlotName,
+  onboard,
+  place,
+  playFromListing,
+  slot,
+  slotName,
+} from "../support/app";
 import { AREAS, CLUB_PHOTOS, EXPERIENCE } from "../support/fixture";
 
 const { store, thumbnailer, index } = CLUB_PHOTOS.slots;
@@ -74,16 +82,16 @@ test.describe("forced-colors: active", () => {
     const green = slot(page, thumbnailer.role);
     const empty = slot(page, index.role);
     await expect(revealed).toHaveAccessibleName(
-      slotName(store.role, "Solución vista", store.optimal),
+      slotName(store.number, "Solución vista", store.optimal),
     );
     await expect(green).toHaveAccessibleName(
-      slotName(thumbnailer.role, "Óptimo", thumbnailer.optimal),
+      slotName(thumbnailer.number, "Óptimo", thumbnailer.optimal),
     );
-    await expect(empty).toHaveAccessibleName(slotName(index.role, "Vacío"));
+    await expect(empty).toHaveAccessibleName(emptySlotName(index.number));
     await expect(board(page)).toMatchAriaSnapshot(`
-      - 'button "${slotName(store.role, "Solución vista", store.optimal)}"'
-      - 'button "${slotName(thumbnailer.role, "Óptimo", thumbnailer.optimal)}"'
-      - button "${slotName(index.role, "Vacío")}"
+      - 'button "${slotName(store.number, "Solución vista", store.optimal)}"'
+      - 'button "${slotName(thumbnailer.number, "Óptimo", thumbnailer.optimal)}"'
+      - button "${emptySlotName(index.number)}"
     `);
 
     // And for the eye: the system paints every border with one color, so the style tells them

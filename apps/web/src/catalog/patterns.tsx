@@ -334,14 +334,19 @@ function HintPopoverContent({ slot, onClose }: { slot: SampleSlot; onClose: () =
   );
 }
 
-export function SlotSample({ slot }: { slot: SampleSlot }) {
+/** `number`: position of the slot on the board; it ends the name of each of its controls. */
+export function SlotSample({ slot, number }: { slot: SampleSlot; number: number }) {
   const [hintOpen, setHintOpen] = useState(false);
   const [selected, setSelected] = useState(false);
+  const roleId = useId();
   const noMoreHints = slot.hintsUsed >= slot.hints.length;
+  const hintText = noMoreHints ? "Sin más pistas" : `Ver pista (−${HINT_COST} pts)`;
   return (
     <ArchitectureSlot
       grade={slot.grade}
       role={slot.role}
+      number={number}
+      roleId={roleId}
       service={
         slot.service && {
           name: slot.service.name,
@@ -360,11 +365,10 @@ export function SlotSample({ slot }: { slot: SampleSlot }) {
                 variant="ghost"
                 size="sm"
                 disabled={noMoreHints}
-                aria-label={
-                  noMoreHints
-                    ? `Sin más pistas para ${slot.role}`
-                    : `Ver pista para ${slot.role}, cuesta ${HINT_COST} puntos`
-                }
+                // As in the game (HintAction): the visible text, then the slot; the role describes
+                // it. The names of the hint buttons of a board are all different (WCAG 2.4.6).
+                aria-label={`${hintText}, casillero ${number}`}
+                aria-describedby={roleId}
                 // Lovable: h-[25px] on one line, which overflows the node (docs/design/README.md,
                 // problem 8). Here "Pistas n/m" stays on the "Ver pista" line when it fits and moves to a
                 // second line only when it does not; neither text breaks inside. In the 160px slot the
@@ -374,7 +378,7 @@ export function SlotSample({ slot }: { slot: SampleSlot }) {
                 className="mt-auto h-auto min-h-[25px] flex-wrap justify-start gap-x-2 gap-y-0 p-0 text-left text-[0.55rem] hover:bg-transparent hover:underline"
               >
                 <CircleHelpIcon />
-                <span>{noMoreHints ? "Sin más pistas" : `Ver pista (−${HINT_COST} pts)`}</span>
+                <span>{hintText}</span>
                 <span className="ml-auto text-warning">
                   Pistas {slot.hintsUsed}/{slot.hints.length}
                 </span>
@@ -392,8 +396,8 @@ export function SlotSample({ slot }: { slot: SampleSlot }) {
 export function SlotBoard() {
   return (
     <div className="flex flex-wrap gap-6 rounded-md border bg-canvas bg-[radial-gradient(var(--border)_1px,transparent_1px)] bg-[size:18px_18px] p-6">
-      {SAMPLE_SLOTS.map((slot) => (
-        <SlotSample key={slot.grade} slot={slot} />
+      {SAMPLE_SLOTS.map((slot, index) => (
+        <SlotSample key={slot.grade} slot={slot} number={index + 1} />
       ))}
     </div>
   );

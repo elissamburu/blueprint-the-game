@@ -4,6 +4,7 @@
 // scenario was completed that way and the previous best result does not go down.
 import { expect, test, type Page } from "@playwright/test";
 import {
+  emptySlotName,
   feedback,
   finish,
   onboard,
@@ -59,7 +60,7 @@ test("ver la solución de un casillero y la completa no baja el mejor resultado"
     await expect(notice).toBeHidden();
     await expect(page.getByText("Pistas 1/2")).toBeVisible();
     await expect(slot(page, thumbnailer.role)).toHaveAccessibleName(
-      slotName(thumbnailer.role, "Vacío"),
+      emptySlotName(thumbnailer.number),
     );
   });
 
@@ -73,7 +74,7 @@ test("ver la solución de un casillero y la completa no baja el mejor resultado"
     await expect(notice.getByRole("button", { name: "Usar una pista" })).toHaveCount(0);
     await notice.getByRole("button", { name: "Ver solución" }).click();
     await expect(slot(page, store.role)).toHaveAccessibleName(
-      slotName(store.role, "Solución vista", store.optimal),
+      slotName(store.number, "Solución vista", store.optimal),
     );
     await expect(slot(page, store.role)).toBeFocused();
     const card = feedback(page, "Solución vista");
@@ -88,9 +89,9 @@ test("ver la solución de un casillero y la completa no baja el mejor resultado"
     const notice = page.getByRole("alertdialog", { name: "¿Ver la solución completa?" });
     await expect(notice).toContainText("la solución de los 2 casilleros que faltan");
     await notice.getByRole("button", { name: "Ver solución completa" }).click();
-    for (const { role, optimal } of [store, thumbnailer, index]) {
+    for (const { number, role, optimal } of [store, thumbnailer, index]) {
       await expect(slot(page, role)).toHaveAccessibleName(
-        slotName(role, "Solución vista", optimal),
+        slotName(number, "Solución vista", optimal),
       );
     }
     await expect(page.getByText("3 de 3 casilleros")).toBeVisible();

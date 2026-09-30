@@ -1,6 +1,7 @@
 # Fixed scenario of the e2e journeys (apps/web/e2e): three slots, one of them with an optimal,
-# an acceptable and an incorrect answer plus two hints (the only slot with hints). The specs
-# assert its scores, so changing answers, hints or game-rules.yaml means updating them.
+# an acceptable and an incorrect answer plus two hints, another one (the last) with one hint and
+# the first one with none. The specs assert its scores, so changing answers, hints or
+# game-rules.yaml means updating them.
 schemaVersion: 1
 id: club-photos
 version: 1
@@ -92,6 +93,8 @@ diagram:
       incorrect:
         - service: efs
           rationale: "Es un sistema de archivos: no consulta registros por clave."
+      hints:
+        - "Se consulta por clave y no tiene servidores que mantener."
     - id: logs
       type: fixed
       service: cloudwatch

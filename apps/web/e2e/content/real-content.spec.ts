@@ -36,7 +36,7 @@ for (const entry of bundle.scenarios) {
     await playFromListing(page, scenario.title);
     const search = palette(page).getByRole("searchbox", { name: "Buscar servicio" });
 
-    for (const { slotId, role, optimal } of answers) {
+    for (const { slotId, number, role, optimal } of answers) {
       const where = `${entry.id} / ${slotId}`;
       const target = slot(page, role);
       await expect(target, `${where}: el casillero no está en el tablero`).toHaveCount(1);
@@ -50,7 +50,7 @@ for (const entry of bundle.scenarios) {
       ).toBeVisible();
       await paletteService(page, optimal).click();
       await expect(target, `${where}: «${optimal}» no quedó en verde`).toHaveAccessibleName(
-        slotName(role, "Óptimo", optimal),
+        slotName(number, "Óptimo", optimal),
       );
     }
 

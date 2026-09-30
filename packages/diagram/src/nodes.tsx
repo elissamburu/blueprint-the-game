@@ -19,7 +19,7 @@ import {
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
-import type { ReactNode } from "react";
+import { useId, type ReactNode } from "react";
 import { useDiagramContext } from "./context";
 import type { ActorFlowNode, FixedFlowNode, GroupFlowNode, SlotFlowNode } from "./flow-model";
 
@@ -154,6 +154,7 @@ function PreviewSlot() {
 export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
   const { node, view, service, box } = data;
   const { onSlotActivate, slotHintAction, droppable, reveal, preview } = useDiagramContext();
+  const roleId = useId();
   if (preview) {
     return (
       <>
@@ -162,12 +163,14 @@ export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
       </>
     );
   }
-  const hintAction = slotHintAction?.(node.id);
+  const hintAction = slotHintAction?.(node.id, { roleId });
   const slot = (dropActive: boolean) => (
     <ArchitectureSlot
       data-slot-id={node.id}
       grade={view.grade}
       role={node.role}
+      number={view.number}
+      roleId={roleId}
       service={service}
       hints={view.hints}
       selected={view.selected ?? false}

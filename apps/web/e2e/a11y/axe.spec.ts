@@ -5,6 +5,7 @@ import { expect, test, type Page } from "@playwright/test";
 import {
   feedback,
   finish,
+  hintButton,
   onboard,
   paletteService,
   place,
@@ -59,7 +60,7 @@ test("juego: brief, vacío, feedback de cada grado y pista", async ({ page }) =>
   await expect(feedback(page, "Incorrecto")).toBeVisible();
   await expectNoBlockingViolations(page, "juego, con feedback incorrecto");
 
-  await page.getByRole("button", { name: "Ver pista (−15 pts)" }).click();
+  await hintButton(page, "Ver pista (−15 pts)", thumbnailer.number).click();
   await expect(page.getByRole("dialog", { name: /^Pistas · / })).toBeVisible();
   await expectNoBlockingViolations(page, "juego, con la pista abierta");
   await page.keyboard.press("Escape");

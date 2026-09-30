@@ -32,7 +32,7 @@ test("recargar conserva el progreso y «Reiniciar progreso» vuelve al onboardin
     await playFromListing(page, PHOTO_QUEUE.title);
     await place(page, buffer.role, buffer.optimal);
     await expect(slot(page, buffer.role)).toHaveAccessibleName(
-      slotName(buffer.role, "Óptimo", buffer.optimal),
+      slotName(buffer.number, "Óptimo", buffer.optimal),
     );
     await page.getByRole("link", { name: "Volver a escenarios" }).click();
     await expect(scenarioCard(page, PHOTO_QUEUE.title)).toContainText("En curso");

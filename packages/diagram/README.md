@@ -19,19 +19,20 @@ No decide grados ni importa `game-engine` (regla `diagram-not-to-game-logic` de 
 <Diagram
   diagram={scenario.diagram}
   services={(id) => ({ name, category, iconSrc })}
-  slots={{ [slotId]: { grade, serviceId, hints: { used, total }, selected } }}
+  slots={{ [slotId]: { grade, number, serviceId, hints: { used, total }, selected } }}
   onSlotActivate={(slotId) => dispatch(commands.selectSlot(slotId))}
   onServiceDrop={(slotId, serviceId) => dispatch(commands.placeService(slotId, serviceId))}
-  slotHintAction={(slotId) => <HintAction … />}
+  slotHintAction={(slotId, { roleId }) => <HintAction roleId={roleId} … />}
   stepList="hidden"
   playButton={false}
   ref={diagramRef} // DiagramHandle: playFlow(), panBy(dx, dy), element()
 />
 ```
 
-- Sin `onSlotActivate`, el tablero es de solo lectura: los casilleros no son enfocables. Con él, cada casillero se enfoca con Tab y se activa con Enter o Espacio (`aria-label` "<rol>. <estado>[: <servicio>]").
+- Sin `onSlotActivate`, el tablero es de solo lectura: los casilleros no son enfocables. Con él, cada casillero se enfoca con Tab y se activa con Enter o Espacio.
+- Nombre accesible del casillero: con `number` en su `SlotView` (el número que da `slotNumbers` de `game-engine`, el mismo del resumen) es corto y único en el tablero, empieza con el texto visible y termina con el número ("Óptimo: Amazon S3, casillero 2", "Arrastrá o elegí un servicio, casillero 3"), y el rol visible es su descripción (`aria-describedby`). Sin `number`, el nombre es "<rol>. <estado>[: <servicio>]".
 - Con `onServiceDrop`, cada casillero es un destino de `@dnd-kit/core`: el tablero tiene que estar dentro del `DndContext` de la app, y lo que se arrastra lleva `data: { type: "service", serviceId }` (`ServiceDragData`).
-- Con `slotHintAction`, lo que devuelve para un casillero reemplaza su contador "Pistas n/m" (p. ej. el botón "Ver pista" con su popover). Si devuelve `undefined`, queda el contador.
+- Con `slotHintAction`, lo que devuelve para un casillero reemplaza su contador "Pistas n/m" (p. ej. el botón "Ver pista" con su popover). Si devuelve `undefined`, queda el contador. Recibe también el `id` del texto del rol del casillero (`roleId`), para describir con él el control que devuelve: su nombre accesible tiene que ser distinto en cada casillero (WCAG 2.4.6).
 - Con `onViewportChange`, la app se entera de cada cambio de zoom o posición (el juego lo usa para ubicar la tarjeta de feedback).
 - Con `insetLeft` (px), la app avisa que tapa una franja a la izquierda con un panel propio ("Ver caso"): los controles flotantes se corren a su derecha y un casillero al que se llega con Tab se centra en la parte libre (`revealViewport` en `viewport.ts`, que además muestra entero un casillero que creció).
 - Los textos de los nodos van en `px`: dentro del tablero escalan con el zoom del tablero, no con el tamaño de letra del navegador, así los nodos (de tamaño fijo en el canvas) no se superponen con letra grande (docs/design, problema 28).
