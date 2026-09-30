@@ -3,7 +3,7 @@
 schemaVersion: 1
 id: kubernetes-api-migration
 version: 1
-status: draft
+status: beta
 lang: es
 level: 200
 areas: [containers, networking]

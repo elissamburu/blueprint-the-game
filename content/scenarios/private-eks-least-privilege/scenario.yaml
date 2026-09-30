@@ -3,7 +3,7 @@
 schemaVersion: 1
 id: private-eks-least-privilege
 version: 1
-status: draft
+status: beta
 lang: es
 level: 300
 areas: [containers, security, networking]

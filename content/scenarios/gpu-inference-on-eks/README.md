@@ -10,7 +10,7 @@ Una logística sirve su modelo de lenguaje ajustado en el clúster que ya usan t
 |---|---|
 | Id | `gpu-inference-on-eks` |
 | Versión | 1 |
-| Estado | draft |
+| Estado | beta |
 | Nivel | 400 |
 | Áreas | `ml`, `containers` |
 | Duración estimada | 15 min |

@@ -3,7 +3,7 @@
 schemaVersion: 1
 id: insurance-docs-assistant
 version: 1
-status: draft
+status: beta
 lang: es
 level: 200
 areas: [ml, serverless]

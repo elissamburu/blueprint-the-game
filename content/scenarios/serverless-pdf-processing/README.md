@@ -10,7 +10,7 @@ Los clientes suben comprobantes desde la web y el sistema extrae CUIT, fecha e i
 |---|---|
 | Id | `serverless-pdf-processing` |
 | Versión | 1 |
-| Estado | draft |
+| Estado | beta |
 | Nivel | 200 |
 | Áreas | `serverless`, `storage`, `integration` |
 | Duración estimada | 10 min |
