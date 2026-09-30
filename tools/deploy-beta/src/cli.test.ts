@@ -43,15 +43,30 @@ const writeBuild = async () => {
   }
 };
 
-const run = async (argv: string[]) => {
+const run = async (argv: string[], env: NodeJS.ProcessEnv = {}) => {
   let stdout = "";
   let stderr = "";
+  const awsCalls: string[][] = [];
   const code = await main(
     argv,
     { stdout: (text) => (stdout += text), stderr: (text) => (stderr += text) },
-    { repoRoot: root },
+    {
+      repoRoot: root,
+      env,
+      runAws: (args) => {
+        awsCalls.push([...args]);
+        const stdout = args[1] === "list-objects-v2" ? "[]" : "I2ABCDEFGH";
+        return Promise.resolve({ code: 0, stdout, stderr: "" });
+      },
+    },
   );
-  return { code, stdout, stderr };
+  return { code, stdout, stderr, awsCalls };
+};
+
+const ENV = {
+  BETA_BUCKET: "blueprint-beta-site",
+  BETA_DISTRIBUTION_ID: "E1ABCDEFGHIJKL",
+  AWS_PROFILE: "beta-admin",
 };
 
 beforeEach(async () => {
@@ -81,6 +96,41 @@ describe("assemble", () => {
   });
 });
 
+describe("deploy", () => {
+  it("with --dry-run shows the plan without the variables and without calling AWS", async () => {
+    await writeBuild();
+    await run(["assemble"]);
+    const { code, stdout, stderr, awsCalls } = await run(["deploy", "--dry-run"]);
+    expect(stderr).toBe("");
+    expect(code).toBe(0);
+    expect(awsCalls).toEqual([]);
+    expect(stdout).toContain(
+      "Destino: s3://<BETA_BUCKET> · distribución <BETA_DISTRIBUTION_ID> · perfil <AWS_PROFILE>",
+    );
+    expect(stdout).toContain("OK (dry-run): 8 archivo/s para subir. No se cambió nada.");
+  });
+
+  it("uploads, cleans and invalidates with the variables of the environment", async () => {
+    await writeBuild();
+    await run(["assemble"]);
+    const { code, stdout, awsCalls } = await run(["deploy"], ENV);
+    expect(code).toBe(0);
+    expect(awsCalls).toHaveLength(8 + 2);
+    expect(awsCalls.every((args) => args.at(-1) === "beta-admin")).toBe(true);
+    expect(stdout).toContain("OK: 8 archivo/s subido/s, 0 borrado/s, invalidación I2ABCDEFGH.");
+  });
+
+  it("fails before calling AWS when a variable is missing or the site is not built", async () => {
+    const missing = await run(["deploy"]);
+    expect(missing.code).toBe(1);
+    expect(missing.stderr).toContain("Falta BETA_BUCKET");
+    const notBuilt = await run(["deploy"], ENV);
+    expect(notBuilt.code).toBe(1);
+    expect(notBuilt.stderr).toContain("Corré pnpm build:beta antes de pnpm deploy:beta");
+    expect(notBuilt.awsCalls).toEqual([]);
+  });
+});
+
 describe("usage", () => {
   it("prints usage with --help and without a command", async () => {
     expect((await run(["--help"])).stdout).toContain("pnpm build:beta");
@@ -97,5 +147,8 @@ describe("usage", () => {
     );
     expect((await run(["assemble", "extra"])).stderr).toContain("Argumentos de más para assemble");
     expect((await run(["preview", "--port", "abc"])).stderr).toContain("--port tiene que ser");
+    expect((await run(["preview", "--dry-run"])).stderr).toContain(
+      "La opción --dry-run no aplica a preview.",
+    );
   });
 });

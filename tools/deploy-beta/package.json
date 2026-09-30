@@ -13,7 +13,8 @@
   },
   "dependencies": {
     "@blueprint/scenario-schema": "workspace:*",
-    "tsx": "catalog:"
+    "tsx": "catalog:",
+    "zod": "catalog:"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",

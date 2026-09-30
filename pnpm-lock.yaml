@@ -645,6 +645,9 @@ importers:
       tsx:
         specifier: 'catalog:'
         version: 4.23.15
+      zod:
+        specifier: 'catalog:'
+        version: 4.6.5
     devDependencies:
       '@blueprint/config':
         specifier: workspace:*

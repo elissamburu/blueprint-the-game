@@ -31,7 +31,8 @@
     "icons:fetch": "pnpm --reporter=silent icons:prepare && pnpm --reporter=silent --dir tools/icons-fetch exec tsx src/bin.ts",
     "beta:prepare": "turbo run build --filter=@blueprint/tools-deploy-beta... --output-logs=errors-only 1>&2",
     "build:beta": "pnpm icons:fetch && pnpm content:build --out dist/content && turbo run build --filter=@blueprint/web... --force && pnpm --reporter=silent beta:prepare && pnpm --reporter=silent --dir tools/deploy-beta exec tsx src/bin.ts assemble",
-    "preview:beta": "pnpm --reporter=silent beta:prepare && pnpm --reporter=silent --dir tools/deploy-beta exec tsx src/bin.ts preview"
+    "preview:beta": "pnpm --reporter=silent beta:prepare && pnpm --reporter=silent --dir tools/deploy-beta exec tsx src/bin.ts preview",
+    "deploy:beta": "pnpm --reporter=silent beta:prepare && pnpm --reporter=silent --dir tools/deploy-beta exec tsx src/bin.ts deploy"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",

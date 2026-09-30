@@ -1,11 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Command line of the beta site tools (pnpm build:beta, pnpm preview:beta). `main` never throws
-// and never prints stack traces: it returns the exit code.
+// Command line of the beta site tools (pnpm build:beta, pnpm preview:beta, pnpm deploy:beta).
+// `main` never throws and never prints stack traces: it returns the exit code.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
-import { assemble, AssembleError } from "./assemble.js";
-import { UnknownContentTypeError } from "./headers.js";
+import { assemble } from "./assemble.js";
+import { deploy, ENV, readTarget, runAwsCli, type AwsRunner } from "./deploy.js";
 import { startPreview } from "./preview.js";
 
 export const REPO_ROOT = path.resolve(
@@ -22,6 +22,8 @@ export interface CliIo {
 
 export interface CliDeps {
   repoRoot: string;
+  env: NodeJS.ProcessEnv;
+  runAws: AwsRunner;
 }
 
 export const USAGE = `Uso:
@@ -33,9 +35,17 @@ export const USAGE = `Uso:
       Sirve dist/beta-site en http://127.0.0.1:<puerto> (por defecto 4319) como lo hace
       CloudFront: con la misma función que reescribe las rutas del juego a /index.html y con
       los headers de cada archivo.
+  pnpm deploy:beta [--dry-run]
+      Sube dist/beta-site al bucket con el AWS CLI, borra del bucket lo que ya no existe y
+      crea una invalidación de CloudFront de /index.html y /content/*. Variables de entorno:
+        ${ENV.bucket}           nombre del bucket
+        ${ENV.distributionId}  ID de la distribución de CloudFront
+        ${ENV.profile}           perfil del AWS CLI
+      --dry-run  muestra los comandos que ejecutaría, sin ejecutar nada ni contactar a AWS.
 `;
 
 const OPTIONS = {
+  "dry-run": { type: "boolean" },
   help: { type: "boolean", short: "h" },
   port: { type: "string" },
 } as const;
@@ -45,6 +55,7 @@ type OptionName = keyof typeof OPTIONS;
 const ALLOWED: Record<string, readonly OptionName[]> = {
   assemble: ["help"],
   preview: ["port", "help"],
+  deploy: ["dry-run", "help"],
 };
 
 const DEFAULT_PORT = 4319;
@@ -75,11 +86,13 @@ const run = async (argv: readonly string[], io: CliIo, deps: CliDeps): Promise<n
   const allowed = ALLOWED[command];
   if (allowed === undefined) throw new UsageError(`Comando desconocido: "${command}".`);
   for (const name of Object.keys(values) as OptionName[]) {
-    if (!allowed.includes(name))
+    if (!allowed.includes(name)) {
       throw new UsageError(`La opción --${name} no aplica a ${command}.`);
+    }
   }
-  if (rest.length > 0)
+  if (rest.length > 0) {
     throw new UsageError(`Argumentos de más para ${command}: ${rest.join(" ")}.`);
+  }
 
   const paths = sitePaths(deps.repoRoot);
   const shown = (target: string) => path.relative(deps.repoRoot, target).split(path.sep).join("/");
@@ -97,7 +110,7 @@ const run = async (argv: readonly string[], io: CliIo, deps: CliDeps): Promise<n
       );
       return 0;
     }
-    default: {
+    case "preview": {
       const port = values.port === undefined ? DEFAULT_PORT : Number(values.port);
       if (!Number.isInteger(port) || port < 1 || port > 65535) {
         throw new UsageError(`--port tiene que ser un puerto (recibido: "${values.port}").`);
@@ -108,24 +121,41 @@ const run = async (argv: readonly string[], io: CliIo, deps: CliDeps): Promise<n
       );
       return 0;
     }
+    default: {
+      const dryRun = values["dry-run"] === true;
+      const result = await deploy({
+        siteDir: paths.siteDir,
+        target: readTarget(deps.env, dryRun),
+        dryRun,
+        run: deps.runAws,
+        log: (line) => io.stdout(`${line}\n`),
+      });
+      io.stdout(
+        dryRun
+          ? `OK (dry-run): ${result.uploaded.length} archivo/s para subir. No se cambió nada.\n`
+          : `OK: ${result.uploaded.length} archivo/s subido/s, ${result.deleted.length} borrado/s, invalidación ${result.invalidationId ?? "?"}.\n`,
+      );
+      return 0;
+    }
   }
 };
 
 export const main = async (
   argv: readonly string[],
   io: CliIo,
-  deps: CliDeps = { repoRoot: REPO_ROOT },
+  deps: Partial<CliDeps> = {},
 ): Promise<number> => {
   try {
-    return await run(argv, io, deps);
+    return await run(argv, io, {
+      repoRoot: REPO_ROOT,
+      env: process.env,
+      runAws: runAwsCli,
+      ...deps,
+    });
   } catch (error) {
     if (error instanceof UsageError) {
       io.stderr(`${error.message}\n\n${USAGE}`);
       return 2;
-    }
-    if (error instanceof AssembleError || error instanceof UnknownContentTypeError) {
-      io.stderr(`Error: ${error.message}\n`);
-      return 1;
     }
     const message = error instanceof Error ? error.message : String(error);
     io.stderr(`Error: ${message}\n`);
