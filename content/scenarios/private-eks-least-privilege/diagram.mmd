@@ -1,0 +1,38 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: private-eks-least-privilege v1
+flowchart LR
+  n_operators(["Operadores (red interna del banco)"])
+  subgraph g_region["Región"]
+    subgraph g_vpc["Red del clúster"]
+      subgraph g_subnets["Subredes privadas, sin ruta a internet"]
+        n_nodes["Amazon EC2"]
+      end
+      n_s3_access["Gateway VPC endpoint"]
+      n_aws_apis_access["Interface VPC endpoint (AWS PrivateLink)"]
+    end
+    n_cluster["Amazon EKS"]
+    n_input_bucket["Amazon S3"]
+    n_output_bucket["Amazon S3"]
+    n_registry["Amazon ECR"]
+    n_workload_identity["AWS IAM"]
+    n_secrets_key["AWS KMS"]
+    n_audit_logs["Amazon CloudWatch"]
+    n_threat_detection["Amazon GuardDuty"]
+  end
+  n_operators -->|"1. Despliega con kubectl"| n_cluster
+  n_cluster --o|"2. Cifra los datos antes de guardarlos"| n_secrets_key
+  n_cluster --o|"2. Registra quién hizo qué"| n_audit_logs
+  n_cluster --o|"2. Analiza el log de auditoría"| n_threat_detection
+  n_cluster --o|"3. Agenda los pods en los nodos"| n_nodes
+  n_nodes -->|"4. Pide el manifiesto de la imagen"| n_aws_apis_access
+  n_aws_apis_access -->|"5. Llega por la red privada"| n_registry
+  n_nodes ==>|"6. Descarga las capas de la imagen"| n_s3_access
+  n_s3_access ==>|"7. Capas de las imágenes"| n_registry
+  n_nodes -->|"8. Pide credenciales para el pod"| n_aws_apis_access
+  n_aws_apis_access -->|"9. Credenciales temporales del rol"| n_workload_identity
+  n_nodes ==>|"10. Lee extractos, escribe resultados"| n_s3_access
+  n_s3_access ==>|"11. Lee el extracto"| n_input_bucket
+  n_s3_access ==>|"11. Escribe el resultado"| n_output_bucket
+  n_nodes --o|"12. Eventos de los contenedores"| n_threat_detection
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_workload_identity,n_s3_access,n_aws_apis_access,n_secrets_key,n_audit_logs,n_threat_detection slot
