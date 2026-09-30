@@ -1,0 +1,39 @@
+# Destino del enlace "Contanos qué te pareció" del aviso de beta cuando el build no define
+# VITE_FEEDBACK_URL. Si cambiás el nombre de este archivo, actualizá apps/web/src/app/feedback.ts.
+name: Feedback de la beta
+description: Contanos cómo te fue probando la beta, qué te gustó, qué no se entendió o qué falló.
+title: "[beta] "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Gracias por probar la beta. Todo comentario sirve, también los cortos.
+        Si el problema es de un escenario puntual (un grado, una explicación, una pista), usá "Reportar un problema" desde el juego: completa el escenario y el casillero por vos.
+  - type: textarea
+    id: tried
+    attributes:
+      label: ¿Qué intentaste hacer?
+      description: Por ejemplo, completar un escenario, usar una pista, jugar solo con el teclado.
+    validations:
+      required: true
+  - type: textarea
+    id: expected
+    attributes:
+      label: ¿Qué esperabas que pasara?
+    validations:
+      required: true
+  - type: textarea
+    id: happened
+    attributes:
+      label: ¿Qué pasó?
+      description: Si podés, sumá una captura de pantalla o el texto del error.
+    validations:
+      required: true
+  - type: input
+    id: environment
+    attributes:
+      label: Navegador y sistema
+      description: Navegador con su versión y sistema operativo. Si usás lector de pantalla, lupa o zoom, contanos cuál.
+      placeholder: Chrome 140 en Windows 11
+    validations:
+      required: true

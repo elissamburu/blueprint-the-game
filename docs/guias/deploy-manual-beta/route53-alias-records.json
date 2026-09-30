@@ -1,0 +1,29 @@
+{
+  "Comment": "Blueprint beta: alias del dominio hacia la distribucion de CloudFront",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "<DOMAIN>",
+        "Type": "A",
+        "AliasTarget": {
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "DNSName": "<DISTRIBUTION_DOMAIN>",
+          "EvaluateTargetHealth": false
+        }
+      }
+    },
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "<DOMAIN>",
+        "Type": "AAAA",
+        "AliasTarget": {
+          "HostedZoneId": "Z2FDTNDATAQYW2",
+          "DNSName": "<DISTRIBUTION_DOMAIN>",
+          "EvaluateTargetHealth": false
+        }
+      }
+    }
+  ]
+}

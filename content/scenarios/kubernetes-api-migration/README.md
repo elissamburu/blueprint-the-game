@@ -10,7 +10,7 @@ Una fintech lleva a la nube sus microservicios en Kubernetes: mismos charts de H
 |---|---|
 | Id | `kubernetes-api-migration` |
 | Versión | 1 |
-| Estado | draft |
+| Estado | beta |
 | Nivel | 200 |
 | Áreas | `containers`, `networking` |
 | Duración estimada | 10 min |

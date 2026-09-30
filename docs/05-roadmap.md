@@ -53,6 +53,7 @@ Fases pensadas para implementarse con Claude Code **en orden**. Cada fase termin
 - `deploy.yml` (plan → aprobación con environment → apply → subida de web + bundle de contenido → invalidación).
 - Guía [configurar AWS en tu fork](guias/configurar-aws-en-tu-fork.md) probada end-to-end en una cuenta limpia.
 - Comentario de CI con el resumen del escenario (RF-CNT-06) y control de `version` (RF-CNT-07).
+- **Reemplazar el deploy manual de la beta pública**: la primera beta (2026-09-30) se publicó antes de esta fase, a mano, con [deploy manual de la beta](guias/deploy-manual-beta.md) y `tools/deploy-beta`. F3 importa o recrea esos recursos con Terraform, elimina esa guía y ese tool, y suma lo que quedó pendiente: una `Content-Security-Policy` propia (RNF-10, [issue #44](https://github.com/elissamburu/blueprint-the-game/issues/44)), probada antes de activarla.
 
 **DoD**: un fork nuevo, siguiendo solo la guía, queda desplegado; un workflow desde una rama distinta de `main` no puede asumir el rol de `apply`.
 

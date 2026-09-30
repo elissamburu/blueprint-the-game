@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Layout of every game screen: skip link, header, the route page and a footer with the link
-// to "Acerca de". Starts loading the content bundle and the stored progress. An immersive page
+// Layout of every game screen: skip link, the notices of the beta, header, the route page and a
+// footer with the link to "Acerca de". Starts loading the content bundle and the stored progress. An immersive page
 // (the game screen, useImmersiveLayout) hides the header and the footer and fills the viewport;
 // a standalone one (the onboarding, useStandaloneLayout) hides only the header.
 import { Button } from "@blueprint/ui/components/button";
@@ -14,6 +14,7 @@ import { useProgressStore } from "../progress/progress-store";
 import { AppHeader } from "./AppHeader";
 import { ErrorBoundary } from "./ErrorBoundary";
 import { ImmersiveContext, type LayoutMode } from "./immersive";
+import { SiteNotices } from "./SiteNotices";
 
 export const MAIN_ID = "contenido";
 
@@ -39,6 +40,7 @@ export function AppLayout() {
         >
           {t("app.skipToContent")}
         </a>
+        <SiteNotices focusTargetId={MAIN_ID} />
         {mode === "default" && <AppHeader />}
         <IncompatibleProgressBanner />
         <main

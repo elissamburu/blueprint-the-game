@@ -3,7 +3,7 @@
 schemaVersion: 1
 id: static-website-https
 version: 1
-status: draft
+status: beta
 lang: es
 level: 100
 areas: [networking, storage]

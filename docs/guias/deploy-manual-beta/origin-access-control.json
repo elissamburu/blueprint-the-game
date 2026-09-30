@@ -1,0 +1,7 @@
+{
+  "Name": "<BUCKET_NAME>-oac",
+  "Description": "Blueprint beta: CloudFront firma los pedidos al bucket del sitio",
+  "SigningProtocol": "sigv4",
+  "SigningBehavior": "always",
+  "OriginAccessControlOriginType": "s3"
+}

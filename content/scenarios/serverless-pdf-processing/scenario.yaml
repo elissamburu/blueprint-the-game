@@ -3,7 +3,7 @@
 schemaVersion: 1
 id: serverless-pdf-processing
 version: 1
-status: draft
+status: beta
 lang: es
 level: 200
 areas: [serverless, storage, integration]

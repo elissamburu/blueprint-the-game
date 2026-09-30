@@ -34,6 +34,17 @@
     "draft": "Borrador",
     "beta": "Beta"
   },
+  "beta": {
+    "label": "Aviso de versión beta",
+    "text": "Estás probando una versión beta. Tu progreso se guarda solo en este navegador.",
+    "feedback": "Contanos qué te pareció",
+    "dismiss": "Cerrar el aviso de versión beta"
+  },
+  "narrow": {
+    "label": "Aviso de pantalla angosta",
+    "text": "Por ahora Blueprint está pensado para pantallas de escritorio. El modo para celular llega más adelante.",
+    "dismiss": "Cerrar el aviso de pantalla angosta"
+  },
   "progress": {
     "discarded": "Tu progreso guardado estaba dañado y se descartó: empezás de cero.",
     "saveFailed": "No se pudo guardar tu progreso en este navegador.",

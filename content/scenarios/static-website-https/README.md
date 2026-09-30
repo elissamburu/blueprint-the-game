@@ -10,7 +10,7 @@ Un sitio estático con dominio propio y HTTPS, para visitantes de todo el mundo,
 |---|---|
 | Id | `static-website-https` |
 | Versión | 1 |
-| Estado | draft |
+| Estado | beta |
 | Nivel | 100 |
 | Áreas | `networking`, `storage` |
 | Duración estimada | 5 min |

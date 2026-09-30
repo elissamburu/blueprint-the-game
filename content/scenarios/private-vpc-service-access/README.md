@@ -10,7 +10,7 @@ Una aplicación en dos zonas usa almacenamiento, una base NoSQL, secretos, una c
 |---|---|
 | Id | `private-vpc-service-access` |
 | Versión | 1 |
-| Estado | draft |
+| Estado | beta |
 | Nivel | 300 |
 | Áreas | `networking`, `security` |
 | Duración estimada | 12 min |

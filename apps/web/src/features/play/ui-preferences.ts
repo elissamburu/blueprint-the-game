@@ -5,6 +5,8 @@
 import { useCallback, useState } from "react";
 
 export const PALETTE_COLLAPSED_KEY = "blueprint.ui.paletteCollapsed";
+export const BETA_NOTICE_DISMISSED_KEY = "blueprint.ui.betaNoticeDismissed";
+export const NARROW_NOTICE_DISMISSED_KEY = "blueprint.ui.narrowNoticeDismissed";
 
 const storage = (): Storage | null => {
   try {

@@ -10,7 +10,7 @@ Los clientes registrados preguntan en lenguaje natural por coberturas, carencias
 |---|---|
 | Id | `insurance-docs-assistant` |
 | Versión | 1 |
-| Estado | draft |
+| Estado | beta |
 | Nivel | 200 |
 | Áreas | `ml`, `serverless` |
 | Duración estimada | 8 min |

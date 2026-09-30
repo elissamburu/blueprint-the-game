@@ -1,0 +1,13 @@
+{
+  "$schema": "https://turborepo.com/schema.json",
+  "extends": ["//"],
+  "tasks": {
+    "test": {
+      "inputs": [
+        "$TURBO_DEFAULT$",
+        "../../docs/guias/deploy-manual-beta.md",
+        "../../docs/guias/deploy-manual-beta/**"
+      ]
+    }
+  }
+}

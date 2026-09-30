@@ -3,7 +3,7 @@
 schemaVersion: 1
 id: gpu-inference-on-eks
 version: 1
-status: draft
+status: beta
 lang: es
 level: 400
 areas: [ml, containers]

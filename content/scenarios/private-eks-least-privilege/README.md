@@ -10,7 +10,7 @@ Un banco procesa extractos en Kubernetes sin ninguna ruta a internet, con un rol
 |---|---|
 | Id | `private-eks-least-privilege` |
 | Versión | 1 |
-| Estado | draft |
+| Estado | beta |
 | Nivel | 300 |
 | Áreas | `containers`, `security`, `networking` |
 | Duración estimada | 14 min |

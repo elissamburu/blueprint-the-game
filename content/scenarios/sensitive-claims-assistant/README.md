@@ -10,7 +10,7 @@ Los liquidadores preguntan por expedientes con datos de salud: tráfico privado,
 |---|---|
 | Id | `sensitive-claims-assistant` |
 | Versión | 1 |
-| Estado | draft |
+| Estado | beta |
 | Nivel | 300 |
 | Áreas | `ml`, `security` |
 | Duración estimada | 14 min |
