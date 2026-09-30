@@ -961,4 +961,17 @@ describe("feedback card position", () => {
     await press(user, slotButton("api-entry"));
     expect(feedback().dataset.status).toBe("optimal");
   });
+
+  it("gives the focus back to its slot when its X or «Me quedo con esta» remove the focused button", async () => {
+    const user = await open();
+    await press(user, slotButton("url-signer"));
+    await user.click(paletteButton("fargate"));
+    await press(user, within(feedback()).getByRole("button", { name: "Me quedo con esta" }));
+    expect(within(feedback()).queryByRole("button", { name: "Me quedo con esta" })).toBeNull();
+    expect(document.activeElement).toBe(slotButton("url-signer"));
+
+    await press(user, within(feedback()).getByRole("button", { name: "Cerrar explicación" }));
+    expect(screen.queryByRole("region", { name: /Aceptable/ })).toBeNull();
+    expect(document.activeElement).toBe(slotButton("url-signer"));
+  });
 });
