@@ -11,6 +11,12 @@ const CI = process.env.CI !== undefined && process.env.CI !== "";
 const FIXTURE_PORT = 4317;
 const CONTENT_PORT = 4318;
 const VIEWPORT = { width: 1440, height: 900 };
+/**
+ * Vite is started with node, not through `pnpm exec`: pnpm runs the command in a process group
+ * of its own, which the kill Playwright sends to the group of the server (Linux, macOS) does not
+ * reach. The server would outlive the run and Playwright would wait for it forever.
+ */
+const VITE = "node node_modules/vite/bin/vite.js";
 
 export default defineConfig({
   testDir: "e2e",
@@ -52,13 +58,13 @@ export default defineConfig({
   ],
   webServer: [
     {
-      command: `pnpm exec vite preview --port ${FIXTURE_PORT} --strictPort`,
+      command: `${VITE} preview --port ${FIXTURE_PORT} --strictPort`,
       url: `http://localhost:${FIXTURE_PORT}`,
       env: { BLUEPRINT_CONTENT_DIR: "dist/content-e2e" },
       reuseExistingServer: !CI,
     },
     {
-      command: `pnpm exec vite --port ${CONTENT_PORT} --strictPort`,
+      command: `${VITE} --port ${CONTENT_PORT} --strictPort`,
       url: `http://localhost:${CONTENT_PORT}`,
       reuseExistingServer: !CI,
       timeout: 120_000,
