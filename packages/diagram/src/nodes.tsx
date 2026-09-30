@@ -114,6 +114,7 @@ export function FixedNode({ data }: NodeProps<FixedFlowNode>) {
           name={name}
           category={service?.category ?? ""}
           decorative
+          className="text-[9.28px]"
         />
         <strong className="line-clamp-2 text-[11.2px] leading-tight">{name}</strong>
       </div>

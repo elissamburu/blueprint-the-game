@@ -58,7 +58,7 @@ function AboutSection({ id, title, children }: { id: string; title: string; chil
   return (
     <section
       aria-labelledby={headingId}
-      className="flex flex-col gap-3 rounded-lg border bg-card p-[1.4rem] text-[0.95rem] leading-relaxed"
+      className="flex flex-col gap-3 rounded-lg border bg-card p-[1.4rem] text-base leading-relaxed"
     >
       <h2 id={headingId} className="text-[1.3rem]">
         {title}

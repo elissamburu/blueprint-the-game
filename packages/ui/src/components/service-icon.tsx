@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Icon of a catalog service. The official AWS icons are downloaded by pnpm icons:fetch and are
 // not committed (ADR-0012), so any icon may be missing: when the image does not load (or there
-// is no src) it shows the service initials over its category color.
+// is no src) it shows the service initials over its category color. The initials are 12 px
+// (0.75rem), the minimum for short labels (docs/design, problem 28); on the board the caller sets
+// them in px, as the rest of the board text.
 // Lovable: .service-icon and .service-icon-fallback + .service-icon-<tone> (src/styles.css).
 import { useState } from "react";
 import type * as React from "react";
@@ -86,7 +88,7 @@ function ServiceIcon({
       className={cn(
         "inline-grid size-8 flex-none place-items-center overflow-hidden rounded-md",
         !showImage && [
-          "border border-current/22 text-[0.58rem] font-[850]",
+          "border border-current/22 text-[0.75rem] font-[850]",
           TONES[categoryTone(category)],
         ],
         className,

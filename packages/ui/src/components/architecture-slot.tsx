@@ -90,7 +90,7 @@ function ArchitectureSlot({
             name={service.name}
             category={service.category}
             decorative
-            className="size-[28px]"
+            className="size-[28px] text-[9.28px]"
           />
           <strong className="line-clamp-2 min-w-0">{service.name}</strong>
         </span>

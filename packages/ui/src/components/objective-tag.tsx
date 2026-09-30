@@ -3,6 +3,7 @@
 // (ADR-0007): check (met), dash (goal half met) or X ("Viola: <restriction>"). The status comes
 // from game-engine through props; this component does not decide it.
 // Lovable: .goal-links span, .partial and .violated (src/styles.css), FeedbackPanel in blueprint-app.tsx.
+// The text is 0.875rem (Lovable: 0.65rem), the minimum for objectives (docs/design, problem 28).
 import type * as React from "react";
 import { CheckIcon, MinusIcon, XIcon, type LucideIcon } from "lucide-react";
 import { cn } from "@blueprint/ui/lib/utils";
@@ -34,11 +35,7 @@ function ObjectiveTag({ status, className, children, ...props }: ObjectiveTagPro
     <span
       data-slot="objective-tag"
       data-status={status}
-      className={cn(
-        "inline-flex items-center gap-[0.25rem] text-[0.65rem] font-bold",
-        text,
-        className,
-      )}
+      className={cn("inline-flex items-center gap-[0.25rem] text-sm font-bold", text, className)}
       {...props}
     >
       <Icon aria-hidden="true" className="size-[13px] shrink-0" />
