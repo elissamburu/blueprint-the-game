@@ -25,6 +25,8 @@ Formato: [MADR](https://adr.github.io/madr/) simplificado (Contexto · Decisión
 | [0019](0019-nombre-y-marcas.md) | Nombre del proyecto y uso de marcas de AWS | Pendiente |
 | [0020](0020-modelo-de-branching.md) | Modelo de branching: GitHub Flow con squash merge | Aceptado |
 | [0021](0021-ui-shadcn-tailwind-y-referencia-visual.md) | UI con shadcn/ui + Tailwind v4; herramientas de diseño solo como referencia | Aceptado |
+| [0022](0022-modo-texto.md) | Modo texto: representación alternativa del juego | Propuesto |
+| [0023](0023-contenido-multiidioma.md) | Contenido multiidioma | Propuesto |
 
 ## Plantilla
 
