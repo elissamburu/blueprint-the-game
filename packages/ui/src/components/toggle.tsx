@@ -2,7 +2,8 @@
 // Lovable: src/components/ui/toggle.tsx (clases tal cual, sin focus-visible:outline-none: ver la
 // capa base de globals.css). La variante `chip` traduce los chips de áreas del onboarding de
 // Lovable (Button `outline` sin elegir, Button `default` elegido); con Toggle el estado queda en
-// aria-pressed.
+// aria-pressed. En colores forzados el chip elegido declara el color de texto del sistema, como
+// las variantes sólidas de Button: el claro de --primary-foreground no significa nada ahí.
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@blueprint/ui/lib/utils";
@@ -16,7 +17,7 @@ const toggleVariants = cva(
         default: "bg-transparent",
         outline:
           "border border-input bg-transparent shadow-sm hover:bg-accent hover:text-accent-foreground",
-        chip: "border border-input bg-background whitespace-nowrap shadow-sm hover:bg-accent hover:text-accent-foreground data-[state=on]:border-transparent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow data-[state=on]:hover:bg-primary/90 data-[state=on]:hover:text-primary-foreground",
+        chip: "border border-input bg-background whitespace-nowrap shadow-sm hover:bg-accent hover:text-accent-foreground data-[state=on]:border-transparent data-[state=on]:bg-primary data-[state=on]:text-primary-foreground data-[state=on]:shadow data-[state=on]:hover:bg-primary/90 data-[state=on]:hover:text-primary-foreground forced-colors:data-[state=on]:bg-[ButtonFace] forced-colors:data-[state=on]:text-[ButtonText]",
       },
       size: {
         default: "h-9 min-w-9 px-2",

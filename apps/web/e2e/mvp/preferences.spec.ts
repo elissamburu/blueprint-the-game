@@ -1,14 +1,17 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // System preferences (docs/accesibilidad.md §3, manual tests 6 and 7), emulated: with
 // prefers-reduced-motion the flow player is still usable, step by step; with forced-colors the
-// states of a slot are told apart without color, by their names and by the style of the border.
+// states of a slot are told apart without color, by their names and by the style of the border,
+// and the primary button keeps a visible border (the system removes its background).
 import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
   board,
   emptySlotName,
   onboard,
   place,
+  placeAll,
   playFromListing,
+  scenarioCard,
   slot,
   slotName,
 } from "../support/app";
@@ -124,5 +127,56 @@ test.describe("forced-colors: active", () => {
     expect(style.border).toBe(style.text);
     expect(style.borderWidth).toBeGreaterThan(0);
     expect(style.borderStyle).toBe("solid");
+  });
+
+  /** What draws a button in forced colors: its text and its border over the background. */
+  const buttonStyle = (button: Locator) =>
+    button.evaluate((el) => {
+      const computed = getComputedStyle(el);
+      const sides = ["Top", "Right", "Bottom", "Left"] as const;
+      return {
+        text: computed.color,
+        // What paints the glyphs when it is set; it has to follow the forced color too.
+        fill: computed.getPropertyValue("-webkit-text-fill-color"),
+        background: computed.backgroundColor,
+        borderColor: computed.borderTopColor,
+        borderWidths: sides.map((side) => Number.parseFloat(computed[`border${side}Width`])),
+        borderStyles: sides.map((side) => computed[`border${side}Style`]),
+      };
+    });
+
+  const expectVisibleBorder = async (button: Locator) => {
+    await expect(button).toBeEnabled();
+    await expect(button).not.toHaveAttribute("aria-disabled", "true");
+    const style = await buttonStyle(button);
+    for (const width of style.borderWidths) expect(width).toBeGreaterThan(0);
+    for (const borderStyle of style.borderStyles) expect(borderStyle).not.toBe("none");
+    // The system painted it: a transparent border would not show.
+    expect(style.borderColor).not.toBe(style.background);
+    expect(style.borderColor).not.toMatch(/^(transparent|rgba\(0, 0, 0, 0\))$/);
+    expect(style.text).not.toBe(style.background);
+    expect(style.fill).toBe(style.text);
+    return style;
+  };
+
+  test("el botón primario conserva un borde visible en cada pantalla", async ({ page }) => {
+    await page.goto("/");
+    expect(await page.evaluate(() => matchMedia("(forced-colors: active)").matches)).toBe(true);
+    await page.getByRole("button", { name: AREAS.serverless, exact: true }).click();
+    await page.getByRole("radio", { name: EXPERIENCE.beginner }).click();
+    const route = page.getByRole("button", { name: "Ver mi ruta" });
+    await expectVisibleBorder(route);
+    await route.click();
+
+    await scenarioCard(page, CLUB_PHOTOS.title).getByRole("link").click();
+    const start = page.getByRole("button", { name: "Empezar a diseñar" });
+    await expectVisibleBorder(start);
+    await start.click();
+
+    await placeAll(page, [store, thumbnailer, index]);
+    const finish = await expectVisibleBorder(page.getByRole("button", { name: "Finalizar" }));
+    // Next to the outline buttons of the bar, the main action is told apart by a thicker border.
+    const outline = await buttonStyle(page.getByRole("button", { name: "Ver caso" }));
+    expect(finish.borderWidths[0]).toBeGreaterThan(outline.borderWidths[0] ?? 0);
   });
 });

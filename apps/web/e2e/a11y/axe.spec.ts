@@ -127,6 +127,30 @@ test.describe("forced-colors: active", () => {
     await expect(feedback(page, "Solución vista")).toBeVisible();
     await expectNoBlockingViolations(page, "juego con un casillero revelado, colores forzados");
   });
+
+  // With the primary button enabled: axe does not measure the contrast of a disabled control.
+  test("botón primario habilitado: onboarding, brief y juego completo", async ({ page }) => {
+    test.slow();
+    await page.goto("/");
+    await page.getByRole("button", { name: AREAS.serverless, exact: true }).click();
+    await page.getByRole("radio", { name: EXPERIENCE.beginner }).click();
+    await expect(page.getByRole("button", { name: "Ver mi ruta" })).toBeEnabled();
+    await expectNoBlockingViolations(page, "onboarding completo, colores forzados");
+    await page.getByRole("button", { name: "Ver mi ruta" }).click();
+
+    await scenarioCard(page, CLUB_PHOTOS.title).getByRole("link").click();
+    const brief = page.getByRole("dialog", { name: CLUB_PHOTOS.title });
+    await expect(brief).toBeVisible();
+    await expectNoBlockingViolations(page, "brief, colores forzados");
+    await brief.getByRole("button", { name: "Empezar a diseñar" }).click();
+
+    await placeAll(page, [store, thumbnailer, index]);
+    await expect(page.getByRole("button", { name: "Finalizar" })).not.toHaveAttribute(
+      "aria-disabled",
+      "true",
+    );
+    await expectNoBlockingViolations(page, "juego completo, colores forzados");
+  });
 });
 
 test("resumen", async ({ page }) => {
