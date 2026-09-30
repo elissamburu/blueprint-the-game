@@ -81,7 +81,7 @@ El workflow [ci.yml](.github/workflows/ci.yml) corre en cada PR contra `main`, e
 | Tests | `pnpm test` |
 | Build | `pnpm build` |
 
-El job `ci` agrupa el resultado de ambos sistemas operativos y es el check requerido para mergear. Podés correr todo localmente antes de abrir el PR:
+Además, el job `e2e` corre las pruebas de punta a punta (`pnpm e2e`) en Ubuntu. El job `ci` agrupa el resultado de ambos sistemas operativos y del `e2e`, y es el check requerido para mergear. Podés correr todo localmente antes de abrir el PR:
 
 ```bash
 pnpm format:check && pnpm lint && pnpm deps:check && pnpm typecheck && pnpm test && pnpm build
@@ -116,6 +116,6 @@ pnpm e2e --ui                              # modo interactivo de Playwright
 - **`fixture`**: el build de producción con un escenario de prueba fijo ([apps/web/e2e/fixtures/content](apps/web/e2e/fixtures/content), que no forma parte de `content/`). Ahí corren los recorridos del MVP, las preferencias del sistema emuladas, los tamaños de texto y axe.
 - **`content`**: el servidor de desarrollo con `content/` completo, borradores incluidos. Por cada escenario coloca en cada casillero el óptimo que lee del propio contenido y verifica que queda en verde y que el resumen da el puntaje máximo. Si agregás o cambiás un escenario, esta prueba lo cubre sin tocar nada.
 
-Si una prueba falla, `pnpm --filter @blueprint/web exec playwright show-report` abre el reporte con la traza de cada paso.
+Si una prueba falla, `pnpm --filter @blueprint/web exec playwright show-report` abre el reporte con la traza de cada paso. En el CI el reporte se sube como artefacto (`playwright-report`) solo cuando falla.
 
 Al escribir pruebas, buscá los elementos por rol y nombre accesible (`getByRole`, `getByLabel`), nunca por clases CSS: así la prueba también verifica lo que encuentra un lector de pantalla. Si cambiás el escenario de prueba, regenerá sus archivos con `pnpm content:gen --content apps/web/e2e/fixtures/content`.
