@@ -1,0 +1,3 @@
+- id: compute
+  services: [lambda, ec2, fargate]
+  note: "Funciones vs máquinas virtuales vs contenedores."

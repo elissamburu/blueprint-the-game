@@ -88,3 +88,34 @@ pnpm format:check && pnpm lint && pnpm deps:check && pnpm typecheck && pnpm test
 ```
 
 (En PowerShell 7 `&&` funciona igual.)
+
+## Pruebas de punta a punta (e2e)
+
+Las pruebas de [apps/web/e2e](apps/web/e2e) manejan el juego en un navegador real con [Playwright](https://playwright.dev/) y corren [axe](https://github.com/dequelabs/axe-core) sobre las pantallas principales ([accesibilidad, §7](docs/accesibilidad.md#7-protocolo-de-pruebas)). Funcionan igual en Windows (PowerShell), Linux y macOS.
+
+La primera vez, instalá el navegador que usa Playwright (se descarga una sola vez por versión, fuera del repo):
+
+```bash
+pnpm --filter @blueprint/web exec playwright install chromium
+```
+
+En Linux, si faltan librerías del sistema, agregá `--with-deps`.
+
+Después, desde la raíz:
+
+```bash
+pnpm e2e                                   # toda la suite
+pnpm e2e --project=fixture                 # solo los recorridos y axe sobre el escenario de prueba
+pnpm e2e --project=content                 # solo el contenido real
+pnpm e2e keyboard                          # solo los archivos cuyo nombre contiene "keyboard"
+pnpm e2e --ui                              # modo interactivo de Playwright
+```
+
+`pnpm e2e` genera los bundles de contenido, compila el juego y levanta solo los dos servidores que necesita (no hace falta tener `pnpm dev` corriendo):
+
+- **`fixture`**: el build de producción con un escenario de prueba fijo ([apps/web/e2e/fixtures/content](apps/web/e2e/fixtures/content), que no forma parte de `content/`). Ahí corren los recorridos del MVP, las preferencias del sistema emuladas, los tamaños de texto y axe.
+- **`content`**: el servidor de desarrollo con `content/` completo, borradores incluidos. Por cada escenario coloca en cada casillero el óptimo que lee del propio contenido y verifica que queda en verde y que el resumen da el puntaje máximo. Si agregás o cambiás un escenario, esta prueba lo cubre sin tocar nada.
+
+Si una prueba falla, `pnpm --filter @blueprint/web exec playwright show-report` abre el reporte con la traza de cada paso.
+
+Al escribir pruebas, buscá los elementos por rol y nombre accesible (`getByRole`, `getByLabel`), nunca por clases CSS: así la prueba también verifica lo que encuentra un lector de pantalla. Si cambiás el escenario de prueba, regenerá sus archivos con `pnpm content:gen --content apps/web/e2e/fixtures/content`.

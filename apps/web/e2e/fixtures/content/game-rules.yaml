@@ -1,0 +1,26 @@
+# Game rules of the e2e fixture bundle. Same scoring as content/game-rules.yaml; the rank
+# thresholds and the unlock requirement are low so that a single scenario is enough to go up a
+# rank and open the next level (DoD of F1). The specs assert these numbers.
+scoring:
+  firstTryGreen: 100
+  greenAfterErrors:
+    penaltyPerError: 25
+    min: 25
+  acceptedAcceptable: 50
+  hintCost: 15
+  revealedSolution: 0
+levelMultipliers: { 100: 1, 200: 1.5, 300: 2, 400: 3 }
+ranks:
+  - { id: aprendiz, name: Aprendiz, minXp: 0 }
+  - { id: constructor, name: Constructor, minXp: 200 }
+  - { id: arquitecto, name: Arquitecto, minXp: 2000 }
+unlock:
+  scenariosRequired: 1
+  byExperience:
+    beginner: [100]
+    aws-user: [100, 200]
+    architect: [100, 200, 300]
+    expert: [100, 200, 300, 400]
+palette:
+  modeByLevel: { 100: curated, 200: categories, 300: categories-plus, 400: full }
+  defaultMaxSize: 12

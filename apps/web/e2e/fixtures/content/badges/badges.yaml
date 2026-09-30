@@ -1,0 +1,4 @@
+- id: primer-verde
+  name: "Primer verde"
+  description: "Completaste tu primer escenario."
+  rule: { type: complete_count, count: 1 }

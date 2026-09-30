@@ -1,0 +1,16 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: club-photos v1
+flowchart LR
+  n_member(["Socio"])
+  subgraph g_cloud["Nube"]
+    n_store["Amazon S3"]
+    n_thumbnailer["AWS Lambda"]
+    n_index["Amazon DynamoDB"]
+    n_logs["Amazon CloudWatch"]
+  end
+  n_member ==>|"1. Sube la foto"| n_store
+  n_store -.->|"2. Avisa que llegó"| n_thumbnailer
+  n_thumbnailer ==>|"3. Anota la miniatura"| n_index
+  n_thumbnailer --o|"4. Registra el resultado"| n_logs
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_store,n_thumbnailer,n_index slot

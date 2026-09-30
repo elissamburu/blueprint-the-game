@@ -11,7 +11,16 @@ import tseslint from "typescript-eslint";
  *   export { default } from "@blueprint/config/eslint";
  */
 export default defineConfig(
-  { ignores: ["**/dist/**", "**/coverage/**", "**/.turbo/**", "**/node_modules/**"] },
+  {
+    ignores: [
+      "**/dist/**",
+      "**/coverage/**",
+      "**/.turbo/**",
+      "**/node_modules/**",
+      "**/test-results/**",
+      "**/playwright-report/**",
+    ],
+  },
   js.configs.recommended,
   tseslint.configs.recommendedTypeChecked,
   {
