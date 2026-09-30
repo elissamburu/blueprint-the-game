@@ -1,0 +1,369 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: gpu-inference-on-eks
+version: 1
+status: draft
+lang: es
+level: 400
+areas: [ml, containers]
+title: "Un modelo propio con GPU en la plataforma Kubernetes de la empresa"
+summary: "Una logística sirve su modelo de lenguaje ajustado en el clúster que ya usan todos los equipos: GPUs que se apagan de noche, pesos de decenas de GB que cargan rápido y métricas para dimensionar."
+estimatedMinutes: 15
+authors:
+  - github: elissamburu
+
+context: |
+  Una **empresa de logística** tiene una **plataforma interna sobre Kubernetes**: todos los
+  equipos despliegan con **charts de Helm** y un flujo **GitOps**, y el equipo de plataforma
+  opera el clúster. Los nodos corren en **subredes privadas** y las imágenes se guardan en
+  **ECR**.
+
+  El equipo de datos ajustó un **modelo de lenguaje open-weights** para **clasificar y resumir
+  reclamos**. Le cambió la arquitectura (agregó una cabeza de clasificación propia) y entrenó
+  **adaptadores** por tipo de reclamo que el motor carga **en caliente**, sin reiniciar. Lo
+  sirve con un **motor de inferencia de código abierto** en un contenedor.
+
+  Los sistemas internos de reclamos **no necesitan la respuesta en el momento**: dejan cada
+  reclamo **en espera de procesamiento**, los pods de inferencia lo toman cuando pueden y
+  devuelven la clasificación y el resumen a la API interna del sistema de reclamos. La
+  cantidad de réplicas sigue a la **cantidad de reclamos pendientes**.
+
+  La demanda sigue el día: **picos a la mañana**, cuando entran los reclamos de la noche, y
+  **casi nada de noche**. Procesar un reclamo lleva desde un segundo (clasificar) hasta
+  varios minutos (resumir un expediente largo).
+
+  Los **pesos del modelo pesan decenas de GB**: en el pico, varios nodos nuevos los descargan
+  a la vez, y cada minuto que tardan es un minuto de GPU pagada sin responder.
+
+objectives:
+  - id: same-platform
+    kind: hard
+    category: team
+    text: "La inferencia corre en la plataforma Kubernetes existente y se despliega con las mismas herramientas que el resto de los equipos: charts de Helm y GitOps."
+  - id: own-model
+    kind: hard
+    category: operations
+    text: "Se sirve el modelo propio, con su arquitectura y sus adaptadores cargados en caliente, sin convertirlo a otro formato."
+  - id: gpu
+    kind: hard
+    category: performance
+    text: "Los pods de inferencia corren sobre GPU."
+  - id: no-idle-capacity
+    kind: soft
+    category: cost
+    text: "No pagar capacidad ociosa de noche: ni GPUs ni almacenamiento aprovisionado que nadie usa."
+  - id: fast-node-ready
+    kind: soft
+    category: scalability
+    text: "Que un nodo nuevo sirva pedidos lo antes posible en el pico de la mañana, aunque los pesos pesen decenas de GB."
+  - id: gpu-metrics
+    kind: soft
+    category: operations
+    text: "Tener métricas de uso y de memoria de GPU por nodo y por pod para dimensionar instancias y réplicas."
+  - id: absorb-peaks
+    kind: soft
+    category: availability
+    text: "En el pico de la mañana ningún reclamo se pierde ni se rechaza mientras arrancan los nodos, y la capacidad crece con los reclamos pendientes."
+  - id: model-updates
+    kind: soft
+    category: operations
+    text: "El equipo de datos publica pesos y adaptadores nuevos sin reconstruir la imagen del motor."
+
+diagram:
+  canvas: { width: 1500, height: 900 }
+  groups:
+    - id: region
+      kind: region
+      label: "Región"
+      rect: { x: 200, y: 40, w: 1260, h: 820 }
+      parent: null
+    - id: vpc
+      kind: vpc
+      label: "Red de la plataforma"
+      rect: { x: 480, y: 280, w: 560, h: 540 }
+      parent: region
+    - id: nodes-subnets
+      kind: subnet-private
+      label: "Subredes privadas de los nodos"
+      rect: { x: 740, y: 420, w: 280, h: 260 }
+      parent: vpc
+
+  nodes:
+    - id: data-team
+      type: actor
+      label: "Equipo de datos"
+      icon: users
+      position: { x: 40, y: 120 }
+
+    - id: consumers
+      type: actor
+      label: "Sistemas internos de reclamos"
+      icon: server
+      position: { x: 40, y: 520 }
+
+    - id: gitops
+      type: external
+      label: "Repositorio GitOps (charts de Helm)"
+      icon: third-party
+      position: { x: 40, y: 760 }
+
+    - id: registry
+      type: fixed
+      service: ecr
+      position: { x: 1100, y: 120 }
+      group: region
+
+    - id: platform
+      type: slot
+      role: "Plataforma que orquesta los contenedores del motor de inferencia, igual que los del resto de los equipos."
+      position: { x: 1100, y: 320 }
+      group: region
+      answers:
+        - service: eks
+          grade: optimal
+          objectives: [same-platform, own-model, gpu]
+          rationale: >
+            Es el clúster que ya opera la plataforma: el motor se despliega con un chart de Helm
+            y lo sincroniza GitOps, como cualquier otro servicio. Como el motor de código abierto
+            corre en un contenedor propio, sirve el modelo con su arquitectura y carga los
+            adaptadores sin convertir nada. Los pods piden GPU (`nvidia.com/gpu`) y el clúster
+            les consigue nodos que la tengan.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/ml-inference.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/auto-accelerated.html
+      incorrect:
+        - service: bedrock
+          violates: [own-model, same-platform]
+          rationale: "Su importación de modelos propios solo acepta ciertas arquitecturas (Llama, Mistral, Mixtral, Flan, GPTBigCode, Qwen y GPT-OSS), con los pesos en formato de Hugging Face: un modelo con arquitectura propia no entra sin rehacerlo. Además, la inferencia quedaría fuera del clúster y de su flujo de despliegue."
+        - service: sagemaker-ai
+          violates: [same-platform]
+          rationale: "Es una muy buena opción para servir contenedores propios con GPU y escalar endpoints, pero es otra plataforma, con otros despliegues y otra operación, fuera del clúster, de Helm y de GitOps. El caso exige usar la plataforma que el equipo ya opera."
+        - service: ecs
+          violates: [same-platform]
+          rationale: "Soporta tareas con GPU, pero es el orquestador propio de AWS, no Kubernetes: los charts de Helm y el flujo GitOps de la plataforma no sirven ahí."
+      hints:
+        - "La restricción no es técnica sino de plataforma: tiene que ser el mismo lugar donde despliegan todos."
+        - "Un servicio administrado de modelos te obliga a encajar en sus arquitecturas; un contenedor propio, no."
+
+    - id: gpu-compute
+      type: slot
+      role: "Máquinas con GPU donde corren los pods de inferencia, que aparecen con la demanda y desaparecen cuando quedan vacías."
+      position: { x: 800, y: 460 }
+      group: nodes-subnets
+      answers:
+        - service: ec2
+          grade: optimal
+          objectives: [gpu, no-idle-capacity]
+          rationale: >
+            Instancias con GPU (familias G y P) como nodos. Con Auto Mode o Karpenter se crean
+            cuando hay pods de GPU pendientes y se eliminan cuando quedan vacías: de noche queda
+            casi nada. Auto Mode trae los drivers de NVIDIA y el plugin de dispositivos; con
+            nodos propios, la AMI acelerada trae el driver y el toolkit, y el plugin se instala
+            aparte.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/auto-accelerated.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/ml-eks-optimized-ami.html
+      incorrect:
+        - service: fargate
+          violates: [gpu]
+          rationale: "Las consideraciones de uso con Kubernetes lo dicen explícitamente: las GPU no están disponibles en esta capacidad serverless. Tampoco corre DaemonSets, que usan los agentes de GPU y de métricas."
+        - service: lambda
+          violates: [same-platform]
+          rationale: "No es un nodo del clúster: no puede alojar los pods de inferencia. Y sus cuotas documentadas no alcanzan para este modelo: hasta 10.240 MB de memoria por función y 15 minutos por invocación (90 en algunos casos con Managed Instances), con pesos de decenas de GB y resúmenes que tardan minutos."
+      hints:
+        - "La capacidad serverless de contenedores no tiene lo que este modelo necesita."
+        - "Pensá en máquinas virtuales con aceleradores que el clúster crea y destruye solo."
+
+    - id: weights-store
+      type: slot
+      role: "Dónde quedan los pesos y los adaptadores que publica el equipo de datos y que cada réplica nueva lee al arrancar."
+      position: { x: 800, y: 80 }
+      group: region
+      answers:
+        - service: s3
+          grade: optimal
+          objectives: [fast-node-ready, no-idle-capacity, model-updates]
+          rationale: >
+            Los pesos quedan en un bucket y cada réplica nueva los lee en paralelo. La guía de
+            inferencia de AWS usa Run:ai Model Streamer, una herramienta de código abierto de
+            NVIDIA que el motor usa para llevarlos directo a la memoria de la GPU; el driver CSI
+            de Mountpoint es otra opción. Se paga lo guardado y los pedidos: de noche no queda
+            capacidad aprovisionada ociosa.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/ml-inference.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/ml-inference-fast-model-loading.html
+            - https://docs.aws.amazon.com/eks/latest/userguide/s3-csi.html
+        - service: fsx
+          grade: acceptable
+          objectives: [no-idle-capacity]
+          rationale: >
+            Funciona y es rápido: vinculado al bucket y precalentado, sirve los pesos a muchos
+            nodos a la vez, y la guía de almacenamiento para IA lo recomienda con varias
+            instancias con GPU. Pero se aprovisiona por capacidad, con throughput proporcional a
+            ella, y se paga también de noche, cuando no hay GPUs.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html
+            - https://docs.aws.amazon.com/fsx/latest/LustreGuide/ssd-storage.html
+        - service: efs
+          grade: acceptable
+          objectives: [fast-node-ready]
+          rationale: >
+            Un sistema de archivos compartido y elástico que no se aprovisiona: se paga lo
+            guardado y lo leído. La guía lo propone para caches de modelos con necesidades de
+            rendimiento moderadas; cada cliente llega a 1.500 MiBps como máximo, así que decenas
+            de GB por nodo tardan más que leerlos en paralelo.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html
+            - https://docs.aws.amazon.com/efs/latest/ug/performance.html
+        - service: ecr
+          grade: acceptable
+          objectives: [fast-node-ready, model-updates]
+          rationale: >
+            Funciona: los pesos viajan dentro de la imagen del motor. Pero cada nodo nuevo baja
+            una imagen de decenas de GB antes de arrancar, y cada modelo o adaptador nuevo obliga
+            a reconstruir la imagen y redesplegar. La guía de almacenamiento para IA recomienda
+            no embeber los pesos en la imagen porque agranda la imagen y el tiempo de descarga.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html
+      incorrect:
+        - service: ebs
+          rationale: "Un volumen de bloques se conecta, en general, a un solo nodo y vive en una zona: cada nodo nuevo necesitaría su propia copia de los pesos, y alguien tendría que cargarla antes de que el nodo arranque."
+      hints:
+        - "Nada de lo que elijas debería cobrarse de noche si no hay nodos."
+        - "La guía de inferencia de AWS lee los pesos en paralelo, directo a la memoria de la GPU, desde el almacén más barato."
+
+    - id: weights-private-path
+      type: slot
+      role: "Camino privado de los nodos hacia los pesos, que no se sature cuando varios nodos nuevos los descargan a la vez."
+      position: { x: 520, y: 320 }
+      group: vpc
+      answers:
+        - service: vpc-gateway-endpoint
+          grade: optimal
+          objectives: [fast-node-ready, no-idle-capacity]
+          rationale: >
+            Una ruta en las tablas de las subredes hacia el almacén de los pesos, sin cargo por
+            hora ni por GB. La guía de carga rápida de modelos lo recomienda: el tráfico no pasa
+            por la salida compartida a internet, que en el pico se vuelve el cuello de botella
+            cuando varios nodos bajan el modelo completo a la vez.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/ml-inference-fast-model-loading.html
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html
+        - service: nat-gateway
+          grade: acceptable
+          objectives: [fast-node-ready]
+          rationale: >
+            Funciona, pero su ancho de banda (hasta 100 Gbps) se comparte entre todos los nodos
+            de la subred: en el pico, varios nodos bajando decenas de GB compiten entre sí y
+            todos tardan más en servir. Además cobra por cada GB que procesa.
+          references:
+            - https://docs.aws.amazon.com/eks/latest/userguide/ml-inference-fast-model-loading.html
+        - service: vpc-interface-endpoint
+          grade: acceptable
+          objectives: [no-idle-capacity]
+          rationale: >
+            Llega por la red privada sin compartir la salida a internet, pero cobra por hora en
+            cada zona aunque de noche no pase nada, y además por GB. La ruta privada sin cargo
+            hace lo mismo para este servicio.
+          references:
+            - https://docs.aws.amazon.com/vpc/latest/privatelink/gateway-endpoints.html
+      incorrect:
+        - service: internet-gateway
+          rationale: "Los nodos están en subredes privadas: para usarlo tendrían que pasar a subredes públicas con IP pública, y el tráfico iría a los puntos de acceso públicos del servicio."
+      hints:
+        - "Pensá qué pasa a las 8 de la mañana, cuando diez nodos bajan el modelo completo al mismo tiempo."
+        - "Para este almacén existe un acceso privado que es solo una ruta y no tiene cargo."
+
+    - id: gpu-metrics
+      type: slot
+      role: "Métricas de uso, memoria y potencia de cada GPU, por nodo y por pod, para dimensionar instancias y réplicas."
+      position: { x: 1100, y: 560 }
+      group: region
+      answers:
+        - service: cloudwatch
+          grade: optimal
+          objectives: [gpu-metrics]
+          rationale: >
+            Container Insights con observabilidad mejorada recolecta métricas de GPU de NVIDIA
+            por nodo, pod y contenedor (uso, memoria, tensor cores, potencia) desde la versión
+            v1.3.0 del add-on de observabilidad. Necesita el plugin de dispositivos de NVIDIA
+            en el clúster y el toolkit de contenedores en los nodos, que ya trae la AMI acelerada.
+            Con el monitoreo detallado, recolecta cada segundo para no perder picos cortos.
+          references:
+            - https://docs.aws.amazon.com/AmazonCloudWatch/latest/monitoring/Container-Insights-metrics-enhanced-EKS.html
+      incorrect:
+        - service: x-ray
+          rationale: "Traza pedidos a través de los componentes de una aplicación para ver latencias y errores; no mide cuánto se usa cada GPU ni su memoria."
+        - service: cloudtrail
+          rationale: "Registra las llamadas a las APIs de AWS de la cuenta, por ejemplo quién creó un nodo o cambió un permiso; no mide el uso de las GPU."
+      hints:
+        - "Buscá el servicio de métricas y logs que ya tiene una vista específica para contenedores."
+
+    - id: claims-queue
+      type: slot
+      role: "Donde esperan los reclamos hasta que una réplica los toma; su cantidad de pendientes decide cuántas réplicas corren."
+      position: { x: 280, y: 480 }
+      group: region
+      answers:
+        - service: sqs
+          grade: optimal
+          objectives: [absorb-peaks, no-idle-capacity]
+          rationale: >
+            Cada reclamo espera en la cola (4 días por defecto, hasta 14) y los pods lo toman a su
+            ritmo: en el pico nada se pierde mientras arrancan los nodos. KEDA, un proyecto
+            graduado de la CNCF (no de AWS), escala las réplicas según los mensajes pendientes y
+            las baja a cero sin mensajes; los nodos vacíos se eliminan. El visibility timeout
+            (hasta 12 h) tiene que cubrir el resumen más largo.
+          references:
+            - https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/sqs-visibility-timeout.html
+            - https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/quotas-messages.html
+            - https://keda.sh/docs/2.17/scalers/aws-sqs/
+        - service: kinesis-data-streams
+          grade: acceptable
+          objectives: [absorb-peaks, no-idle-capacity]
+          rationale: >
+            Retiene los registros, así que el pico no se pierde. Pero no es una cola de trabajo:
+            cada shard se lee en orden (un resumen largo frena a los que vienen detrás) y no hay
+            confirmación por mensaje. El escalador de KEDA para este servicio dimensiona por
+            cantidad de shards, no por trabajo pendiente: las réplicas no crecen con el pico ni
+            bajan a cero de noche.
+          references:
+            - https://docs.aws.amazon.com/streams/latest/dev/how-do-i-size-a-stream.html
+            - https://keda.sh/docs/2.17/scalers/aws-kinesis/
+      incorrect:
+        - service: sns
+          violates: [absorb-peaks]
+          rationale: "Es pub/sub: empuja cada mensaje a sus suscriptores en el momento y no lo guarda para que los pods lo tomen a su ritmo. Con los nodos todavía arrancando, no hay quién lo reciba. Para trabajo pendiente se lo pone delante de una cola, no en su lugar."
+        - service: eventbridge
+          rationale: "Enruta eventos a destinos según reglas; no es una cola de trabajo de la que los pods tomen reclamos cuando pueden, ni expone cuántos quedan pendientes para escalar."
+      hints:
+        - "Nadie espera la respuesta en el momento: el trabajo puede esperar a que haya una réplica libre."
+        - "Buscá algo de lo que los pods tomen mensajes cuando pueden, y que diga cuántos quedan pendientes."
+
+  edges:
+    - { id: e1,  from: data-team,            to: weights-store,        step: 1, style: data,    label: "Publica pesos y adaptadores" }
+    - { id: e2,  from: gitops,               to: platform,             step: 1, style: control, label: "Sincroniza el chart de Helm" }
+    - { id: e3,  from: consumers,            to: claims-queue,         step: 2, style: async,   label: "Deja el reclamo pendiente" }
+    - { id: e4,  from: claims-queue,         to: platform,             step: 3, style: control, label: "Cantidad de reclamos pendientes",
+        description: "El escalador (KEDA) ajusta las réplicas según los pendientes; sin mensajes, baja a cero." }
+    - { id: e5,  from: platform,             to: gpu-compute,          step: 4, style: control, label: "Crea un nodo con GPU por demanda",
+        description: "En el pico de la mañana aparecen nodos nuevos; de noche se eliminan los que quedan vacíos." }
+    - { id: e6,  from: gpu-compute,          to: registry,             step: 5, style: data,    label: "Descarga la imagen del motor" }
+    - { id: e7,  from: gpu-compute,          to: weights-private-path, step: 6, style: data,    label: "Pide los pesos del modelo",
+        description: "Decenas de GB por réplica nueva: es el tramo que define cuánto tarda un nodo en servir." }
+    - { id: e8,  from: weights-private-path, to: weights-store,        step: 7, style: data,    label: "Lee los pesos por la red privada" }
+    - { id: e9,  from: gpu-compute,          to: claims-queue,         step: 8, style: sync,    label: "Toma reclamos y los confirma" }
+    - { id: e10, from: gpu-compute,          to: consumers,            step: 9, style: sync,    label: "Devuelve clasificación y resumen" }
+    - { id: e11, from: gpu-compute,          to: gpu-metrics,          step: 9, style: async,   label: "Métricas de uso de GPU" }
+
+palette:
+  mode: auto
+
+references:
+  - title: "Inferencia de IA y ML en EKS"
+    url: https://docs.aws.amazon.com/eks/latest/userguide/ml-inference.html
+  - title: "Acelerar la carga de modelos en EKS"
+    url: https://docs.aws.amazon.com/eks/latest/userguide/ml-inference-fast-model-loading.html
+  - title: "Mejores prácticas de EKS para IA y ML: almacenamiento"
+    url: https://docs.aws.amazon.com/eks/latest/best-practices/aiml-storage.html

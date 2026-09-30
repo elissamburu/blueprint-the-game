@@ -1,0 +1,32 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: gpu-inference-on-eks v1
+flowchart LR
+  n_data_team(["Equipo de datos"])
+  n_consumers(["Sistemas internos de reclamos"])
+  n_gitops{{"Repositorio GitOps (charts de Helm)"}}
+  subgraph g_region["Región"]
+    subgraph g_vpc["Red de la plataforma"]
+      subgraph g_nodes_subnets["Subredes privadas de los nodos"]
+        n_gpu_compute["Amazon EC2"]
+      end
+      n_weights_private_path["Gateway VPC endpoint"]
+    end
+    n_registry["Amazon ECR"]
+    n_platform["Amazon EKS"]
+    n_weights_store["Amazon S3"]
+    n_gpu_metrics["Amazon CloudWatch"]
+    n_claims_queue["Amazon SQS"]
+  end
+  n_data_team ==>|"1. Publica pesos y adaptadores"| n_weights_store
+  n_gitops --o|"1. Sincroniza el chart de Helm"| n_platform
+  n_consumers -.->|"2. Deja el reclamo pendiente"| n_claims_queue
+  n_claims_queue --o|"3. Cantidad de reclamos pendientes"| n_platform
+  n_platform --o|"4. Crea un nodo con GPU por demanda"| n_gpu_compute
+  n_gpu_compute ==>|"5. Descarga la imagen del motor"| n_registry
+  n_gpu_compute ==>|"6. Pide los pesos del modelo"| n_weights_private_path
+  n_weights_private_path ==>|"7. Lee los pesos por la red privada"| n_weights_store
+  n_gpu_compute -->|"8. Toma reclamos y los confirma"| n_claims_queue
+  n_gpu_compute -->|"9. Devuelve clasificación y resumen"| n_consumers
+  n_gpu_compute -.->|"9. Métricas de uso de GPU"| n_gpu_metrics
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_platform,n_gpu_compute,n_weights_store,n_weights_private_path,n_gpu_metrics,n_claims_queue slot
