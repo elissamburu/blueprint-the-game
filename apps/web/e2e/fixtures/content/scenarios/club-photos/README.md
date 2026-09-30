@@ -84,3 +84,7 @@ Pistas:
 |---|---|---|---|---|
 | Amazon DynamoDB (`dynamodb`) | 🟢 Óptimo | `no-servers`, `low-cost` | Tabla clave-valor sin servidores, con cobro por pedido. | [1](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html) |
 | Amazon EFS (`efs`) | 🔴 Incorrecto | — | Es un sistema de archivos: no consulta registros por clave. |  |
+
+Pistas:
+
+1. Se consulta por clave y no tiene servidores que mantener.

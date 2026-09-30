@@ -186,6 +186,7 @@
       "another": "Ver otra pista (−{{cost}} pts)",
       "show": "Ver pistas",
       "none": "Sin más pistas",
+      "buttonName": "{{label}}, casillero {{number}}",
       "title": "Pistas · {{role}}",
       "number": "Pista {{number}}:",
       "counter": "Pistas {{used}}/{{total}}"

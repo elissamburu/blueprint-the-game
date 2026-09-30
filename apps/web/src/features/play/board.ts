@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Adapters between the game and the board (@blueprint/diagram): catalog → service lookup, and
-// game-engine session → slot states. The grade comes from the engine; this only renames it.
+// game-engine session → slot states. The grade and the number of each slot come from the engine;
+// this only renames the grade.
 import type { ServiceLookup, SlotView } from "@blueprint/diagram";
-import { slotNodes, slotStatus, type SessionState } from "@blueprint/game-engine";
+import { slotNodes, slotNumbers, slotStatus, type SessionState } from "@blueprint/game-engine";
 import type { Service } from "@blueprint/scenario-schema";
 import { serviceIconSrc } from "../../service-icons";
 
@@ -24,6 +25,7 @@ export const createServiceLookup = (
  */
 export const slotViews = (session: SessionState): Record<string, SlotView> => {
   const hintTotals = new Map(slotNodes(session.scenario).map((n) => [n.id, n.hints.length]));
+  const numbers = slotNumbers(session.scenario);
   return Object.fromEntries(
     session.slots.map((slot): [string, SlotView] => {
       const status = slotStatus(slot);
@@ -31,6 +33,7 @@ export const slotViews = (session: SessionState): Record<string, SlotView> => {
         slot.slotId,
         {
           grade: status === "accepted" ? "acceptable" : status,
+          number: numbers.get(slot.slotId),
           serviceId: slot.placed,
           hints: { used: slot.hintsRevealed, total: hintTotals.get(slot.slotId) ?? 0 },
           selected: session.selectedSlotId === slot.slotId,

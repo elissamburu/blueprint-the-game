@@ -54,7 +54,12 @@ import {
 import type { Box } from "./geometry";
 import { nodeTypes } from "./nodes";
 import { describeRoute, describeStep, diagramSteps, type FlowStep } from "./steps";
-import { isServiceDragData, type ServiceLookup, type SlotView } from "./types";
+import {
+  isServiceDragData,
+  type ServiceLookup,
+  type SlotHintContext,
+  type SlotView,
+} from "./types";
 import { useFlowPlayer, type FlowPlayer } from "./use-flow-player";
 import { useReducedMotion } from "./use-reduced-motion";
 import { contentBox, initialView, revealViewport, steppedZoom } from "./viewport";
@@ -94,9 +99,10 @@ export interface DiagramProps {
   onServiceDrop?: ((slotId: string, serviceId: string) => void) | undefined;
   /**
    * Replaces the hint counter of a slot (e.g. a "Ver pista" button with its popover). Return
-   * undefined to keep the counter.
+   * undefined to keep the counter. The context has the id of the role text of the slot, to
+   * describe the control with it.
    */
-  slotHintAction?: ((slotId: string) => ReactNode) | undefined;
+  slotHintAction?: ((slotId: string, context: SlotHintContext) => ReactNode) | undefined;
   /** Accessible name of the board. */
   label?: string | undefined;
   /**

@@ -13,7 +13,7 @@ export interface ReviewAnswer {
 }
 
 export interface SlotReview {
-  /** 1-based position of the slot in diagram order. */
+  /** 1-based position of the slot in diagram order: the number `slotNumbers` gives it. */
   readonly number: number;
   readonly slotId: string;
   readonly role: string;

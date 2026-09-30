@@ -13,6 +13,7 @@ export {
   type ServiceInfo,
   type ServiceLookup,
   type SlotGrade,
+  type SlotHintContext,
   type SlotView,
 } from "./types";
 export {

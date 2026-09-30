@@ -7,7 +7,12 @@
 // src/interaction (ADR-0008) and every grade, score, completion and unlock comes from game-engine.
 // Lovable: GameScreen, .game-shell, .game-redesign, .game-layout (src/components/blueprint-app.tsx,
 // styles.css).
-import { Diagram, diagramSteps, type DiagramHandle } from "@blueprint/diagram";
+import {
+  Diagram,
+  diagramSteps,
+  type DiagramHandle,
+  type SlotHintContext,
+} from "@blueprint/diagram";
 import {
   buildPalette,
   canApply,
@@ -17,6 +22,7 @@ import {
   revealedHints,
   scenarioResult,
   slotNodes,
+  slotNumbers,
 } from "@blueprint/game-engine";
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
@@ -82,6 +88,7 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     [scenario, serviceLookup],
   );
   const nodes = useMemo(() => new Map(slotNodes(scenario).map((n) => [n.id, n])), [scenario]);
+  const numbers = useMemo(() => slotNumbers(scenario), [scenario]);
   const names = useMemo(
     (): Names => ({
       serviceName: (id) => services.get(id)?.name ?? id,
@@ -241,15 +248,18 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
 
   const { revealHint } = game;
   const slotHintAction = useCallback(
-    (slotId: string) => {
+    (slotId: string, { roleId }: SlotHintContext) => {
       const node = nodes.get(slotId);
-      if (node === undefined) return undefined;
+      const number = numbers.get(slotId);
+      if (node === undefined || number === undefined) return undefined;
       const revealed = revealedHints(session, slotId);
       const canReveal = canApply(session, commands.useHint(slotId));
       if (!showsHintAction(node.hints.length, revealed.length, canReveal)) return undefined;
       return (
         <HintAction
           role={node.role}
+          slotNumber={number}
+          roleId={roleId}
           revealed={revealed}
           total={node.hints.length}
           cost={rules.scoring.hintCost}
@@ -258,7 +268,7 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
         />
       );
     },
-    [nodes, session, rules, revealHint],
+    [nodes, numbers, session, rules, revealHint],
   );
 
   // "Ver solución" (RF-PLAY-14). The target is the selected slot or, after a placement released

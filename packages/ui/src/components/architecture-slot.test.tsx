@@ -9,11 +9,39 @@ afterEach(cleanup);
 const service = { name: "Amazon S3", category: "storage" };
 
 describe("slotAccessibleName", () => {
-  it('reads "<rol>. <estado>[: <servicio>]" without doubling the period of the role', () => {
-    expect(slotAccessibleName("Guarda el PDF.", "optimal", "Amazon S3")).toBe(
-      "Guarda el PDF. Óptimo: Amazon S3",
+  it('without a number reads "<rol>. <estado>[: <servicio>]", not doubling the period', () => {
+    expect(
+      slotAccessibleName({ role: "Guarda el PDF.", grade: "optimal", serviceName: "Amazon S3" }),
+    ).toBe("Guarda el PDF. Óptimo: Amazon S3");
+    expect(slotAccessibleName({ role: "Guarda el PDF", grade: "empty" })).toBe(
+      "Guarda el PDF. Vacío",
     );
-    expect(slotAccessibleName("Guarda el PDF", "empty")).toBe("Guarda el PDF. Vacío");
+  });
+
+  it("with a number is short: the visible text first, then the slot, without the role", () => {
+    const role = "Guarda el PDF.";
+    expect(
+      slotAccessibleName({ role, grade: "optimal", number: 2, serviceName: "Amazon S3" }),
+    ).toBe("Óptimo: Amazon S3, casillero 2");
+    expect(
+      slotAccessibleName({
+        role,
+        grade: "empty",
+        number: 3,
+        emptyText: "Arrastrá o elegí un servicio",
+      }),
+    ).toBe("Arrastrá o elegí un servicio, casillero 3");
+    // A board that cannot be played shows no placeholder: the state names the slot.
+    expect(slotAccessibleName({ role, grade: "empty", number: 3, emptyText: "" })).toBe(
+      "Vacío, casillero 3",
+    );
+  });
+
+  it("is different for every slot of a board, whatever their roles and states", () => {
+    const names = [1, 2, 3].map((number) =>
+      slotAccessibleName({ role: "Mismo rol", grade: "empty", number, emptyText: "Elegí" }),
+    );
+    expect(new Set(names).size).toBe(names.length);
   });
 });
 
@@ -72,9 +100,9 @@ describe("ArchitectureSlot states", () => {
   });
 
   it("names a revealed slot as a viewed solution, not as optimal", () => {
-    expect(slotAccessibleName("Guarda el PDF", "revealed", "S3")).toBe(
-      "Guarda el PDF. Solución vista: S3",
-    );
+    const slot = { role: "Guarda el PDF", grade: "revealed", serviceName: "S3" } as const;
+    expect(slotAccessibleName(slot)).toBe("Guarda el PDF. Solución vista: S3");
+    expect(slotAccessibleName({ ...slot, number: 1 })).toBe("Solución vista: S3, casillero 1");
   });
 });
 
@@ -88,6 +116,36 @@ describe("ArchitectureSlot role", () => {
     expect(main.getAttribute("aria-label")).toBe(`${ROLE.slice(0, -1)}. Vacío`);
     const role = screen.getByText(ROLE);
     expect(role.className).not.toMatch(/line-clamp|truncate|overflow|ellipsis/);
+  });
+
+  it("with a number, describes the slot with the visible role instead of naming it with it", () => {
+    const { rerender } = render(
+      <ArchitectureSlot grade="empty" role={ROLE} number={4} onActivate={() => {}} />,
+    );
+    const main = screen.getByRole("button", { name: "Arrastrá o elegí un servicio, casillero 4" });
+    expect(main.getAttribute("aria-describedby")).toBe(screen.getByText(ROLE).id);
+    // The app can choose the id, to describe its own controls of the slot with the role too.
+    rerender(
+      <ArchitectureSlot
+        grade="optimal"
+        role={ROLE}
+        number={4}
+        roleId="rol-4"
+        service={service}
+        onActivate={() => {}}
+      />,
+    );
+    expect(screen.getByText(ROLE).id).toBe("rol-4");
+    expect(
+      screen
+        .getByRole("button", { name: "Óptimo: Amazon S3, casillero 4" })
+        .getAttribute("aria-describedby"),
+    ).toBe("rol-4");
+  });
+
+  it("without a number has no description: the role is already in the name", () => {
+    render(<ArchitectureSlot grade="empty" role={ROLE} onActivate={() => {}} />);
+    expect(screen.getByRole("button").hasAttribute("aria-describedby")).toBe(false);
   });
 
   it("grows instead of clipping when the text needs more room (larger browser font)", () => {

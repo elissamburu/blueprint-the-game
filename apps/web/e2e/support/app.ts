@@ -46,17 +46,27 @@ export const palette = (page: Page): Locator =>
   page.getByRole("complementary", { name: "Paleta de servicios" });
 
 /**
- * A slot of the board, whatever its state. Its accessible name is "<rol>. <estado>[: <servicio>]"
- * (the role without its final period).
+ * A slot of the board, whatever its state, by the role it shows. The role is its accessible
+ * description; its name is `slotName` or `emptySlotName`.
  */
 export const slot = (page: Page, role: string): Locator =>
-  board(page).getByRole("button", {
-    name: new RegExp(`^${escapeRegExp(role.trim().replace(/\.+$/, ""))}\\. `),
-  });
+  board(page)
+    .getByRole("button")
+    .filter({ has: page.getByText(role, { exact: true }) });
 
-/** Exact accessible name of a slot in a state: `slotName(role, "Óptimo", "Amazon S3")`. */
-export const slotName = (role: string, state: string, service?: string): string =>
-  `${role.trim().replace(/\.+$/, "")}. ${state}${service === undefined ? "" : `: ${service}`}`;
+/** Exact accessible name of a slot with a service: `slotName(2, "Óptimo", "Amazon S3")`. */
+export const slotName = (number: number, state: string, service: string): string =>
+  `${state}: ${service}, casillero ${number}`;
+
+/** Exact accessible name of an empty slot: its placeholder and its number. */
+export const emptySlotName = (number: number): string =>
+  `Arrastrá o elegí un servicio, casillero ${number}`;
+
+/**
+ * The hint button of a slot, by the exact name of its state: `hintButton(page, "Ver pistas", 2)`.
+ */
+export const hintButton = (page: Page, text: string, number: number): Locator =>
+  board(page).getByRole("button", { name: `${text}, casillero ${number}`, exact: true });
 
 /** A service of the palette (its name gets "En uso" once it is placed in some slot). */
 export const paletteService = (page: Page, service: string): Locator =>
@@ -77,11 +87,11 @@ export const place = async (page: Page, role: string, service: string) => {
 /** Places the optimal service of every given slot, closing each explanation. */
 export const placeAll = async (
   page: Page,
-  slots: readonly { readonly role: string; readonly optimal: string }[],
+  slots: readonly { readonly number: number; readonly role: string; readonly optimal: string }[],
 ) => {
-  for (const { role, optimal } of slots) {
+  for (const { number, role, optimal } of slots) {
     await place(page, role, optimal);
-    await expect(slot(page, role)).toHaveAccessibleName(slotName(role, "Óptimo", optimal));
+    await expect(slot(page, role)).toHaveAccessibleName(slotName(number, "Óptimo", optimal));
     await page.getByRole("button", { name: "Cerrar explicación" }).click();
   }
 };

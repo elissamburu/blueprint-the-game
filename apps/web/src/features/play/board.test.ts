@@ -3,6 +3,7 @@ import {
   applyCommand,
   commands,
   createSession,
+  scenarioReview,
   slotNodes,
   type Command,
 } from "@blueprint/game-engine";
@@ -48,6 +49,7 @@ describe("slotViews", () => {
   it("draws an empty session as empty slots with the hints of the scenario", () => {
     expect(slotViews(run())[entry.id]).toEqual({
       grade: "empty",
+      number: 1,
       serviceId: null,
       hints: { used: 0, total: entry.hints.length },
       selected: false,
@@ -65,11 +67,19 @@ describe("slotViews", () => {
     );
     expect(views[signer.id]).toEqual({
       grade: "acceptable",
+      number: 2,
       serviceId: acceptable,
       hints: { used: 1, total: signer.hints.length },
       selected: true,
     });
     expect(views[store.id]).toMatchObject({ grade: "incorrect", serviceId: "ec2" });
+  });
+
+  it("numbers the slots as the engine does, the order the summary reviews them in", () => {
+    const views = slotViews(run());
+    expect(slotNodes(scenario).map((node) => views[node.id]?.number)).toEqual(
+      scenarioReview(scenario, []).map((item) => item.number),
+    );
   });
 
   it("keeps an accepted orange orange", () => {

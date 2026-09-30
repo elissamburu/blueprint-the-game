@@ -91,6 +91,21 @@ describe("Diagram slots", () => {
     expect(second?.getAttribute("aria-pressed")).toBe("false");
   });
 
+  it("with a number are named with it and described by their role", () => {
+    renderBoard({
+      onSlotActivate: () => {},
+      slots: {
+        "api-entry": { grade: "optimal", serviceId: "apigateway", number: 1 },
+        [slotIds[1] ?? ""]: { grade: "empty", number: 2 },
+      },
+    });
+    const [first, second] = slotButtons();
+    expect(first?.getAttribute("aria-label")).toBe("Óptimo: Servicio apigateway, casillero 1");
+    expect(second?.getAttribute("aria-label")).toBe("Arrastrá o elegí un servicio, casillero 2");
+    const description = document.getElementById(second?.getAttribute("aria-describedby") ?? "");
+    expect(description?.textContent).toMatch(/^lógica breve/i);
+  });
+
   it("are not focusable on a read-only board", () => {
     renderBoard();
     expect(slotButtons()).toHaveLength(0);
@@ -132,6 +147,22 @@ describe("Diagram slot hint action", () => {
     });
     expect(screen.getByRole("button", { name: `Pista de ${slotIds[0]}` })).toBeTruthy();
     expect(screen.queryByRole("button", { name: `Pista de ${slotIds[1]}` })).toBeNull();
+  });
+
+  it("gets the id of the role text of its slot, to describe the control with it", () => {
+    renderBoard({
+      slotHintAction: (slotId, { roleId }) => (
+        <button type="button" aria-describedby={roleId}>
+          Pista de {slotId}
+        </button>
+      ),
+    });
+    const roles = pdfScenario.diagram.nodes.flatMap((n) => (n.type === "slot" ? [n.role] : []));
+    slotIds.forEach((slotId, index) => {
+      const hint = screen.getByRole("button", { name: `Pista de ${slotId}` });
+      const description = document.getElementById(hint.getAttribute("aria-describedby") ?? "");
+      expect(description?.textContent).toBe(roles[index]);
+    });
   });
 });
 

@@ -175,7 +175,7 @@ function Buttons() {
       id="button"
       kicker="shadcn/ui"
       title="Button"
-      description="Variantes, tamaños, ícono y deshabilitado."
+      description="Variantes, tamaños, ícono y deshabilitado. Las variantes sin borde propio (default, secondary, ghost, destructive) llevan uno transparente: en colores forzados el sistema lo pinta, y el de la variante principal es más grueso. Para verlo: DevTools → Rendering → forced-colors: active."
     >
       <div className="grid gap-4 md:grid-cols-2">
         <Panel title="Variantes">

@@ -3,10 +3,11 @@
 // context so a new callback identity does not rebuild the React Flow nodes.
 import { createContext, useContext, type ReactNode } from "react";
 import type { Box } from "./geometry";
+import type { SlotHintContext } from "./types";
 
 export interface DiagramContextValue {
   onSlotActivate: ((slotId: string) => void) | undefined;
-  slotHintAction: ((slotId: string) => ReactNode) | undefined;
+  slotHintAction: ((slotId: string, context: SlotHintContext) => ReactNode) | undefined;
   /** Slots are @dnd-kit drop targets (the board got onServiceDrop). */
   droppable: boolean;
   /**

@@ -37,6 +37,8 @@ const load = <T>(file: string, parse: (input: unknown) => ParseResult<T>): T => 
 
 export interface SlotAnswer {
   readonly slotId: string;
+  /** Position of the slot among the slots of the diagram, from 1: its number on the board. */
+  readonly number: number;
   readonly role: string;
   /** Name of the first optimal service, as the palette shows it. */
   readonly optimal: string;
@@ -64,16 +66,17 @@ export const loadDevBundle = (): DevBundle => {
     rules,
     scenario: (entry) => load(entry.file, parseScenario),
     answers: (scenario) =>
-      scenario.diagram.nodes.flatMap((node) => {
-        if (node.type !== "slot") return [];
-        const optimal = node.answers.find((answer) => answer.grade === "optimal");
-        const name = optimal === undefined ? undefined : names.get(optimal.service);
-        if (name === undefined) {
-          throw new Error(
-            `${scenario.id} / ${node.id}: no tiene un óptimo que esté en el catálogo`,
-          );
-        }
-        return [{ slotId: node.id, role: node.role, optimal: name }];
-      }),
+      scenario.diagram.nodes
+        .filter((node) => node.type === "slot")
+        .map((node, index) => {
+          const optimal = node.answers.find((answer) => answer.grade === "optimal");
+          const name = optimal === undefined ? undefined : names.get(optimal.service);
+          if (name === undefined) {
+            throw new Error(
+              `${scenario.id} / ${node.id}: no tiene un óptimo que esté en el catálogo`,
+            );
+          }
+          return { slotId: node.id, number: index + 1, role: node.role, optimal: name };
+        }),
   };
 };
