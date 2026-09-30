@@ -28,7 +28,10 @@
     "content:e2e": "pnpm content:build --content apps/web/e2e/fixtures/content --out dist/content-e2e",
     "e2e": "pnpm content:dev && pnpm content:e2e && turbo run build --filter=@blueprint/web && pnpm --filter @blueprint/web e2e",
     "icons:prepare": "turbo run build --filter=@blueprint/tools-icons-fetch... --output-logs=errors-only 1>&2",
-    "icons:fetch": "pnpm --reporter=silent icons:prepare && pnpm --reporter=silent --dir tools/icons-fetch exec tsx src/bin.ts"
+    "icons:fetch": "pnpm --reporter=silent icons:prepare && pnpm --reporter=silent --dir tools/icons-fetch exec tsx src/bin.ts",
+    "beta:prepare": "turbo run build --filter=@blueprint/tools-deploy-beta... --output-logs=errors-only 1>&2",
+    "build:beta": "pnpm icons:fetch && pnpm content:build --out dist/content && turbo run build --filter=@blueprint/web... --force && pnpm --reporter=silent beta:prepare && pnpm --reporter=silent --dir tools/deploy-beta exec tsx src/bin.ts assemble",
+    "preview:beta": "pnpm --reporter=silent beta:prepare && pnpm --reporter=silent --dir tools/deploy-beta exec tsx src/bin.ts preview"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",
