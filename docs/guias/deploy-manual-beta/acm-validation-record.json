@@ -1,0 +1,18 @@
+{
+  "Comment": "Blueprint beta: validacion DNS del certificado de ACM",
+  "Changes": [
+    {
+      "Action": "UPSERT",
+      "ResourceRecordSet": {
+        "Name": "<RECORD_NAME>",
+        "Type": "CNAME",
+        "TTL": 300,
+        "ResourceRecords": [
+          {
+            "Value": "<RECORD_VALUE>"
+          }
+        ]
+      }
+    }
+  ]
+}

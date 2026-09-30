@@ -1,0 +1,56 @@
+{
+  "CallerReference": "<CALLER_REFERENCE>",
+  "Comment": "Blueprint beta (deploy manual temporal, lo reemplaza F3)",
+  "Enabled": true,
+  "DefaultRootObject": "index.html",
+  "HttpVersion": "http2and3",
+  "IsIPV6Enabled": true,
+  "PriceClass": "PriceClass_All",
+  "Aliases": {
+    "Quantity": 0
+  },
+  "Origins": {
+    "Quantity": 1,
+    "Items": [
+      {
+        "Id": "site-bucket",
+        "DomainName": "<BUCKET_NAME>.s3.<REGION>.amazonaws.com",
+        "OriginPath": "",
+        "CustomHeaders": {
+          "Quantity": 0
+        },
+        "S3OriginConfig": {
+          "OriginAccessIdentity": ""
+        },
+        "OriginAccessControlId": "<OAC_ID>"
+      }
+    ]
+  },
+  "DefaultCacheBehavior": {
+    "TargetOriginId": "site-bucket",
+    "ViewerProtocolPolicy": "redirect-to-https",
+    "AllowedMethods": {
+      "Quantity": 2,
+      "Items": ["GET", "HEAD"],
+      "CachedMethods": {
+        "Quantity": 2,
+        "Items": ["GET", "HEAD"]
+      }
+    },
+    "Compress": true,
+    "CachePolicyId": "658327ea-f89d-4fab-a63d-7e88639e58f6",
+    "ResponseHeadersPolicyId": "67f7725c-6f97-4210-82d7-5512b31e9d03",
+    "FunctionAssociations": {
+      "Quantity": 1,
+      "Items": [
+        {
+          "FunctionARN": "<FUNCTION_ARN>",
+          "EventType": "viewer-request"
+        }
+      ]
+    }
+  },
+  "ViewerCertificate": {
+    "CloudFrontDefaultCertificate": true
+  }
+}

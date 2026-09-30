@@ -1,0 +1,4 @@
+{
+  "Comment": "Blueprint beta: sirve /index.html en las rutas del juego (sin extension de archivo)",
+  "Runtime": "cloudfront-js-2.0"
+}

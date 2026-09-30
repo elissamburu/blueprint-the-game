@@ -22,7 +22,8 @@ blueprint/
 │   ├── ISSUE_TEMPLATE/
 │   │   ├── bug.yml
 │   │   ├── propuesta-escenario.yml
-│   │   └── error-en-escenario.yml     # destino del botón "Reportar un problema" (RF-PLAY-13)
+│   │   ├── error-en-escenario.yml     # destino del botón "Reportar un problema" (RF-PLAY-13)
+│   │   └── feedback-beta.yml          # destino de "Contanos qué te pareció" del aviso de beta
 │   ├── PULL_REQUEST_TEMPLATE/
 │   │   ├── codigo.md
 │   │   └── escenario.md
@@ -99,7 +100,8 @@ blueprint/
 ├── tools/                             # CLIs internos (TypeScript, ejecutados con tsx)
 │   ├── content/                       # content:validate | content:gen | content:build
 │   ├── catalog-sync/                  # consulta SSM, genera diff y cuerpo del PR
-│   └── icons-fetch/                   # descarga el paquete oficial de íconos y mapea a ids
+│   ├── icons-fetch/                   # descarga el paquete oficial de íconos y mapea a ids
+│   └── deploy-beta/                   # ⏳ temporal (lo reemplaza F3): build, vista previa y subida manual de la beta
 │
 ├── infra/                             # 🏗️ Terraform (ADR-0014)
 │   ├── bootstrap/                     # se aplica UNA vez, a mano: bucket de state, OIDC provider, roles
@@ -184,6 +186,9 @@ Reglas (enforced con `eslint-plugin-boundaries` o `dependency-cruiser`):
 | `pnpm content:dev` | Bundle con `draft` en `dist/content-dev`, el que sirve `vite dev` en `/content/` (la UI marca los borradores). `vite preview` sirve `dist/content`. |
 | `pnpm icons:fetch` | Descarga el paquete oficial de íconos. |
 | `pnpm catalog:sync [--dry-run]` | Diff del catálogo contra SSM (requiere credenciales AWS de solo lectura). |
+| `pnpm build:beta` | ⏳ Temporal (beta pública, lo reemplaza F3). Build de producción en `dist/beta-site`: íconos, bundle de contenido sin `draft`, la web y todo lo que va al bucket. |
+| `pnpm preview:beta [--port]` | ⏳ Sirve `dist/beta-site` como CloudFront: misma función de rutas y mismos headers. |
+| `pnpm deploy:beta [--dry-run]` | ⏳ Sube `dist/beta-site` con el AWS CLI e invalida CloudFront ([guía](guias/deploy-manual-beta.md)). Lo corre el mantenedor. |
 
 ## 4. Convenciones
 
