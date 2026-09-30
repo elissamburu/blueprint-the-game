@@ -17,7 +17,10 @@ export interface BestResult {
   readonly xp: number;
   readonly hintsUsed: number;
   readonly perfect: boolean;
-  /** Every slot ended green: no accepted orange (RF-NAV-01, "completado en verde"). */
+  /**
+   * Some completion ended with every slot green: no accepted orange and no solution viewed
+   * (RF-NAV-01 "completado en verde", RF-PLAY-14). Once true it stays true.
+   */
   readonly allOptimal: boolean;
 }
 
@@ -139,9 +142,15 @@ export const compareWithBest = (
   };
 };
 
+/** Every slot of the result ended green by the player: no accepted orange, no solution viewed. */
+const endedAllOptimal = (result: ScenarioResult) =>
+  result.slots.every((slot) => slot.grade === "optimal" && !slot.revealed);
+
 /**
  * Applies a scenario result. An unfinished result changes nothing. A completed one replaces
- * the best result of the scenario when it has more XP, and adds only that improvement.
+ * the best result of the scenario when it has more XP, and adds only that improvement. Nothing
+ * is ever lost (RF-PLAY-14): XP only grows, a lower result keeps the best one, and a better one
+ * with oranges or viewed solutions keeps the "completado en verde" of an earlier best.
  * Events come in toast order: `xpGained`, `rankUp`, then one `levelUnlocked` per level.
  */
 export const applyScenarioResult = (
@@ -153,6 +162,7 @@ export const applyScenarioResult = (
   if (!result.completed) return { progress, events: [] };
 
   const comparison = compareWithBest(progress, result);
+  const previous = progress.best[result.scenarioId];
   const gained = comparison.gained;
   const best: Record<string, BestResult> =
     comparison.kind === "equal" || comparison.kind === "lower"
@@ -168,7 +178,7 @@ export const applyScenarioResult = (
             xp: result.xp,
             hintsUsed: result.hintsUsed,
             perfect: result.perfect,
-            allOptimal: result.slots.every((slot) => slot.grade === "optimal"),
+            allOptimal: endedAllOptimal(result) || previous?.allOptimal === true,
           },
         };
   const xp = progress.xp + gained;

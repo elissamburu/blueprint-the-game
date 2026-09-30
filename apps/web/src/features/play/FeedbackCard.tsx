@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Feedback of a slot (RF-EVAL-02, RF-EVAL-03, RF-PLAY-07, RF-PLAY-08) as a compact card floating
+// Feedback of a slot (RF-EVAL-02, RF-EVAL-03, RF-PLAY-07, RF-PLAY-08, RF-PLAY-14) as a compact card floating
 // over the board (layout v2), only while there is something to show: after a placement or when a
 // resolved slot is activated. Where it floats (bottom or top) is decided by feedback-placement.ts
 // so that it never covers its slot. Grade, objective statuses and the available actions come from
@@ -24,6 +24,7 @@ import {
   CircleCheckIcon,
   CircleXIcon,
   ExternalLinkIcon,
+  EyeIcon,
   MinusIcon,
   XIcon,
   type LucideIcon,
@@ -45,7 +46,17 @@ const STYLES: Record<PlacedStatus, { icon: LucideIcon; panel: string; text: stri
     panel: "border-destructive bg-danger-soft",
     text: "text-destructive",
   },
+  // "Solución vista": explained like a green, but blueprint and a double border, not success.
+  revealed: {
+    icon: EyeIcon,
+    panel: "border-[3px] border-double border-blueprint bg-blueprint-soft",
+    text: "text-blueprint",
+  },
 };
+
+/** Title of the card: the grade, or "Solución vista" for a revealed slot. */
+const statusLabel = (status: PlacedStatus) =>
+  gradeLabel(status === "accepted" ? "acceptable" : status);
 
 export interface FeedbackCardProps {
   session: SessionState;
@@ -122,13 +133,18 @@ export function FeedbackCard({
       </span>
       <div className="min-w-0">
         <h2 id={titleId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-lg font-bold">
-          {gradeLabel(evaluation.grade)}
+          {statusLabel(status)}
           <span className="rounded-[5px] border bg-card px-2 py-[0.15rem] text-sm font-semibold">
             {serviceName}
           </span>
           {status === "accepted" && (
             <span className="text-sm font-semibold text-muted-foreground">
               {t("play.feedback.acceptedNote")}
+            </span>
+          )}
+          {status === "revealed" && (
+            <span className="text-sm font-semibold text-muted-foreground">
+              {t("play.feedback.revealedNote")}
             </span>
           )}
         </h2>

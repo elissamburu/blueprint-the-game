@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Lovable: src/components/ui/dropdown-menu.tsx (mismas clases del contenido y de los ítems). Solo
-// las piezas que usa el juego: sin submenús, checkboxes, radios, etiquetas ni atajos.
+// Lovable: src/components/ui/dropdown-menu.tsx (mismas clases del contenido y de los ítems, más un
+// contorno --ring en el ítem con foco: el fondo --accent solo no llega a 3:1 contra el menú). Solo
+// las piezas que usa el juego (ítems y separador): sin submenús, checkboxes, radios, etiquetas ni
+// atajos.
 import * as React from "react";
 import { cn } from "@blueprint/ui/lib/utils";
 import { DropdownMenu as DropdownMenuPrimitive } from "radix-ui";
@@ -18,10 +20,14 @@ function DropdownMenuTrigger({
 function DropdownMenuContent({
   className,
   sideOffset = 4,
+  container,
   ...props
-}: React.ComponentProps<typeof DropdownMenuPrimitive.Content>) {
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Content> & {
+  /** Where the menu is portaled (default: body). Inside a landmark, its items are in it too. */
+  container?: HTMLElement | null | undefined;
+}) {
   return (
-    <DropdownMenuPrimitive.Portal>
+    <DropdownMenuPrimitive.Portal container={container}>
       <DropdownMenuPrimitive.Content
         data-slot="dropdown-menu-content"
         sideOffset={sideOffset}
@@ -43,7 +49,7 @@ function DropdownMenuItem({
     <DropdownMenuPrimitive.Item
       data-slot="dropdown-menu-item"
       className={cn(
-        "relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none transition-colors focus:bg-accent focus:text-accent-foreground data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0",
+        "relative flex cursor-default items-center gap-2 rounded-sm px-2 py-1.5 text-sm outline-none select-none transition-colors focus:bg-accent focus:text-accent-foreground focus:outline-2 focus:-outline-offset-2 focus:outline-ring focus:outline-solid data-[disabled]:pointer-events-none data-[disabled]:opacity-50 [&>svg]:size-4 [&>svg]:shrink-0",
         className,
       )}
       {...props}
@@ -51,4 +57,23 @@ function DropdownMenuItem({
   );
 }
 
-export { DropdownMenu, DropdownMenuContent, DropdownMenuItem, DropdownMenuTrigger };
+function DropdownMenuSeparator({
+  className,
+  ...props
+}: React.ComponentProps<typeof DropdownMenuPrimitive.Separator>) {
+  return (
+    <DropdownMenuPrimitive.Separator
+      data-slot="dropdown-menu-separator"
+      className={cn("-mx-1 my-1 h-px bg-muted", className)}
+      {...props}
+    />
+  );
+}
+
+export {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+};

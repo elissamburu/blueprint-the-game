@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Game session as a pure reducer over the commands of ADR-0008. Drag, tap and keyboard
-// adapters emit the same commands; the UI renders the state and never decides grades.
+// Game session as a pure reducer over the commands of ADR-0008 and ADR-0024 (revealSolution).
+// Drag, tap and keyboard adapters emit the same commands; the UI renders the state and never
+// decides grades.
 import type { GameRules, Scenario, SlotNode } from "@blueprint/scenario-schema";
 import { evaluatePlacement, type Evaluation } from "./evaluate.js";
 
@@ -18,15 +19,22 @@ export interface SlotState {
   readonly placements: number;
   /** Hints revealed so far, in order (RF-PLAY-06). */
   readonly hintsRevealed: number;
+  /**
+   * The player asked to see the solution (RF-PLAY-14): the slot holds its optimal answer, is
+   * locked and scores 0. `errors`, `placements` and `hintsRevealed` keep what happened before.
+   */
+  readonly revealed: boolean;
 }
 
 /**
  * - `empty`: nothing placed.
  * - `incorrect` / `acceptable`: red or orange placed; the player can retry (RF-PLAY-07).
  * - `accepted`: orange kept by the player; resolved until `clearSlot`.
- * - `optimal`: green; revealed and locked (RF-EVAL-04).
+ * - `optimal`: green; the service is shown and the slot locked (RF-EVAL-04).
+ * - `revealed`: "Solución vista" (RF-PLAY-14); shows the optimal answer like a green and is
+ *   locked, but it is not a green: it scores 0 and is never a first-try green.
  */
-export type SlotStatus = "empty" | "incorrect" | "acceptable" | "accepted" | "optimal";
+export type SlotStatus = "empty" | "incorrect" | "acceptable" | "accepted" | "optimal" | "revealed";
 
 export interface SessionState {
   readonly scenario: Scenario;
@@ -34,7 +42,10 @@ export interface SessionState {
   readonly selectedSlotId: string | null;
   /** One entry per slot, in diagram order. */
   readonly slots: readonly SlotState[];
-  /** Every slot is green or an accepted orange (RF-PLAY-08). Commands are rejected afterwards. */
+  /**
+   * Every slot is green, an accepted orange (RF-PLAY-08) or revealed (RF-PLAY-14). Commands are
+   * rejected afterwards.
+   */
   readonly completed: boolean;
 }
 
@@ -43,7 +54,9 @@ export type Command =
   | { type: "placeService"; slotId: string; serviceId: string }
   | { type: "acceptAcceptable"; slotId: string }
   | { type: "useHint"; slotId: string }
-  | { type: "clearSlot"; slotId: string };
+  | { type: "clearSlot"; slotId: string }
+  /** Shows the solution of one slot, or of every unresolved slot with `slotId: null` (ADR-0024). */
+  | { type: "revealSolution"; slotId: string | null };
 
 /** Command creators with the names of ADR-0008. */
 export const commands = {
@@ -56,12 +69,14 @@ export const commands = {
   acceptAcceptable: (slotId: string): Command => ({ type: "acceptAcceptable", slotId }),
   useHint: (slotId: string): Command => ({ type: "useHint", slotId }),
   clearSlot: (slotId: string): Command => ({ type: "clearSlot", slotId }),
+  /** One slot, or every unresolved slot with null ("Ver solución completa"). */
+  revealSolution: (slotId: string | null): Command => ({ type: "revealSolution", slotId }),
 } as const;
 
 export type RejectionReason =
   | "session-completed"
   | "unknown-slot"
-  /** The slot is green. */
+  /** The slot is green or its solution was viewed; for revealSolution, any resolved slot. */
   | "slot-locked"
   /** The slot holds an accepted orange: `clearSlot` first to try another service. */
   | "slot-accepted"
@@ -77,7 +92,14 @@ export type CommandOutcome =
   | { type: "acceptableAccepted"; slotId: string }
   | { type: "hintRevealed"; slotId: string; hint: string; index: number }
   | { type: "slotCleared"; slotId: string }
+  /** Slots whose solution is now shown and the service each one shows, in diagram order. */
+  | { type: "solutionRevealed"; revealed: readonly RevealedSlot[] }
   | { type: "rejected"; command: Command; reason: RejectionReason };
+
+export interface RevealedSlot {
+  readonly slotId: string;
+  readonly serviceId: string;
+}
 
 export interface CommandResult {
   /** New state; the same object when the command is rejected. */
@@ -89,17 +111,43 @@ export const slotNodes = (scenario: Pick<Scenario, "diagram">): SlotNode[] =>
   scenario.diagram.nodes.filter((node): node is SlotNode => node.type === "slot");
 
 export const slotStatus = (slot: SlotState): SlotStatus => {
+  if (slot.revealed) return "revealed";
   const grade = slot.evaluation?.grade;
   if (grade === undefined) return "empty";
   if (grade === "acceptable" && slot.accepted) return "accepted";
   return grade;
 };
 
-/** Green or accepted orange: counts towards completion and scores. */
+/**
+ * Green, accepted orange or revealed: counts towards completion. A revealed slot scores 0
+ * (see `slotPoints`).
+ */
 export const isSlotResolved = (slot: SlotState): boolean => {
   const status = slotStatus(slot);
-  return status === "optimal" || status === "accepted";
+  return status === "optimal" || status === "accepted" || status === "revealed";
 };
+
+/** Answer a revealed slot shows: its first optimal answer (lint L003 guarantees one). */
+const solutionOf = (node: SlotNode) =>
+  node.answers.find((answer) => answer.grade === "optimal") ?? node.answers[0];
+
+/** The slot with its solution shown. The history (errors, placements, hints) is kept. */
+const reveal = (slot: SlotState, node: SlotNode): SlotState => {
+  const solution = solutionOf(node);
+  if (solution === undefined) return slot;
+  return {
+    ...slot,
+    placed: solution.service,
+    evaluation: evaluatePlacement(node, solution.service),
+    accepted: false,
+    revealed: true,
+  };
+};
+
+const revealedSlot = (slot: SlotState): RevealedSlot => ({
+  slotId: slot.slotId,
+  serviceId: slot.placed ?? "",
+});
 
 export const createSession = (scenario: Scenario, rules: GameRules): SessionState => {
   const slots = slotNodes(scenario).map((node): SlotState => ({
@@ -110,6 +158,7 @@ export const createSession = (scenario: Scenario, rules: GameRules): SessionStat
     errors: 0,
     placements: 0,
     hintsRevealed: 0,
+    revealed: false,
   }));
   return { scenario, rules, selectedSlotId: null, slots, completed: slots.length === 0 };
 };
@@ -131,12 +180,28 @@ export const applyCommand = (state: SessionState, command: Command): CommandResu
   }
 
   if (state.completed) return reject("session-completed");
+  if (command.type === "revealSolution" && command.slotId === null) {
+    // Every unresolved slot at once; the session is not completed, so there is at least one.
+    const nodes = new Map(slotNodes(state.scenario).map((n) => [n.id, n]));
+    const revealed: RevealedSlot[] = [];
+    const slots = state.slots.map((s) => {
+      const node = nodes.get(s.slotId);
+      if (isSlotResolved(s) || node === undefined) return s;
+      const next = reveal(s, node);
+      revealed.push(revealedSlot(next));
+      return next;
+    });
+    return {
+      state: { ...state, slots, selectedSlotId: null, completed: slots.every(isSlotResolved) },
+      outcome: { type: "solutionRevealed", revealed },
+    };
+  }
   const slot = state.slots.find((s) => s.slotId === command.slotId);
   const node = slotNodes(state.scenario).find((n) => n.id === command.slotId);
   if (slot === undefined || node === undefined) return reject("unknown-slot");
 
   const status = slotStatus(slot);
-  if (status === "optimal") return reject("slot-locked");
+  if (status === "optimal" || status === "revealed") return reject("slot-locked");
   const update = (next: SlotState, outcome: CommandOutcome): CommandResult => {
     const slots = state.slots.map((s) => (s.slotId === next.slotId ? next : s));
     return {
@@ -183,6 +248,15 @@ export const applyCommand = (state: SessionState, command: Command): CommandResu
         { ...slot, placed: null, evaluation: null, accepted: false },
         { type: "slotCleared", slotId: slot.slotId },
       );
+    case "revealSolution": {
+      if (status === "accepted") return reject("slot-locked");
+      const next = reveal(slot, node);
+      const result = update(next, { type: "solutionRevealed", revealed: [revealedSlot(next)] });
+      // The slot is no longer a target for a service.
+      return state.selectedSlotId === slot.slotId
+        ? { ...result, state: { ...result.state, selectedSlotId: null } }
+        : result;
+    }
   }
 };
 

@@ -217,6 +217,41 @@ describe("summary", () => {
     expect(report.getAttribute("rel")).toBe("noopener noreferrer");
   });
 
+  it("reviews viewed solutions as «Solución vista» with 0 points: completed, not green", async () => {
+    // First slot after an error, the rest revealed with "Ver solución completa".
+    const session = [
+      commands.placeService(nodes[0]?.id ?? "", "route53"),
+      commands.revealSolution(nodes[0]?.id ?? ""),
+      commands.revealSolution(null),
+    ].reduce((state, cmd) => applyCommand(state, cmd).state, newSession());
+    renderSummary(stateFor({ kind: "first", gained: 0 }, [], session));
+    await title();
+    expect(
+      screen.getByText(`Completado viendo la solución de ${nodes.length} casilleros`),
+    ).toBeTruthy();
+    const figures = screen.getByRole("region", { name: "Resultado" });
+    expect(within(figures).getByText(`${nodes.length} soluciones vistas`)).toBeTruthy();
+    const review = document.querySelectorAll("section[aria-labelledby=summary-review] ol > li");
+    expect(review).toHaveLength(nodes.length);
+    for (const [index, item] of [...review].entries()) {
+      const optimal = services.get(optimalOf(index).service)?.name ?? "";
+      expect(item.querySelector("[data-grade=revealed]")?.textContent).toBe("Solución vista");
+      expect(within(item as HTMLElement).getByRole("heading", { level: 3 }).textContent).toBe(
+        `Solución vista: ${optimal}`,
+      );
+      expect(item.textContent).toContain("0 pts");
+    }
+    expect(review[0]?.textContent).toContain("1 intento incorrecto");
+    expect(
+      (
+        await axe.run(document.body, {
+          resultTypes: ["violations"],
+          rules: { "color-contrast": { enabled: false } },
+        })
+      ).violations,
+    ).toEqual([]);
+  });
+
   it("has no axe violations, with and without a rank up", async () => {
     if (aprendiz === undefined || constructor === undefined) throw new Error("< 2 ranks");
     const options: RunOptions = {

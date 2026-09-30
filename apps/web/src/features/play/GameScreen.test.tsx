@@ -373,6 +373,143 @@ describe("finishing", () => {
   });
 });
 
+describe('"Ver solución" (RF-PLAY-14)', () => {
+  const menuItem = async (user: ReturnType<typeof userEvent.setup>, name: string | RegExp) => {
+    await user.click(screen.getByRole("button", { name: "Más acciones" }));
+    return within(await screen.findByRole("menu")).getByRole("menuitem", { name });
+  };
+  const slotBox = (slotId: string) => {
+    const box = slotButton(slotId).closest<HTMLElement>("[data-slot=architecture-slot]");
+    if (box === null) throw new Error(`no slot ${slotId}`);
+    return box;
+  };
+  /** Live announcements (not the card), to check each one is said once. */
+  const announcements = () =>
+    [...live().querySelectorAll(":scope > p.sr-only")].map((p) => p.textContent);
+  const violations = async () =>
+    (await axe.run(document.body, { rules: { "color-contrast": { enabled: false } } })).violations;
+
+  it("needs an unresolved slot, asks first inviting to a hint, and Cancelar changes nothing", async () => {
+    const user = await open();
+    const unavailable = await menuItem(user, /Ver solución de este casillero/);
+    expect(unavailable.getAttribute("aria-disabled")).toBe("true");
+    expect(unavailable.textContent).toContain("Elegí un casillero sin resolver");
+    expect(await violations()).toEqual([]);
+    await user.keyboard("{Escape}");
+
+    await press(user, slotButton("api-entry"));
+    const item = await menuItem(user, "Ver solución de este casillero");
+    expect(item.getAttribute("aria-disabled")).toBeNull();
+    await user.click(item);
+    const notice = await screen.findByRole("alertdialog", {
+      name: "¿Ver la solución de este casillero?",
+    });
+    expect(notice.textContent).toContain(
+      "¿Querés probar con una pista primero? Si preferís ver la solución, este casillero no suma puntos, pero podés terminar el escenario igual.",
+    );
+    expect(notice.textContent).toContain(role("api-entry"));
+    for (const name of ["Cancelar", "Usar una pista", "Ver solución"]) {
+      expect(within(notice).getByRole("button", { name })).toBeTruthy();
+    }
+    expect(await violations()).toEqual([]);
+
+    await user.click(within(notice).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(screen.getByRole("button", { name: "Más acciones" })),
+    );
+    expect(slotBox("api-entry").dataset.grade).toBe("empty");
+  });
+
+  it("shows the solution after an error as «Solución vista», with its explanation and 0 points", async () => {
+    const user = await open();
+    await press(user, slotButton("api-entry"));
+    await user.click(paletteButton("route53"));
+    expect(slotBox("api-entry").dataset.grade).toBe("incorrect");
+    // The selection was released, but the slot with the feedback is the target.
+    await user.click(await menuItem(user, "Ver solución de este casillero"));
+    const notice = await screen.findByRole("alertdialog");
+    await user.click(within(notice).getByRole("button", { name: "Ver solución" }));
+
+    const optimal = slotOf(pdfScenario, "api-entry").answers.find((a) => a.grade === "optimal");
+    const serviceName = bundle.catalog.services.find((s) => s.id === optimal?.service)?.name ?? "";
+    await waitFor(() => expect(slotBox("api-entry").dataset.grade).toBe("revealed"));
+    expect(slotButton("api-entry").getAttribute("aria-label")).toBe(
+      `${roleOf(pdfScenario, "api-entry")}. Solución vista: ${serviceName}`,
+    );
+    const card = screen.getByRole("region", { name: /Solución vista/ });
+    expect(card.textContent).toContain("No suma puntos");
+    expect(card.textContent).toContain(optimal?.rationale.slice(0, 20) ?? "");
+    expect(within(card).queryByRole("button", { name: "Probar otra" })).toBeNull();
+    expect(announcements()).toEqual([
+      `Solución de «${role("api-entry")}»: ${serviceName}. No suma puntos.`,
+    ]);
+    await waitFor(() => expect(document.activeElement).toBe(slotButton("api-entry")));
+    expect(screen.getByText("0", { selector: "strong" })).toBeTruthy();
+    expect(await violations()).toEqual([]);
+
+    // Solved now: the option is off for it.
+    const again = await menuItem(user, /Ver solución de este casillero/);
+    expect(again.getAttribute("aria-disabled")).toBe("true");
+  });
+
+  it("«Usar una pista» reveals a hint instead and leaves the focus on the hints of the slot", async () => {
+    const user = await open();
+    await press(user, slotButton("api-entry"));
+    await user.click(await menuItem(user, "Ver solución de este casillero"));
+    const notice = await screen.findByRole("alertdialog");
+    await user.click(within(notice).getByRole("button", { name: "Usar una pista" }));
+    await waitFor(() =>
+      expect(document.activeElement).toBe(
+        within(slotBox("api-entry")).getByRole("button", { name: "Ver pistas" }),
+      ),
+    );
+    expect(announcements()).toEqual([`Pista 1: ${slotOf(pdfScenario, "api-entry").hints[0]}`]);
+    expect(slotBox("api-entry").dataset.grade).toBe("empty");
+  });
+
+  it("«Ver solución completa» asks once, completes the scenario and the summary says so", async () => {
+    withProgress();
+    const user = await open();
+    const [first, ...rest] = slotNodes(pdfScenario);
+    const optimal = first?.answers.find((a) => a.grade === "optimal");
+    if (first === undefined || optimal === undefined) throw new Error("no optimal answer");
+    await press(user, slotButton(first.id));
+    await user.click(paletteButton(optimal.service));
+
+    await user.click(await menuItem(user, "Ver solución completa"));
+    const notice = await screen.findByRole("alertdialog", { name: "¿Ver la solución completa?" });
+    expect(notice.textContent).toContain(
+      `Vas a ver la solución de los ${rest.length} casilleros que faltan.`,
+    );
+    expect(within(notice).queryByRole("button", { name: "Usar una pista" })).toBeNull();
+    await user.click(within(notice).getByRole("button", { name: "Ver solución completa" }));
+
+    const finish = screen.getByRole("button", { name: "Finalizar" });
+    await waitFor(() => expect(document.activeElement).toBe(finish));
+    expect(finish.getAttribute("aria-disabled")).toBe("false");
+    expect(screen.queryAllByRole("alertdialog")).toEqual([]);
+    for (const node of rest) expect(slotBox(node.id).dataset.grade).toBe("revealed");
+    expect(announcements()).toEqual([
+      `Se muestra la solución de ${rest.length} casilleros. Ya podés finalizar.`,
+    ]);
+    expect(await violations()).toEqual([]);
+
+    await act(() => user.click(finish));
+    expect(
+      await screen.findByRole("heading", { level: 1, name: "Escenario completado" }),
+    ).toBeTruthy();
+    expect(
+      screen.getByText(`Completado viendo la solución de ${rest.length} casilleros`),
+    ).toBeTruthy();
+    const figures = screen.getByRole("region", { name: "Resultado" });
+    expect(within(figures).getByText(String(bundle.rules.scoring.firstTryGreen))).toBeTruthy();
+    expect(within(figures).getByText(`${rest.length} soluciones vistas`)).toBeTruthy();
+    const stored = storedProgress();
+    // Completed, but not in green (RF-NAV-01).
+    expect(stored?.best[pdfScenario.id]?.allOptimal).toBe(false);
+  });
+});
+
 describe("score end to end (static-website-https)", () => {
   const score = () => screen.getByText("Puntaje").nextElementSibling?.textContent;
 

@@ -127,6 +127,31 @@ describe("useGameController", () => {
     );
   });
 
+  it("reveals the solution of one slot, shows its feedback and announces it once", () => {
+    const { run, log, result, status } = setup();
+    run((g) => g.chooseService("ebs"));
+    run((g) => g.revealSolution("upload-store"));
+    expect(log).toEqual([commands.revealSolution("upload-store")]);
+    expect(status("upload-store")).toBe("revealed");
+    expect(result.current.pendingServiceId).toBeNull();
+    expect(result.current.feedbackSlotId).toBe("upload-store");
+    expect(result.current.announcement.text).toBe(
+      `Solución de «${names.slotRole("upload-store")}»: Amazon S3. No suma puntos.`,
+    );
+  });
+
+  it("reveals the whole solution with a single announcement and no feedback card", () => {
+    const { run, result } = setup();
+    run((g) => g.drop("upload-store", "s3"));
+    const pending = result.current.session.slots.length - 1;
+    run((g) => g.revealSolution(null));
+    expect(result.current.session.completed).toBe(true);
+    expect(result.current.feedbackSlotId).toBeNull();
+    expect(result.current.announcement.text).toBe(
+      `Se muestra la solución de ${pending} casilleros. Ya podés finalizar.`,
+    );
+  });
+
   it("closes the feedback", () => {
     const { run, result } = setup();
     run((g) => g.drop("upload-store", "s3"));

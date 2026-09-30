@@ -18,7 +18,10 @@ export const createServiceLookup = (
   return (id) => byId.get(id);
 };
 
-/** Board state of every slot of the session. An accepted orange is still drawn orange. */
+/**
+ * Board state of every slot of the session. An accepted orange is still drawn orange; a revealed
+ * slot is drawn as "Solución vista" (RF-PLAY-14), never as a green.
+ */
 export const slotViews = (session: SessionState): Record<string, SlotView> => {
   const hintTotals = new Map(slotNodes(session.scenario).map((n) => [n.id, n.hints.length]));
   return Object.fromEntries(

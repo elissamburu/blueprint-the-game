@@ -3,17 +3,30 @@
 // and a text. The grade comes from game-engine through props; this component does not decide it.
 // Lovable: .slot-status (src/styles.css) and statusStyle in blueprint-app.tsx.
 import type * as React from "react";
-import { CircleCheckIcon, CircleXIcon, MinusIcon, PlusIcon, type LucideIcon } from "lucide-react";
+import {
+  CircleCheckIcon,
+  CircleXIcon,
+  EyeIcon,
+  MinusIcon,
+  PlusIcon,
+  type LucideIcon,
+} from "lucide-react";
 import { cn } from "@blueprint/ui/lib/utils";
 
-/** Grade shown on a slot: the three evaluation grades plus `empty` (nothing placed yet). */
-export type SlotGrade = "optimal" | "acceptable" | "incorrect" | "empty";
+/**
+ * Grade shown on a slot: the three evaluation grades, `empty` (nothing placed yet) and
+ * `revealed` (the player viewed the solution, RF-PLAY-14: it shows the optimal answer but it is
+ * not a green, so it has its own icon, text and the blueprint color instead of success).
+ */
+export type SlotGrade = "optimal" | "acceptable" | "incorrect" | "empty" | "revealed";
 
 const GRADES: Record<SlotGrade, { label: string; icon: LucideIcon; text: string }> = {
   optimal: { label: "Óptimo", icon: CircleCheckIcon, text: "text-success" },
   acceptable: { label: "Aceptable", icon: MinusIcon, text: "text-warning" },
   incorrect: { label: "Incorrecto", icon: CircleXIcon, text: "text-destructive" },
   empty: { label: "Vacío", icon: PlusIcon, text: "text-muted-foreground" },
+  // blueprint / blueprint-soft: 7,25:1 (docs/design/tokens.css).
+  revealed: { label: "Solución vista", icon: EyeIcon, text: "text-blueprint" },
 };
 
 /** Visible text of a grade ("Óptimo", "Vacío"…), also for accessible names that include it. */

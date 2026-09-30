@@ -46,6 +46,16 @@ export const announceOutcome = (t: TFunction, outcome: CommandOutcome, names: Na
       return t("play.announce.cleared", { role: names.slotRole(outcome.slotId) });
     case "hintRevealed":
       return t("play.announce.hint", { number: outcome.index + 1, hint: outcome.hint });
+    case "solutionRevealed": {
+      // One slot names its solution; "Ver solución completa" only says how many, once.
+      const [only] = outcome.revealed;
+      return outcome.revealed.length === 1 && only !== undefined
+        ? t("play.announce.solutionRevealed", {
+            role: names.slotRole(only.slotId),
+            service: names.serviceName(only.serviceId),
+          })
+        : t("play.announce.solutionsRevealed", { count: outcome.revealed.length });
+    }
     case "rejected":
       return t(`play.announce.rejected.${outcome.reason}`);
   }
@@ -67,6 +77,8 @@ export interface GameController {
   /** "Probar otra": empties the slot and selects it for the next service. */
   retry: (slotId: string) => void;
   revealHint: (slotId: string) => void;
+  /** "Ver solución" of one slot, or of every unresolved slot with null (RF-PLAY-14). */
+  revealSolution: (slotId: string | null) => void;
   closeFeedback: () => void;
 }
 
@@ -92,6 +104,13 @@ export const useGameController = (
         const outcome = store.getState().dispatch(command);
         if (outcome === null) continue;
         if (outcome.type === "servicePlaced") setFeedbackSlotId(outcome.slotId);
+        // One revealed slot shows its explanation next to it; the whole solution shows none.
+        if (outcome.type === "solutionRevealed") {
+          const [only] = outcome.revealed;
+          setFeedbackSlotId(
+            outcome.revealed.length === 1 && only !== undefined ? only.slotId : null,
+          );
+        }
         if (outcome.type === "slotSelected" && outcome.slotId !== null) {
           setFeedbackSlotId(outcome.slotId);
         }
@@ -149,6 +168,10 @@ export const useGameController = (
       run([commands.clearSlot(slotId), commands.selectSlot(slotId)]);
     },
     revealHint: (slotId) => run([commands.useHint(slotId)]),
+    revealSolution: (slotId) => {
+      setPendingServiceId(null);
+      run([commands.revealSolution(slotId)]);
+    },
     closeFeedback: () => setFeedbackSlotId(null),
   };
 };

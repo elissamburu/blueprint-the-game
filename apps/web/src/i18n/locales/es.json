@@ -108,7 +108,7 @@
       "new": "Nuevo",
       "in-progress": "En curso",
       "completed-green": "Completado en verde",
-      "completed-orange": "Completado con naranjas"
+      "completed-orange": "Completado"
     },
     "best": "Mejor resultado: {{score}} de {{max}} puntos",
     "locked": "Bloqueado",
@@ -138,7 +138,10 @@
       "more": "Más acciones",
       "playFlow": "Reproducir flujo",
       "finishMissing_one": "Falta {{count}} casillero",
-      "finishMissing_other": "Faltan {{count}} casilleros"
+      "finishMissing_other": "Faltan {{count}} casilleros",
+      "solutionSlot": "Ver solución de este casillero",
+      "solutionSlotUnavailable": "Elegí un casillero sin resolver",
+      "solutionAll": "Ver solución completa"
     },
     "case": {
       "kicker": "El caso",
@@ -173,7 +176,8 @@
       "docs": "Documentación",
       "undeclared": "{{short}} No cumple el rol: {{role}}",
       "docsCount_one": "{{count}} enlace",
-      "docsCount_other": "{{count}} enlaces"
+      "docsCount_other": "{{count}} enlaces",
+      "revealedNote": "No suma puntos"
     },
     "hints": {
       "reveal": "Ver pista (−{{cost}} pts)",
@@ -183,6 +187,20 @@
       "title": "Pistas · {{role}}",
       "number": "Pista {{number}}:",
       "counter": "Pistas {{used}}/{{total}}"
+    },
+    "solution": {
+      "slotTitle": "¿Ver la solución de este casillero?",
+      "slotRole": "Casillero: {{role}}",
+      "slotWithHints": "¿Querés probar con una pista primero? Si preferís ver la solución, este casillero no suma puntos, pero podés terminar el escenario igual.",
+      "slotWithoutHints": "Si ves la solución, este casillero no suma puntos, pero podés terminar el escenario igual.",
+      "allTitle": "¿Ver la solución completa?",
+      "all_one": "Vas a ver la solución del casillero que falta. Ese casillero no suma puntos, pero podés terminar el escenario igual.",
+      "all_other": "Vas a ver la solución de los {{count}} casilleros que faltan. Esos casilleros no suman puntos, pero podés terminar el escenario igual.",
+      "allHints": "Si te trabaste en uno solo, también podés elegirlo y probar con una pista.",
+      "useHint": "Usar una pista",
+      "reveal": "Ver solución",
+      "revealAll": "Ver solución completa",
+      "cancel": "Cancelar"
     },
     "drag": {
       "start": "Arrastrando {{service}}.",
@@ -208,7 +226,10 @@
         "not-acceptable": "Solo podés quedarte con una respuesta aceptable.",
         "no-hints-left": "No hay más pistas para este casillero.",
         "slot-empty": "El casillero ya está vacío."
-      }
+      },
+      "solutionRevealed": "Solución de «{{role}}»: {{service}}. No suma puntos.",
+      "solutionsRevealed_one": "Se muestra la solución de {{count}} casillero. Ya podés finalizar.",
+      "solutionsRevealed_other": "Se muestra la solución de {{count}} casilleros. Ya podés finalizar."
     },
     "finish": {
       "xpGained": "+{{amount}} XP (total: {{total}} XP)",
@@ -218,6 +239,8 @@
     "summary": {
       "kicker": "Resumen",
       "title": "Escenario completado",
+      "solutionsViewed_one": "Completado viendo la solución de {{count}} casillero",
+      "solutionsViewed_other": "Completado viendo la solución de {{count}} casilleros",
       "missing": "No hay un resultado para mostrar: jugá el escenario y finalizalo.",
       "loading": "Preparando el resumen…",
       "figures": "Resultado",
@@ -235,7 +258,9 @@
         "optimal_one": "{{count}} óptimo",
         "optimal_other": "{{count}} óptimos",
         "accepted_one": "{{count}} aceptable",
-        "accepted_other": "{{count}} aceptables"
+        "accepted_other": "{{count}} aceptables",
+        "revealed_one": "{{count}} solución vista",
+        "revealed_other": "{{count}} soluciones vistas"
       },
       "achievements": "Logros",
       "rankUp": "Nuevo rango",
@@ -252,6 +277,7 @@
       "reviewLead": "Compará cada decisión con la óptima para reforzar lo aprendido.",
       "slot": "Casillero {{number}}",
       "yourChoice": "Tu elección",
+      "solutionViewed": "Solución vista",
       "empty": "Sin servicio",
       "optimalAnswer": "Respuesta óptima",
       "optimalAnswers": "Respuestas óptimas",

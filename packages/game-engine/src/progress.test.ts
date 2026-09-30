@@ -33,6 +33,7 @@ const result = (overrides: Partial<ScenarioResult> = {}): ScenarioResult => ({
   multiplier: 1,
   xp: 300,
   hintsUsed: 1,
+  solutionsViewed: 0,
   perfect: false,
   slots: [],
   ...overrides,
@@ -186,11 +187,12 @@ describe("applyScenarioResult", () => {
 });
 
 describe("allOptimal", () => {
-  const slot = (grade: "optimal" | "acceptable") => ({
+  const slot = (grade: "optimal" | "acceptable", revealed = false) => ({
     slotId: grade,
     serviceId: "lambda",
     grade,
     accepted: grade === "acceptable",
+    revealed,
     errors: 0,
     hintsUsed: 0,
     firstTry: grade === "optimal",
@@ -214,6 +216,52 @@ describe("allOptimal", () => {
       scenarios,
     );
     expect(orange.progress.best["s-100"]?.allOptimal).toBe(false);
+  });
+
+  it("is false with a viewed solution, even if it shows the optimal answer (RF-PLAY-14)", () => {
+    const viewed = applyScenarioResult(
+      start(),
+      result({ slots: [slot("optimal"), slot("optimal", true)], solutionsViewed: 1 }),
+      gameRules,
+      scenarios,
+    );
+    expect(viewed.progress.best["s-100"]?.allOptimal).toBe(false);
+  });
+
+  it("is never lost when a better result with viewed solutions replaces the best", () => {
+    const green = applyScenarioResult(
+      start(),
+      result({ xp: 100, score: 100, slots: [slot("optimal"), slot("optimal")] }),
+      gameRules,
+      scenarios,
+    ).progress;
+    const better = applyScenarioResult(
+      green,
+      result({ xp: 200, score: 200, slots: [slot("optimal"), slot("optimal", true)] }),
+      gameRules,
+      scenarios,
+    );
+    expect(better.progress.best["s-100"]).toMatchObject({ xp: 200, allOptimal: true });
+  });
+});
+
+describe("applyScenarioResult with viewed solutions (RF-PLAY-14)", () => {
+  const start = () =>
+    createProgress({ experience: "beginner", interests: [] }, scenarios, gameRules);
+  const viewed = (xp: number) => result({ xp, score: xp, solutionsViewed: 1, perfect: false });
+
+  it("counts as completed: stores the result and unlocks the next level", () => {
+    const { progress, events } = applyScenarioResult(start(), viewed(0), gameRules, scenarios);
+    expect(progress.best["s-100"]).toMatchObject({ xp: 0, score: 0 });
+    expect(events).toEqual([{ type: "levelUnlocked", level: 200, areas: ["serverless"] }]);
+  });
+
+  it("never takes XP away nor lowers the best result kept", () => {
+    const first = applyScenarioResult(start(), result({ xp: 300 }), gameRules, scenarios).progress;
+    const lower = applyScenarioResult(first, viewed(50), gameRules, scenarios);
+    expect(lower.progress.xp).toBe(300);
+    expect(lower.progress.best["s-100"]).toEqual(first.best["s-100"]);
+    expect(lower.events).toEqual([]);
   });
 });
 

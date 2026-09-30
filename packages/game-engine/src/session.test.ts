@@ -5,6 +5,7 @@ import {
   canApply,
   commands,
   createSession,
+  isSlotResolved,
   revealedHints,
   slotStatus,
   type Command,
@@ -167,6 +168,125 @@ describe("applyCommand", () => {
   });
 });
 
+describe("revealSolution (RF-PLAY-14, ADR-0024)", () => {
+  it("shows the first optimal answer of the slot and locks it, keeping errors and hints", () => {
+    const before = play(
+      twoSlots(),
+      commands.useHint("a"),
+      commands.placeService("a", "ec2"),
+      commands.clearSlot("a"),
+      commands.placeService("a", "fargate"),
+      commands.selectSlot("a"),
+    );
+    const { state, outcome } = applyCommand(before, commands.revealSolution("a"));
+    expect(outcome).toEqual({
+      type: "solutionRevealed",
+      revealed: [{ slotId: "a", serviceId: "lambda" }],
+    });
+    expect(slotOf(state, "a")).toMatchObject({
+      placed: "lambda",
+      evaluation: { source: "answer", grade: "optimal", objectives: ["no-servers"] },
+      accepted: false,
+      revealed: true,
+      errors: 1,
+      placements: 2,
+      hintsRevealed: 1,
+    });
+    expect(slotStatus(slotOf(state, "a"))).toBe("revealed");
+    expect(isSlotResolved(slotOf(state, "a"))).toBe(true);
+    // The revealed slot is no longer the target of the keyboard/tap flow.
+    expect(state.selectedSlotId).toBeNull();
+    expect(state.completed).toBe(false);
+    for (const cmd of [
+      commands.placeService("a", "fargate"),
+      commands.useHint("a"),
+      commands.clearSlot("a"),
+      commands.acceptAcceptable("a"),
+      commands.revealSolution("a"),
+    ]) {
+      expect(applyCommand(state, cmd).outcome).toMatchObject({ reason: "slot-locked" });
+    }
+  });
+
+  it("keeps the selection of another slot", () => {
+    const state = play(twoSlots(), commands.selectSlot("b"), commands.revealSolution("a"));
+    expect(state.selectedSlotId).toBe("b");
+  });
+
+  it("reveals an empty slot, and falls back to the first answer without an optimal one", () => {
+    const onlyOrange = slot("c", {
+      answers: [
+        {
+          service: "fargate",
+          grade: "acceptable",
+          objectives: ["low-cost"],
+          rationale: "Aceptable.",
+          references: [],
+        },
+      ],
+    });
+    const session = createSession(scenario([slot("a"), onlyOrange]), gameRules);
+    const state = play(session, commands.revealSolution("a"), commands.revealSolution("c"));
+    expect(slotOf(state, "a")).toMatchObject({ placed: "lambda", placements: 0, revealed: true });
+    expect(slotOf(state, "c")).toMatchObject({ placed: "fargate", revealed: true });
+    expect(state.completed).toBe(true);
+  });
+
+  it("does nothing on a slot that is already resolved", () => {
+    const green = play(twoSlots(), commands.placeService("a", "lambda"));
+    const onGreen = applyCommand(green, commands.revealSolution("a"));
+    expect(onGreen.state).toBe(green);
+    expect(onGreen.outcome).toMatchObject({ type: "rejected", reason: "slot-locked" });
+
+    const accepted = play(
+      twoSlots(),
+      commands.placeService("a", "fargate"),
+      commands.acceptAcceptable("a"),
+    );
+    const onAccepted = applyCommand(accepted, commands.revealSolution("a"));
+    expect(onAccepted.state).toBe(accepted);
+    expect(onAccepted.outcome).toMatchObject({ reason: "slot-locked" });
+    expect(applyCommand(accepted, commands.revealSolution("zzz")).outcome).toMatchObject({
+      reason: "unknown-slot",
+    });
+  });
+
+  it("with null reveals every unresolved slot at once and completes the session", () => {
+    const before = play(
+      createSession(scenario([slot("a"), slot("b"), slot("c"), slot("d")]), gameRules),
+      commands.placeService("a", "lambda"),
+      commands.placeService("b", "fargate"),
+      commands.acceptAcceptable("b"),
+      commands.useHint("c"),
+      commands.placeService("c", "ec2"),
+      commands.selectSlot("d"),
+    );
+    const { state, outcome } = applyCommand(before, commands.revealSolution(null));
+    expect(outcome).toEqual({
+      type: "solutionRevealed",
+      revealed: [
+        { slotId: "c", serviceId: "lambda" },
+        { slotId: "d", serviceId: "lambda" },
+      ],
+    });
+    expect(state.slots.map(slotStatus)).toEqual(["optimal", "accepted", "revealed", "revealed"]);
+    expect(slotOf(state, "c")).toMatchObject({ placed: "lambda", errors: 1, hintsRevealed: 1 });
+    expect(state.selectedSlotId).toBeNull();
+    expect(state.completed).toBe(true);
+    expect(applyCommand(state, commands.revealSolution(null)).outcome).toMatchObject({
+      reason: "session-completed",
+    });
+  });
+
+  it("never mutates the previous state", () => {
+    const before = play(twoSlots(), commands.placeService("a", "ec2"));
+    const snapshot = structuredClone(before.slots);
+    applyCommand(before, commands.revealSolution("a"));
+    applyCommand(before, commands.revealSolution(null));
+    expect(before.slots).toEqual(snapshot);
+  });
+});
+
 describe("canApply", () => {
   it("tells whether applyCommand would accept the command, without changing the state", () => {
     const state = twoSlots();
@@ -175,6 +295,8 @@ describe("canApply", () => {
     const green = play(state, commands.placeService("a", "lambda"));
     expect(canApply(green, commands.useHint("a"))).toBe(false);
     expect(canApply(green, commands.placeService("a", "fargate"))).toBe(false);
+    expect(canApply(state, commands.revealSolution("a"))).toBe(true);
+    expect(canApply(green, commands.revealSolution("a"))).toBe(false);
     expect(slotStatus(slotOf(state, "a"))).toBe("empty");
   });
 });

@@ -78,4 +78,10 @@ describe("slotViews", () => {
     );
     expect(views[signer.id]?.grade).toBe("acceptable");
   });
+
+  it("draws a revealed slot as a viewed solution with its optimal service, not as a green", () => {
+    const optimal = store.answers.find((a) => a.grade === "optimal")?.service;
+    const views = slotViews(run(commands.revealSolution(store.id)));
+    expect(views[store.id]).toMatchObject({ grade: "revealed", serviceId: optimal });
+  });
 });

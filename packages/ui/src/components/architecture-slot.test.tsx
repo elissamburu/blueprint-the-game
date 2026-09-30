@@ -2,6 +2,7 @@
 import { cleanup, fireEvent, render, screen } from "@testing-library/react";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { ArchitectureSlot, slotAccessibleName } from "./architecture-slot";
+import type { SlotGrade } from "./grade-badge";
 
 afterEach(cleanup);
 
@@ -54,6 +55,26 @@ describe("ArchitectureSlot", () => {
       />,
     );
     expect(screen.getByRole("button", { name: "Ver pista" })).toBeDefined();
+  });
+});
+
+describe("ArchitectureSlot states", () => {
+  it("tells every state apart by border style too, not only by color (forced colors)", () => {
+    const border = (grade: SlotGrade) => {
+      const { container } = render(<ArchitectureSlot grade={grade} role="Rol" />);
+      const slot = container.querySelector<HTMLElement>("[data-slot=architecture-slot]");
+      return [...(slot?.classList ?? [])].find((c) => /^border-(solid|dashed|double)$/.test(c));
+    };
+    expect(border("empty")).toBe("border-dashed");
+    expect(border("optimal")).toBe("border-solid");
+    // "Solución vista" never looks like a green: double border, blueprint instead of success.
+    expect(border("revealed")).toBe("border-double");
+  });
+
+  it("names a revealed slot as a viewed solution, not as optimal", () => {
+    expect(slotAccessibleName("Guarda el PDF", "revealed", "S3")).toBe(
+      "Guarda el PDF. Solución vista: S3",
+    );
   });
 });
 

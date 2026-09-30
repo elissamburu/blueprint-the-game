@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { describe, expect, it } from "vitest";
 import { reviewCounts, scenarioReview, slotResultStatus } from "./review.js";
-import { scenarioMaxScore, scenarioResult } from "./scoring.js";
+import { scenarioMaxScore, scenarioResult, type SlotResult } from "./scoring.js";
 import { applyCommand, commands, createSession, slotNodes, type Command } from "./session.js";
 import { gameRules, pdfScenario, scenario, slot } from "./testing/fixtures.js";
 
@@ -50,12 +50,15 @@ describe("scenarioMaxScore", () => {
 });
 
 describe("slotResultStatus", () => {
-  it("reads the grade and whether the orange was kept", () => {
-    expect(slotResultStatus({ grade: null, accepted: false })).toBe("empty");
-    expect(slotResultStatus({ grade: "optimal", accepted: false })).toBe("optimal");
-    expect(slotResultStatus({ grade: "acceptable", accepted: false })).toBe("acceptable");
-    expect(slotResultStatus({ grade: "acceptable", accepted: true })).toBe("accepted");
-    expect(slotResultStatus({ grade: "incorrect", accepted: false })).toBe("incorrect");
+  it("reads the grade, whether the orange was kept and whether the solution was viewed", () => {
+    const status = (grade: SlotResult["grade"], accepted = false, revealed = false) =>
+      slotResultStatus({ grade, accepted, revealed });
+    expect(status(null)).toBe("empty");
+    expect(status("optimal")).toBe("optimal");
+    expect(status("acceptable")).toBe("acceptable");
+    expect(status("acceptable", true)).toBe("accepted");
+    expect(status("incorrect")).toBe("incorrect");
+    expect(status("optimal", false, true)).toBe("revealed");
   });
 });
 
@@ -138,6 +141,18 @@ describe("reviewCounts", () => {
       acceptable: 0,
       incorrect: 0,
       empty: 0,
+      revealed: 0,
     });
+  });
+
+  it("reviews a viewed solution as such, with its optimal answer and 0 points", () => {
+    const state = play(
+      commands.placeService("a", "lambda"),
+      commands.placeService("b", "ec2"),
+      commands.revealSolution("b"),
+    );
+    const review = scenarioReview(twoSlots, scenarioResult(state).slots);
+    expect(review[1]).toMatchObject({ status: "revealed", chosen: "s3", points: 0, errors: 1 });
+    expect(reviewCounts(review)).toMatchObject({ optimal: 1, revealed: 1 });
   });
 });

@@ -19,6 +19,10 @@ const STATES: Record<SlotGrade, string> = {
   incorrect: "border-solid border-destructive bg-danger-soft",
   // Accessibility change (docs/design/tokens.css): --slot-border (3,35:1) instead of --border.
   empty: "border-dashed border-slot-border bg-card",
+  // A border style of its own (double) besides the color, so "Solución vista" is told apart from a
+  // green in forced colors and in black and white too (docs/accesibilidad.md §3). The padding
+  // gives back the extra border width.
+  revealed: "border-double border-[4px] border-blueprint bg-blueprint-soft p-[6px]",
 };
 
 export interface ArchitectureSlotService {
