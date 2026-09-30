@@ -109,6 +109,13 @@ export function FeedbackCard({
   const objectives = objectiveStatuses(evaluation, session.scenario.objectives);
   const references = evaluation.source === "answer" ? evaluation.references : [];
   const actions = status === "acceptable" || status === "accepted" || status === "incorrect";
+  // A revealed slot shows its first optimal answer; the other optimal ones are named too.
+  const alsoOptimal =
+    status === "revealed"
+      ? node.answers
+          .filter((a) => a.grade === "optimal" && a.service !== evaluation.serviceId)
+          .map((a) => services.get(a.service)?.name ?? a.service)
+      : [];
 
   return (
     <section
@@ -151,6 +158,14 @@ export function FeedbackCard({
         <p className="mt-1 text-base text-foreground">
           <InlineMarkdown text={explanation} />
         </p>
+        {alsoOptimal.length > 0 && (
+          <p className="mt-1 text-base font-semibold text-foreground">
+            {t("play.feedback.alsoOptimal", {
+              count: alsoOptimal.length,
+              services: new Intl.ListFormat("es", { type: "conjunction" }).format(alsoOptimal),
+            })}
+          </p>
+        )}
         {objectives.length > 0 && (
           <ul
             aria-label={t("play.feedback.objectives")}

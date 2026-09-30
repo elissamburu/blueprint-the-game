@@ -305,6 +305,7 @@ scoring:
     min: 25
   acceptedAcceptable: 50          # naranja aceptado por el jugador
   hintCost: 15                    # por pista usada (el puntaje del casillero no baja de 0)
+  revealedSolution: 0             # casillero con la solución vista (RF-PLAY-14); ≤ acceptedAcceptable y ≤ greenAfterErrors.min
 levelMultipliers: { 100: 1, 200: 1.5, 300: 2, 400: 3 }   # los cuatro niveles son obligatorios
 ranks:                            # ≥ 1, umbral de XP acumulada
   - { id: aprendiz, name: Aprendiz, minXp: 0 }

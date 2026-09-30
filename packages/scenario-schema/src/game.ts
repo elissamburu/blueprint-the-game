@@ -29,17 +29,35 @@ const perLevel = <T extends z.ZodType>(value: T) =>
 export const EXPERIENCES = ["beginner", "aws-user", "architect", "expert"] as const;
 
 export const GameRulesSchema = z.strictObject({
-  scoring: z.strictObject({
-    firstTryGreen: nonNegativeInt().describe("Puntos por verde al primer intento."),
-    greenAfterErrors: z
-      .strictObject({
-        penaltyPerError: nonNegativeInt(),
-        min: nonNegativeInt(),
-      })
-      .describe("Verde tras N errores: max(min, firstTryGreen − penaltyPerError·N)."),
-    acceptedAcceptable: nonNegativeInt().describe("Puntos por un naranja aceptado."),
-    hintCost: nonNegativeInt().describe("Puntos que resta cada pista (el mínimo es 0)."),
-  }),
+  scoring: z
+    .strictObject({
+      firstTryGreen: nonNegativeInt().describe("Puntos por verde al primer intento."),
+      greenAfterErrors: z
+        .strictObject({
+          penaltyPerError: nonNegativeInt(),
+          min: nonNegativeInt(),
+        })
+        .describe("Verde tras N errores: max(min, firstTryGreen − penaltyPerError·N)."),
+      acceptedAcceptable: nonNegativeInt().describe("Puntos por un naranja aceptado."),
+      hintCost: nonNegativeInt().describe("Puntos que resta cada pista (el mínimo es 0)."),
+      revealedSolution: nonNegativeInt().describe(
+        "Puntos de un casillero con la solución vista (RF-PLAY-14). Nunca más que resolverlo.",
+      ),
+    })
+    // Viewing the solution never pays more than solving the slot: not more than an accepted
+    // orange nor than the worst green (RF-PLAY-14, ADR-0024).
+    .check((ctx) => {
+      const { revealedSolution, acceptedAcceptable, greenAfterErrors } = ctx.value;
+      const limit = Math.min(acceptedAcceptable, greenAfterErrors.min);
+      if (revealedSolution > limit) {
+        ctx.issues.push({
+          code: "custom",
+          input: revealedSolution,
+          path: ["revealedSolution"],
+          message: `No puede ser mayor que acceptedAcceptable ni que greenAfterErrors.min (${limit}): ver la solución nunca suma más que resolver el casillero`,
+        });
+      }
+    }),
   levelMultipliers: perLevel(z.number().positive()),
   ranks: z
     .array(

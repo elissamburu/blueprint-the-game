@@ -114,7 +114,10 @@ describe("scenario listing", () => {
   it("shows the best result and the status of each scenario", async () => {
     await renderListing(played());
     expect(within(card(STATIC)).getByText("Mejor resultado: 350 de 400 puntos")).toBeTruthy();
-    expect(within(card(STATIC)).getByText("Completado")).toBeTruthy();
+    const completed = within(card(STATIC)).getByText("Completado");
+    // Neutral: warning is "aceptable" in the game, and it may have no orange at all.
+    expect(completed.className).not.toMatch(/warning/);
+    expect(completed.className).toContain("bg-muted");
     expect(
       within(card(STATIC)).getByRole("link", { name: `Volver a jugar «${STATIC}»` }),
     ).toBeTruthy();

@@ -13,18 +13,14 @@ import {
 } from "./unlocks.js";
 
 /** Status filter of the listing (RF-NAV-01). */
-export const SCENARIO_STATUSES = [
-  "new",
-  "in-progress",
-  "completed-green",
-  "completed-orange",
-] as const;
+export const SCENARIO_STATUSES = ["new", "in-progress", "completed-green", "completed"] as const;
 
 export type ScenarioStatus = (typeof SCENARIO_STATUSES)[number];
 
 /**
  * Status of a scenario for the player:
- * - completed, green or with oranges, after the best result (it wins over "in progress");
+ * - `completed-green` when a best result ended with every slot green, `completed` otherwise
+ *   (oranges or viewed solutions, RF-PLAY-14); either wins over "in progress";
  * - `in-progress` when it was started and never completed;
  * - `new` otherwise.
  */
@@ -33,7 +29,7 @@ export const scenarioStatus = (
   scenarioId: string,
 ): ScenarioStatus => {
   const best = progress.best[scenarioId];
-  if (best !== undefined) return best.allOptimal ? "completed-green" : "completed-orange";
+  if (best !== undefined) return best.allOptimal ? "completed-green" : "completed";
   return progress.started.includes(scenarioId) ? "in-progress" : "new";
 };
 

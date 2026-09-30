@@ -12,7 +12,7 @@ const scenarios: { id: string; level: 100 | 200; areas: string[]; title: string 
 const statuses: Record<string, ScenarioStatus> = {
   a: "completed-green",
   b: "in-progress",
-  c: "completed-orange",
+  c: "completed",
 };
 const statusOf = (id: string) => statuses[id] ?? "new";
 const ids = (list: readonly { id: string }[]) => list.map((s) => s.id);
@@ -31,7 +31,7 @@ describe("filterScenarios", () => {
       ids(filterScenarios(scenarios, { ...NO_FILTERS, area: "serverless" }, statusOf)),
     ).toEqual(["b", "c"]);
     expect(
-      ids(filterScenarios(scenarios, { ...NO_FILTERS, status: "completed-orange" }, statusOf)),
+      ids(filterScenarios(scenarios, { ...NO_FILTERS, status: "completed" }, statusOf)),
     ).toEqual(["c"]);
     expect(
       ids(

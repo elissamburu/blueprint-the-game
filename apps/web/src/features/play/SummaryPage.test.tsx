@@ -252,6 +252,49 @@ describe("summary", () => {
     ).toEqual([]);
   });
 
+  it("names the other optimal answers of a viewed solution", async () => {
+    // The PDF scenario with alb (acceptable in content) as a second optimal answer of api-entry.
+    const files = bundleFiles(["published", "published", "published"]);
+    const raw = files["serverless-pdf-processing.v1.json"] as typeof pdfScenario;
+    const twoOptimal = {
+      ...raw,
+      diagram: {
+        ...raw.diagram,
+        nodes: raw.diagram.nodes.map((node) =>
+          node.type === "slot" && node.id === "api-entry"
+            ? {
+                ...node,
+                answers: node.answers.map((a) =>
+                  a.service === "alb" ? { ...a, grade: "optimal" as const } : a,
+                ),
+              }
+            : node,
+        ),
+      },
+    };
+    // Under another file name: the content store keeps the scenarios it loaded, by file.
+    const file = "serverless-pdf-processing.v99.json";
+    const index = files["index.json"] as { scenarios: { id: string; file: string }[] };
+    const withFile = {
+      ...index,
+      scenarios: index.scenarios.map((s) => (s.id === raw.id ? { ...s, file } : s)),
+    };
+    vi.stubGlobal("fetch", fetchFrom({ ...files, "index.json": withFile, [file]: twoOptimal }));
+    const session = applyCommand(
+      newSession(twoOptimal),
+      commands.revealSolution("api-entry"),
+    ).state;
+    renderSummary(stateFor({ kind: "first", gained: 0 }, [], session));
+    await title();
+    const first = document.querySelector("section[aria-labelledby=summary-review] ol > li");
+    expect(first?.textContent).toContain("Solución vista: Amazon API Gateway");
+    expect(first?.textContent).toContain(
+      `También es óptimo: ${services.get("alb")?.name ?? "alb"}`,
+    );
+    // Only for viewed solutions: a green chosen by the player does not get the line.
+    expect(document.body.textContent).not.toMatch(/También son óptimos/);
+  });
+
   it("has no axe violations, with and without a rank up", async () => {
     if (aprendiz === undefined || constructor === undefined) throw new Error("< 2 ranks");
     const options: RunOptions = {

@@ -75,7 +75,7 @@
 
 | ID | Requisito | P | Fase |
 |---|---|---|---|
-| RF-NAV-01 | Listado de escenarios con **filtros por nivel, área y estado** (nuevo, en curso, completado verde, completado con naranjas). | M | F1 |
+| RF-NAV-01 | Listado de escenarios con **filtros por nivel, área y estado** (nuevo, en curso, completado verde, completado). "Completado" es un escenario completado sin todos los casilleros en verde: con naranjas aceptados, con soluciones vistas (RF-PLAY-14) o con ambos. | M | F1 |
 | RF-NAV-02 | Sección **"Recomendados para vos"** según áreas de interés, nivel desbloqueado y escenarios no jugados. | M | F1 |
 | RF-NAV-03 | **Desbloqueo progresivo de niveles por área**: el nivel N+1 de un área se desbloquea al completar `unlock.scenariosRequired` escenarios (default 3) de esa área en el nivel N, además de lo definido en onboarding. Ver reglas en CA RF-NAV-03. | M | F1 |
 | RF-NAV-04 | Cada tarjeta muestra: título, resumen, nivel, áreas, duración estimada, mejor resultado del jugador. | M | F1 |
@@ -203,7 +203,7 @@
 | Verde tras N errores | `max(25, 100 − 25·N)` |
 | Naranja aceptado por el jugador | 50 |
 | Cada pista usada | −15 (mínimo 0) |
-| Casillero con la solución vista (RF-PLAY-14) | 0 |
+| Casillero con la solución vista (RF-PLAY-14) | 0 (`scoring.revealedSolution` en `game-rules.yaml`; nunca mayor que un naranja aceptado ni que el mínimo de un verde) |
 | XP del escenario | `Σ puntos × multiplicador` (100: ×1 · 200: ×1,5 · 300: ×2 · 400: ×3) |
 
 ---

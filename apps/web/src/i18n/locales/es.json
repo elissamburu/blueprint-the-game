@@ -108,7 +108,7 @@
       "new": "Nuevo",
       "in-progress": "En curso",
       "completed-green": "Completado en verde",
-      "completed-orange": "Completado"
+      "completed": "Completado"
     },
     "best": "Mejor resultado: {{score}} de {{max}} puntos",
     "locked": "Bloqueado",
@@ -177,7 +177,9 @@
       "undeclared": "{{short}} No cumple el rol: {{role}}",
       "docsCount_one": "{{count}} enlace",
       "docsCount_other": "{{count}} enlaces",
-      "revealedNote": "No suma puntos"
+      "revealedNote": "No suma puntos",
+      "alsoOptimal_one": "También es óptimo: {{services}}",
+      "alsoOptimal_other": "También son óptimos: {{services}}"
     },
     "hints": {
       "reveal": "Ver pista (−{{cost}} pts)",
@@ -278,6 +280,8 @@
       "slot": "Casillero {{number}}",
       "yourChoice": "Tu elección",
       "solutionViewed": "Solución vista",
+      "alsoOptimal_one": "También es óptimo: {{services}}",
+      "alsoOptimal_other": "También son óptimos: {{services}}",
       "empty": "Sin servicio",
       "optimalAnswer": "Respuesta óptima",
       "optimalAnswers": "Respuestas óptimas",

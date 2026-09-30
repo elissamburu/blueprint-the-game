@@ -45,7 +45,7 @@ export interface ScenarioResult {
  * Points of one slot:
  * - green: `firstTryGreen` with no red placements, else `max(min, firstTryGreen − penaltyPerError·N)`;
  * - accepted orange: `acceptedAcceptable`;
- * - solution viewed (RF-PLAY-14): 0, fixed by the requirement rather than game-rules;
+ * - solution viewed (RF-PLAY-14): `revealedSolution` (0 in content/game-rules.yaml);
  * - anything else (unfinished): 0;
  * minus `hintCost` per hint, never below 0.
  */
@@ -61,7 +61,9 @@ export const slotPoints = (slot: SlotState, scoring: GameRules["scoring"]): numb
           )
       : status === "accepted"
         ? scoring.acceptedAcceptable
-        : 0;
+        : status === "revealed"
+          ? scoring.revealedSolution
+          : 0;
   return Math.max(0, base - scoring.hintCost * slot.hintsRevealed);
 };
 

@@ -98,6 +98,7 @@ describe("slotPoints (docs/01 Reglas de puntaje)", () => {
       greenAfterErrors: { penaltyPerError: 4, min: 3 },
       acceptedAcceptable: 7,
       hintCost: 1,
+      revealedSolution: 2,
     };
     const base = {
       slotId: "a",
@@ -132,6 +133,9 @@ describe("slotPoints (docs/01 Reglas de puntaje)", () => {
         scoring,
       ),
     ).toBe(6);
+    // A viewed solution scores revealedSolution, minus its hints like any slot.
+    expect(slotPoints({ ...green, errors: 3, revealed: true }, scoring)).toBe(1);
+    expect(slotPoints({ ...green, errors: 0, hintsRevealed: 0, revealed: true }, scoring)).toBe(2);
   });
 });
 

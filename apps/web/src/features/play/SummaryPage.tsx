@@ -453,6 +453,11 @@ function ReviewItem({
   const chosenName = chosen?.name ?? item.chosen ?? t("play.summary.empty");
   const choseOptimal = item.optimal.some((answer) => answer.serviceId === item.chosen);
   const name = (id: string) => services.get(id)?.name ?? id;
+  // A viewed solution shows the first optimal answer; the others are named after it.
+  const alsoOptimal =
+    item.status === "revealed"
+      ? item.optimal.filter((a) => a.serviceId !== item.chosen).map((a) => name(a.serviceId))
+      : [];
   const meta = [
     t("play.summary.hints", { count: item.hintsUsed }),
     ...(item.errors > 0 ? [t("play.summary.errors", { count: item.errors })] : []),
@@ -490,6 +495,14 @@ function ReviewItem({
           {chosenName}
         </h3>
         <p className="mt-1 text-sm text-muted-foreground">{meta.join(" · ")}</p>
+        {alsoOptimal.length > 0 && (
+          <p className="mt-2 text-sm font-bold">
+            {t("play.summary.alsoOptimal", {
+              count: alsoOptimal.length,
+              services: new Intl.ListFormat("es", { type: "conjunction" }).format(alsoOptimal),
+            })}
+          </p>
+        )}
         {!choseOptimal && (
           <p className="mt-3 flex items-center gap-1 text-sm font-bold">
             <CircleCheckIcon aria-hidden className="size-4 text-success" />
