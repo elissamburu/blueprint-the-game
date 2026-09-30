@@ -27,6 +27,8 @@
  *   blueprint / blueprint-soft ...... 7,25  ("Solución vista", RF-PLAY-14: texto e ícono)
  *   blueprint / canvas .............. 7,71  (borde del casillero revelado sobre el tablero)
  *   blueprint / card ................ 8,40
+ *   foreground / blueprint-soft ..... 14,35 (aviso de beta: texto; el enlace usa blueprint, 7,25)
+ *   foreground / warning-soft ....... 14,61 (aviso de pantalla angosta)
  */
 
 @theme inline {
