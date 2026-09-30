@@ -1,5 +1,7 @@
 # 05 · Roadmap
 
+> [ROADMAP.md](../ROADMAP.md) es el **resumen público** (qué hay y qué viene). Este documento es el **detalle**, con la Definición de Terminado (DoD) de cada fase.
+
 Fases pensadas para implementarse con Claude Code **en orden**. Cada fase termina con algo usable y una Definición de Terminado (DoD) verificable. Los IDs de RF de cada fase están en [01](01-requerimientos-funcionales.md) (columna *Fase*).
 
 > Criterio de orden: el **contenido** es el cuello de botella del proyecto, así que el formato, la validación y el Studio llegan antes que las cuentas y la infraestructura.
@@ -91,6 +93,7 @@ Fases pensadas para implementarse con Claude Code **en orden**. Cada fase termin
 ## Contenido (transversal a las fases)
 El contenido se agrega en cualquier fase, por PR, siguiendo [03 · Modelo de escenarios](03-modelo-de-escenarios.md).
 
+- **Escenarios de seguridad**: detección de amenazas, organización multicuenta con guardrails y respuesta automática a incidentes.
 - **Escenarios multicuenta y multirregión**: organización de cuentas y políticas a nivel organización ([Organizations](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_introduction.html)), roles entre cuentas ([tutorial de IAM](https://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_cross-account-with-roles.html)), landing zone gobernada ([Control Tower](https://docs.aws.amazon.com/controltower/latest/userguide/what-is-control-tower.html)) y recursos compartidos entre cuentas ([RAM](https://docs.aws.amazon.com/ram/latest/userguide/what-is.html)); arquitecturas activas en más de una región. Usan el grupo `account` del diagrama.
 - **Catálogo**:
   - Agregar **AWS Control Tower** y **AWS Resource Access Manager (RAM)** a `content/catalog/services.yaml` (con `leakPatterns`, categoría, ícono y grupos de confusión con Organizations), como requisito de los escenarios multicuenta.

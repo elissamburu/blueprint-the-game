@@ -3,6 +3,8 @@
 > Nombre de trabajo. Juego web para aprender a diseñar arquitecturas en AWS completando diagramas.
 > **Código disponible, no comercial** (ver [ADR-0016](docs/adr/0016-licenciamiento.md)). No afiliado a Amazon Web Services (ver [TRADEMARKS.md](TRADEMARKS.md)).
 
+**🗺️ [Qué hay y qué viene](ROADMAP.md)**: qué trae la beta, qué fases siguen y dónde está escrita cada decisión.
+
 Este paquete es el punto de partida del repositorio: se copia en la raíz del repo nuevo y Claude Code lo usa como especificación.
 
 ## Contenido
@@ -18,7 +20,7 @@ Este paquete es el punto de partida del repositorio: se copia en la raíz del re
 | [docs/03-modelo-de-escenarios.md](docs/03-modelo-de-escenarios.md) | Formato de escenario, carpetas de contenido, reglas de lint |
 | [docs/04-estructura-monorepo.md](docs/04-estructura-monorepo.md) | Árbol del monorepo, dependencias entre paquetes, scripts |
 | [docs/05-roadmap.md](docs/05-roadmap.md) | Fases F0–F7 con definición de terminado |
-| [docs/adr/](docs/adr/README.md) | 21 ADRs |
+| [docs/adr/](docs/adr/README.md) | 24 ADRs |
 | [docs/design/](docs/design/README.md) | Referencia visual: pantallas, tokens y estilos de referencia (ADR-0021) |
 | [docs/guias/configurar-aws-en-tu-fork.md](docs/guias/configurar-aws-en-tu-fork.md) | Guía de OIDC + Terraform para forks |
 | [docs/guias/deploy-manual-beta.md](docs/guias/deploy-manual-beta.md) | Deploy manual de la beta pública (temporal, lo reemplaza F3) |
