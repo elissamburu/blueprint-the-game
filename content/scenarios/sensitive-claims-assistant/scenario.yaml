@@ -1,0 +1,350 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: sensitive-claims-assistant
+version: 1
+status: draft
+lang: es
+level: 300
+areas: [ml, security]
+title: "Asistente con datos de salud para los liquidadores de siniestros"
+summary: "Los liquidadores preguntan por expedientes con datos de salud: tráfico privado, claves propias, cada respuesta auditada y sin datos personales identificables."
+estimatedMinutes: 14
+authors:
+  - github: elissamburu
+
+context: |
+  La misma **aseguradora** que ya tiene un asistente de pólizas para sus clientes quiere uno
+  **interno** para los **liquidadores de siniestros**. Tiene que responder preguntas sobre los
+  **expedientes**: informes médicos, peritajes y fotos descritas en texto. Los expedientes
+  contienen **datos de salud** de asegurados y de terceros.
+
+  La app de los liquidadores **ya existe**: es una función **Lambda dentro de la VPC**, con la
+  autenticación corporativa. Los expedientes están en un **bucket de S3**. Para cada pregunta,
+  la app hace dos llamadas: primero **recupera los fragmentos relevantes** del índice de
+  expedientes y después le pide al **modelo** que redacte la respuesta con esos fragmentos.
+
+  La normativa interna es estricta:
+
+  - el tráfico de la app hacia los servicios de IA **no puede salir a internet**;
+  - los documentos, el índice y los registros se cifran con **claves que controla la
+    aseguradora**;
+  - **cada pregunta y cada respuesta** del modelo quedan registradas para auditoría;
+  - el asistente **no puede devolver datos personales identificables** de terceros;
+  - el equipo de seguridad exige **elegir el almacén del índice** y poder **inspeccionarlo y
+    auditarlo directamente**, no a través de una caja negra.
+
+  El equipo no tiene científicos de datos ni quiere sumar otra base de datos que mantener. Las
+  consultas son **pocas por día** y entran **algunos expedientes nuevos por día**, que tienen
+  que aparecer en el asistente sin que nadie lo dispare a mano.
+
+objectives:
+  - id: private-ai-traffic
+    kind: hard
+    category: security
+    text: "El tráfico de la app hacia los servicios de IA no sale a internet."
+  - id: customer-keys
+    kind: hard
+    category: compliance
+    text: "Documentos, índice y registros se cifran con claves que administra la aseguradora."
+  - id: qa-audit
+    kind: hard
+    category: compliance
+    text: "Cada pregunta y cada respuesta del modelo queda registrada completa para auditoría."
+  - id: no-pii
+    kind: hard
+    category: compliance
+    text: "Las respuestas no exponen datos personales identificables de terceros."
+  - id: no-own-models
+    kind: hard
+    category: team
+    text: "Sin entrenar ni hospedar modelos propios."
+  - id: inspectable-store
+    kind: hard
+    category: security
+    text: "Seguridad elige el almacén del índice y puede inspeccionarlo y auditarlo directamente."
+  - id: low-cost
+    kind: soft
+    category: cost
+    text: "Minimizar el costo, dado el bajo volumen de consultas."
+  - id: no-db-to-operate
+    kind: soft
+    category: operations
+    text: "Sin sumar clústeres ni bases de datos que dimensionar, actualizar y mantener."
+  - id: auto-ingest
+    kind: soft
+    category: operations
+    text: "Los expedientes nuevos se incorporan solos, sin intervención manual."
+
+diagram:
+  canvas: { width: 1400, height: 900 }
+  groups:
+    - id: cloud
+      kind: aws-cloud
+      label: "Nube"
+      rect: { x: 200, y: 40, w: 1160, h: 820 }
+      parent: null
+    - id: vpc
+      kind: vpc
+      label: "Red de la app"
+      rect: { x: 240, y: 320, w: 460, h: 260 }
+      parent: cloud
+
+  nodes:
+    - id: adjusters
+      type: actor
+      label: "Liquidadores"
+      icon: users
+      position: { x: 40, y: 410 }
+
+    - id: claims-app
+      type: fixed
+      service: lambda
+      position: { x: 270, y: 410 }
+      group: vpc
+
+    - id: claims-bucket
+      type: fixed
+      service: s3
+      position: { x: 820, y: 120 }
+      group: cloud
+
+    - id: rag
+      type: slot
+      role: "Servicio administrado que indexa los expedientes, recupera fragmentos y genera la respuesta con un modelo, filtrando datos personales."
+      position: { x: 820, y: 370 }
+      group: cloud
+      answers:
+        - service: bedrock
+          grade: optimal
+          objectives: [no-own-models, inspectable-store, no-pii]
+          rationale: >
+            Una base de conocimiento administrada por el cliente: la aseguradora elige el almacén
+            vectorial y accede a él directamente. La administrada por el servicio también acepta
+            una clave propia, pero su almacén lo elige y lo opera el servicio. La app recupera
+            fragmentos y llama al modelo con un guardrail cuyo filtro de información sensible
+            enmascara en la respuesta los datos personales detectados (p. ej. `{NAME}`). Los
+            modelos son administrados: nada que entrenar ni hospedar.
+          references:
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/kb-build-managed.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/kb-managed-create.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/encryption-kb.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-sensitive-filters.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-use-converse-api.html
+      incorrect:
+        - service: sagemaker-ai
+          violates: [no-own-models]
+          rationale: "Sirve para entrenar, ajustar y desplegar modelos en endpoints propios: justo lo que la aseguradora no quiere hacer. Además, el índice, la recuperación y el filtrado de la respuesta quedarían a cargo del equipo."
+        - service: comprehend
+          rationale: "Detecta, y puede redactar, entidades de datos personales en un texto, pero no recupera fragmentos de los expedientes ni redacta respuestas. El enmascaramiento de la respuesta lo resuelve un filtro del propio servicio que genera la respuesta."
+        - service: macie
+          rationale: "Descubre datos sensibles en los objetos de los buckets y genera hallazgos. Sirve para saber dónde hay datos de salud, pero no genera respuestas ni filtra lo que devuelve un modelo."
+      hints:
+        - "Necesitás modelos ya entrenados, consumidos como servicio, más un índice de los expedientes."
+        - "El mismo servicio tiene un filtro que enmascara los datos personales en lo que devuelve el modelo."
+
+    - id: vector-store
+      type: slot
+      role: "Almacén vectorial que elige seguridad, donde quedan los embeddings de los expedientes y que se puede inspeccionar directamente."
+      position: { x: 1120, y: 370 }
+      group: cloud
+      answers:
+        - service: s3
+          grade: optimal
+          objectives: [inspectable-store, customer-keys, low-cost, no-db-to-operate]
+          rationale: >
+            Los buckets vectoriales son un almacén soportado por las bases de conocimiento,
+            ideal para consultas poco frecuentes: se paga por lo que se usa, sin infraestructura
+            que aprovisionar. Se cifran con una clave del cliente a nivel del bucket o del índice
+            (no se puede cambiar después). La aseguradora accede a los vectores con operaciones
+            de API propias y controla el acceso con políticas de IAM.
+          references:
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-setup.html
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors.html
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors-data-encryption.html
+        - service: opensearch
+          grade: acceptable
+          objectives: [low-cost]
+          rationale: >
+            Una colección serverless de búsqueda vectorial cumple las restricciones: clave del
+            cliente y acceso directo. Pero las colecciones compatibles con las bases de
+            conocimiento facturan un mínimo de capacidad aunque no haya consultas; el modo que
+            escala a cero todavía no es compatible con la recuperación de las bases. Con pocas
+            consultas por día, pagás capacidad ociosa.
+          references:
+            - https://aws.amazon.com/opensearch-service/pricing/
+            - https://docs.aws.amazon.com/opensearch-service/latest/developerguide/serverless-encryption.html
+            - https://aws.amazon.com/blogs/machine-learning/selecting-a-vector-store-for-amazon-bedrock-knowledge-bases/
+        - service: aurora
+          grade: acceptable
+          objectives: [no-db-to-operate]
+          rationale: >
+            PostgreSQL con pgvector es un almacén soportado, se cifra con una clave del cliente
+            y su capacidad serverless puede bajar a cero. Pero es un clúster de base de datos más:
+            credenciales en un secreto, versión del motor, rango de capacidad y el esquema del
+            índice quedan a cargo del equipo. La creación rápida de la consola aclara que puede
+            no ser adecuada para producción.
+          references:
+            - https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/AuroraPostgreSQL.quickcreatekb.html
+            - https://docs.aws.amazon.com/AmazonRDS/latest/AuroraUserGuide/Overview.Encryption.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/knowledge-base-setup.html
+      incorrect:
+        - service: dynamodb
+          rationale: "No está entre los almacenes vectoriales que admiten las bases de conocimiento: guarda ítems por clave, pero la base no puede indexar ni buscar embeddings en él."
+        - service: documentdb
+          rationale: "No está entre los almacenes vectoriales que admiten las bases de conocimiento. La lista incluye un servicio de documentos compatible con MongoDB, pero es uno de terceros, no este."
+      hints:
+        - "Tiene que ser uno de los almacenes que la base de conocimiento sabe usar."
+        - "Con pocas consultas por día, buscá el que no tiene capacidad encendida ni base de datos que mantener."
+
+    - id: private-access
+      type: slot
+      role: "Acceso privado desde la red de la app a las APIs de IA: una para recuperar fragmentos y otra para invocar el modelo."
+      position: { x: 500, y: 370 }
+      group: vpc
+      answers:
+        - service: vpc-interface-endpoint
+          grade: optimal
+          objectives: [private-ai-traffic]
+          rationale: >
+            Dos endpoints con DNS privado, sin cambios de código: `bedrock-agent-runtime` para
+            `Retrieve` y `bedrock-runtime` para `Converse`. La app llega a las APIs sin internet
+            gateway ni NAT y sin IP públicas. Conviene invocar el modelo por `bedrock-runtime`
+            (no por `bedrock-mantle`): el registro de invocaciones solo captura esas llamadas.
+          references:
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/vpc-interface-endpoints.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html
+      incorrect:
+        - service: nat-gateway
+          violates: [private-ai-traffic]
+          rationale: "Llegaría a las APIs de IA por sus puntos de acceso públicos, a través de la salida a internet de la VPC: justo lo que la normativa prohíbe."
+        - service: vpc-gateway-endpoint
+          rationale: "El acceso por ruta solo existe para S3 y DynamoDB. Las APIs para recuperar fragmentos e invocar el modelo no lo ofrecen."
+      hints:
+        - "Sin salida a internet, cada API que usa la app necesita su propia puerta privada en la red."
+        - "Son dos APIs distintas: la de recuperación y la de invocación del modelo."
+
+    - id: keys
+      type: slot
+      role: "Claves de cifrado que administra la aseguradora para los expedientes, el índice y los registros de auditoría."
+      position: { x: 1120, y: 90 }
+      group: cloud
+      answers:
+        - service: kms
+          grade: optimal
+          objectives: [customer-keys]
+          rationale: >
+            Claves administradas por el cliente: la aseguradora define su política, las rota y
+            audita cada uso. Se usan en el bucket de expedientes (el rol de la base necesita
+            permiso para descifrar), en los datos transitorios de cada ingesta, en el índice
+            vectorial, en el guardrail y en los destinos del registro de invocaciones, que
+            guardan la pregunta original sin enmascarar.
+          references:
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/encryption-kb.html
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/s3-vectors-data-encryption.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html
+      incorrect:
+        - service: secrets-manager
+          rationale: "Guarda y rota secretos, como credenciales de una base de datos. No es la clave con la que se cifran los expedientes, el índice ni los registros."
+        - service: acm
+          rationale: "Emite y renueva certificados TLS para cifrar el tráfico en tránsito; no cifra los datos guardados."
+      hints:
+        - "No alcanza con el cifrado por defecto: la aseguradora tiene que controlar la clave."
+
+    - id: audit
+      type: slot
+      role: "Destino del registro de cada invocación del modelo, con la pregunta, la respuesta y quién hizo la llamada."
+      position: { x: 820, y: 660 }
+      group: cloud
+      answers:
+        - service: cloudwatch
+          grade: optimal
+          objectives: [qa-audit, customer-keys]
+          rationale: >
+            El registro de invocaciones del modelo viene apagado; al activarlo guarda el pedido y
+            la respuesta completos, con la identidad que llamó, en un grupo de logs y/o un
+            bucket. Los datos grandes solo van al bucket. Como guarda la entrada original sin
+            enmascarar, el grupo se cifra con la clave propia y se puede usar su protección de
+            datos para enmascarar lo sensible.
+          references:
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-sensitive-filters.html
+        - service: s3
+          grade: optimal
+          objectives: [qa-audit, customer-keys]
+          rationale: >
+            El registro de invocaciones del modelo puede escribir en un bucket, solo o junto con
+            un grupo de logs, y es el único destino para entradas y salidas grandes. Guarda el
+            pedido y la respuesta completos; el bucket se cifra con la clave propia (SSE-KMS),
+            con una política que le permite al servicio usarla.
+          references:
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html
+      incorrect:
+        - service: cloudtrail
+          rationale: "Registra quién llamó a qué API y cuándo; recuperar fragmentos de la base son eventos de datos, apagados por defecto. El mecanismo documentado para guardar la pregunta y la respuesta completas es el registro de invocaciones del modelo."
+        - service: config
+          rationale: "Registra cómo cambia la configuración de los recursos y evalúa reglas de cumplimiento; no ve el contenido de cada pregunta y respuesta."
+      hints:
+        - "Saber quién llamó a la API no alcanza: la auditoría pide el contenido de la pregunta y de la respuesta."
+        - "El servicio de modelos tiene un registro de invocaciones que se activa y se envía a un destino."
+
+    - id: sync-trigger
+      type: slot
+      role: "Disparador que, cada cierto tiempo, pide sincronizar la base de conocimiento con los expedientes nuevos."
+      position: { x: 500, y: 90 }
+      group: cloud
+      answers:
+        - service: eventbridge
+          grade: optimal
+          objectives: [auto-ingest]
+          rationale: >
+            En una base administrada por el cliente, cada cambio exige sincronizar
+            (`StartIngestionJob`). Un programador llama a esa API directo como destino
+            universal, sin código. La sincronización es incremental, y como admite un solo
+            trabajo a la vez por fuente de datos, una frecuencia fija es más simple que
+            dispararla con cada expediente.
+          references:
+            - https://docs.aws.amazon.com/scheduler/latest/UserGuide/managing-targets-universal.html
+            - https://docs.aws.amazon.com/bedrock/latest/userguide/kb-data-source-sync-ingest.html
+            - https://docs.aws.amazon.com/general/latest/gr/bedrock.html
+      incorrect:
+        - service: step-functions
+          violates: [auto-ingest]
+          rationale: "Puede llamar a la API de sincronización desde un paso del flujo, pero no arranca solo: necesita algo que lo inicie cada cierto tiempo o ante un evento."
+        - service: sqs
+          violates: [auto-ingest]
+          rationale: "Una cola guarda mensajes hasta que un consumidor los procesa. No llama a ninguna API por sí misma: sin un consumidor, la sincronización nunca se dispara."
+      hints:
+        - "La base administrada por el cliente no se sincroniza sola: alguien tiene que llamar a su API."
+        - "Buscá un servicio que invoque una API de AWS con una frecuencia fija, sin escribir una función."
+
+  edges:
+    - { id: e1,  from: sync-trigger,   to: rag,            step: 1,  style: control, label: "Pide sincronizar",
+        description: "Con una frecuencia fija; solo se procesan los expedientes nuevos, cambiados o borrados." }
+    - { id: e2,  from: rag,            to: claims-bucket,  step: 2,  style: data,    label: "Lee los expedientes nuevos" }
+    - { id: e3,  from: rag,            to: vector-store,   step: 3,  style: data,    label: "Guarda los embeddings" }
+    - { id: e4,  from: vector-store,   to: keys,           step: 4,  style: control, label: "Cifra con la clave propia",
+        description: "Expedientes, índice, datos transitorios de la ingesta y registros usan claves de la aseguradora." }
+    - { id: e5,  from: adjusters,      to: claims-app,     step: 5,  style: sync,    label: "Pregunta por un expediente" }
+    - { id: e6,  from: claims-app,     to: private-access, step: 6,  style: sync,    label: "Pide fragmentos relevantes" }
+    - { id: e7,  from: private-access, to: rag,            step: 7,  style: sync,    label: "Recupera por la red privada" }
+    - { id: e8,  from: rag,            to: vector-store,   step: 8,  style: sync,    label: "Búsqueda por similitud" }
+    - { id: e9,  from: claims-app,     to: private-access, step: 9,  style: sync,    label: "Pregunta y fragmentos al modelo" }
+    - { id: e10, from: private-access, to: rag,            step: 10, style: sync,    label: "Invoca el modelo con el filtro",
+        description: "El filtro de información sensible enmascara los datos personales de la respuesta." }
+    - { id: e11, from: rag,            to: audit,          step: 11, style: async,   label: "Registra pregunta y respuesta",
+        description: "Pedido y respuesta completos, con la identidad que llamó." }
+    - { id: e12, from: audit,          to: keys,           step: 12, style: control, label: "Cifra los registros" }
+    - { id: e13, from: rag,            to: claims-app,     step: 13, style: sync,    label: "Respuesta enmascarada" }
+    - { id: e14, from: claims-app,     to: adjusters,      step: 14, style: sync,    label: "Muestra la respuesta" }
+
+palette:
+  mode: auto
+
+references:
+  - title: "Bases de conocimiento administradas vs administradas por el cliente"
+    url: https://docs.aws.amazon.com/bedrock/latest/userguide/kb-build-managed.html
+  - title: "Filtros de información sensible de los guardrails"
+    url: https://docs.aws.amazon.com/bedrock/latest/userguide/guardrails-sensitive-filters.html
+  - title: "Registro de invocaciones del modelo"
+    url: https://docs.aws.amazon.com/bedrock/latest/userguide/model-invocation-logging.html

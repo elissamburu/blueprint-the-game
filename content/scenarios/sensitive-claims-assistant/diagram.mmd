@@ -1,0 +1,32 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: sensitive-claims-assistant v1
+flowchart LR
+  n_adjusters(["Liquidadores"])
+  subgraph g_cloud["Nube"]
+    subgraph g_vpc["Red de la app"]
+      n_claims_app["AWS Lambda"]
+      n_private_access["Interface VPC endpoint (AWS PrivateLink)"]
+    end
+    n_claims_bucket["Amazon S3"]
+    n_rag["Amazon Bedrock"]
+    n_vector_store["Amazon S3"]
+    n_keys["AWS KMS"]
+    n_audit["Amazon CloudWatch / Amazon S3"]
+    n_sync_trigger["Amazon EventBridge"]
+  end
+  n_sync_trigger --o|"1. Pide sincronizar"| n_rag
+  n_rag ==>|"2. Lee los expedientes nuevos"| n_claims_bucket
+  n_rag ==>|"3. Guarda los embeddings"| n_vector_store
+  n_vector_store --o|"4. Cifra con la clave propia"| n_keys
+  n_adjusters -->|"5. Pregunta por un expediente"| n_claims_app
+  n_claims_app -->|"6. Pide fragmentos relevantes"| n_private_access
+  n_private_access -->|"7. Recupera por la red privada"| n_rag
+  n_rag -->|"8. Búsqueda por similitud"| n_vector_store
+  n_claims_app -->|"9. Pregunta y fragmentos al modelo"| n_private_access
+  n_private_access -->|"10. Invoca el modelo con el filtro"| n_rag
+  n_rag -.->|"11. Registra pregunta y respuesta"| n_audit
+  n_audit --o|"12. Cifra los registros"| n_keys
+  n_rag -->|"13. Respuesta enmascarada"| n_claims_app
+  n_claims_app -->|"14. Muestra la respuesta"| n_adjusters
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_rag,n_vector_store,n_private_access,n_keys,n_audit,n_sync_trigger slot
