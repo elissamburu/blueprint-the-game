@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Lovable: src/components/ui/button.tsx (clases y tamaños tal cual). Diferencia de accesibilidad:
 // sin focus-visible:outline-none, para que se vea el foco de 3px de la capa base (globals.css).
+// El tamaño sm no achica el texto (Lovable: text-xs): los botones no bajan de 0.875rem
+// (docs/design, problema 28).
 import * as React from "react";
 import { cva, type VariantProps } from "class-variance-authority";
 import { cn } from "@blueprint/ui/lib/utils";
@@ -21,7 +23,7 @@ const buttonVariants = cva(
       },
       size: {
         default: "h-9 px-4 py-2",
-        sm: "h-8 rounded-md px-3 text-xs",
+        sm: "h-8 rounded-md px-3",
         lg: "h-10 rounded-md px-8",
         icon: "h-9 w-9",
       },

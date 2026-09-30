@@ -1,0 +1,75 @@
+# Level 200 scenario of the e2e fixture bundle: locked for a beginner until club-photos (the
+# only level 100 scenario) is completed.
+schemaVersion: 1
+id: photo-queue
+version: 1
+status: published
+lang: es
+level: 200
+areas: [serverless]
+title: "Pedidos de impresión de fotos"
+summary: "Los pedidos llegan en ráfagas y se procesan de a uno sin perder ninguno."
+estimatedMinutes: 5
+authors:
+  - github: blueprint-e2e
+context: |
+  Un laboratorio recibe pedidos de impresión desde una tienda online.
+objectives:
+  - id: no-servers
+    kind: hard
+    category: operations
+    text: "No administrar servidores."
+  - id: no-lost-orders
+    kind: soft
+    category: durability
+    text: "Ningún pedido se puede perder."
+diagram:
+  canvas: { width: 1200, height: 700 }
+  groups:
+    - id: cloud
+      kind: aws-cloud
+      label: "Nube"
+      rect: { x: 200, y: 40, w: 960, h: 620 }
+  nodes:
+    - id: shop
+      type: external
+      label: "Tienda online"
+      icon: third-party
+      position: { x: 40, y: 300 }
+    - id: buffer
+      type: slot
+      role: "Guarda los pedidos hasta que se procesan."
+      position: { x: 300, y: 300 }
+      group: cloud
+      answers:
+        - service: sqs
+          grade: optimal
+          objectives: [no-servers, no-lost-orders]
+          rationale: "Cola administrada que retiene los mensajes hasta que se procesan."
+          references:
+            - https://docs.aws.amazon.com/AWSSimpleQueueService/latest/SQSDeveloperGuide/welcome.html
+      incorrect:
+        - service: dynamodb
+          rationale: "Es una base de datos: no reparte trabajo entre consumidores."
+    - id: worker
+      type: slot
+      role: "Procesa cada pedido."
+      position: { x: 600, y: 300 }
+      group: cloud
+      answers:
+        - service: lambda
+          grade: optimal
+          objectives: [no-servers]
+          rationale: "Se ejecuta con cada lote de mensajes."
+          references:
+            - https://docs.aws.amazon.com/lambda/latest/dg/with-sqs.html
+      incorrect:
+        - service: ec2
+          violates: [no-servers]
+          rationale: "Hay que administrar instancias."
+  edges:
+    - { id: e1, from: shop, to: buffer, step: 1, label: "Envía el pedido", style: async }
+    - { id: e2, from: buffer, to: worker, step: 2, label: "Entrega el pedido", style: sync }
+palette:
+  mode: auto
+  extra: [efs]

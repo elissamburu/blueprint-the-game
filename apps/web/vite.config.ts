@@ -14,9 +14,15 @@ const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
  * validates it at runtime instead of importing it (ADR-0006). `vite dev` serves
  * dist/content-dev (built with --include-drafts by the dev script); `vite preview` serves
  * dist/content, the production bundle. In production the deploy publishes dist/content next
- * to the web, so `vite build` does not copy it.
+ * to the web, so `vite build` does not copy it. BLUEPRINT_CONTENT_DIR (relative to the repo root)
+ * makes both serve another bundle: pnpm e2e uses it for its fixture (dist/content-e2e).
  */
 const contentBundle = (): Plugin => {
+  const override = process.env.BLUEPRINT_CONTENT_DIR;
+  const bundleDir = (name: string) =>
+    override === undefined || override === ""
+      ? path.join(REPO_ROOT, "dist", name)
+      : path.resolve(REPO_ROOT, override);
   const middleware =
     (dir: string): Connect.NextHandleFunction =>
     (req, res: ServerResponse, next) => {
@@ -36,10 +42,10 @@ const contentBundle = (): Plugin => {
   return {
     name: "blueprint-content-bundle",
     configureServer(server) {
-      server.middlewares.use(middleware(path.join(REPO_ROOT, "dist", "content-dev")));
+      server.middlewares.use(middleware(bundleDir("content-dev")));
     },
     configurePreviewServer(server) {
-      server.middlewares.use(middleware(path.join(REPO_ROOT, "dist", "content")));
+      server.middlewares.use(middleware(bundleDir("content")));
     },
   };
 };

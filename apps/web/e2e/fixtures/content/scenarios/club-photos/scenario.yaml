@@ -1,0 +1,112 @@
+# Fixed scenario of the e2e journeys (apps/web/e2e): three slots, one of them with an optimal,
+# an acceptable and an incorrect answer plus two hints (the only slot with hints). The specs
+# assert its scores, so changing answers, hints or game-rules.yaml means updating them.
+schemaVersion: 1
+id: club-photos
+version: 1
+status: published
+lang: es
+level: 100
+areas: [serverless, storage]
+title: "Fotos de un club de barrio"
+summary: "Los socios suben fotos y el sistema genera miniaturas."
+estimatedMinutes: 5
+authors:
+  - github: blueprint-e2e
+context: |
+  Un club quiere que los socios suban fotos de los partidos.
+  El uso es esporádico.
+objectives:
+  - id: no-servers
+    kind: hard
+    category: operations
+    text: "No administrar servidores."
+  - id: low-cost
+    kind: soft
+    category: cost
+    text: "Pagar poco cuando no hay uso."
+diagram:
+  canvas: { width: 1200, height: 700 }
+  groups:
+    - id: cloud
+      kind: aws-cloud
+      label: "Nube"
+      rect: { x: 200, y: 40, w: 960, h: 620 }
+      parent: null
+  nodes:
+    - id: member
+      type: actor
+      label: "Socio"
+      icon: mobile
+      position: { x: 40, y: 300 }
+    - id: store
+      type: slot
+      role: "Almacenamiento durable donde quedan las fotos originales."
+      position: { x: 300, y: 120 }
+      group: cloud
+      answers:
+        - service: s3
+          grade: optimal
+          objectives: [no-servers, low-cost]
+          rationale: "Almacenamiento de objetos durable con pago por uso."
+          references:
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html
+      incorrect:
+        - service: efs
+          rationale: "Se monta desde cómputo; no recibe subidas."
+    - id: thumbnailer
+      type: slot
+      role: "Lógica breve que genera la miniatura cuando llega una foto."
+      position: { x: 600, y: 120 }
+      group: cloud
+      answers:
+        - service: lambda
+          grade: optimal
+          objectives: [no-servers, low-cost]
+          rationale: "Cómputo por evento que no cobra sin uso."
+          references:
+            - https://docs.aws.amazon.com/lambda/latest/dg/welcome.html
+        - service: fargate
+          grade: acceptable
+          objectives: [low-cost]
+          rationale: "Contenedores sin servidores, pero con arranque más lento."
+      incorrect:
+        - service: ec2
+          violates: [no-servers]
+          rationale: "Hay que administrar instancias."
+      hints:
+        - "Se ejecuta solo cuando llega una foto."
+        - "No hay nada encendido mientras nadie sube fotos."
+    - id: index
+      type: slot
+      role: "Tabla que registra qué miniatura corresponde a cada foto."
+      position: { x: 600, y: 420 }
+      group: cloud
+      answers:
+        - service: dynamodb
+          grade: optimal
+          objectives: [no-servers, low-cost]
+          rationale: "Tabla clave-valor sin servidores, con cobro por pedido."
+          references:
+            - https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html
+      incorrect:
+        - service: efs
+          rationale: "Es un sistema de archivos: no consulta registros por clave."
+    - id: logs
+      type: fixed
+      service: cloudwatch
+      position: { x: 900, y: 420 }
+      group: cloud
+  edges:
+    - { id: e1, from: member, to: store, step: 1, label: "Sube la foto", style: data }
+    - { id: e2, from: store, to: thumbnailer, step: 2, label: "Avisa que llegó", style: async }
+    - { id: e3, from: thumbnailer, to: index, step: 3, label: "Anota la miniatura", style: data }
+    - id: e4
+      from: thumbnailer
+      to: logs
+      step: 4
+      label: "Registra el resultado"
+      style: control
+palette:
+  mode: auto
+  extra: [sqs]

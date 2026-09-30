@@ -1,0 +1,65 @@
+# Minimal catalog of the e2e fixture bundle: real services, only the ones its scenarios use.
+- id: s3
+  name: Amazon S3
+  category: storage
+  leakPatterns: ["S3", "Simple Storage Service"]
+  short: "Almacenamiento de objetos durable y escalable, pago por uso."
+  docs: https://docs.aws.amazon.com/s3/
+  icon: Arch_Amazon-Simple-Storage-Service_48
+  status: active
+- id: efs
+  name: Amazon EFS
+  category: storage
+  leakPatterns: ["EFS", "Elastic File System"]
+  short: "Sistema de archivos compartido para cómputo."
+  docs: https://docs.aws.amazon.com/efs/
+  icon: Arch_Amazon-EFS_48
+  status: active
+- id: lambda
+  name: AWS Lambda
+  category: compute
+  leakPatterns: ["Lambda"]
+  short: "Cómputo por eventos sin servidores."
+  docs: https://docs.aws.amazon.com/lambda/
+  icon: Arch_AWS-Lambda_48
+  status: active
+- id: fargate
+  name: AWS Fargate
+  category: compute
+  leakPatterns: ["Fargate"]
+  short: "Contenedores sin administrar servidores."
+  docs: https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html
+  icon: Arch_AWS-Fargate_48
+  status: active
+- id: ec2
+  name: Amazon EC2
+  category: compute
+  leakPatterns: ["EC2", "Elastic Compute Cloud"]
+  short: "Máquinas virtuales administradas por el cliente."
+  docs: https://docs.aws.amazon.com/ec2/
+  icon: Arch_Amazon-EC2_48
+  status: active
+- id: dynamodb
+  name: Amazon DynamoDB
+  category: database
+  leakPatterns: ["DynamoDB"]
+  short: "Base de datos clave-valor sin servidores."
+  docs: https://docs.aws.amazon.com/dynamodb/
+  icon: Arch_Amazon-DynamoDB_48
+  status: active
+- id: cloudwatch
+  name: Amazon CloudWatch
+  category: management
+  leakPatterns: ["CloudWatch"]
+  short: "Métricas, logs y alarmas."
+  docs: https://docs.aws.amazon.com/cloudwatch/
+  icon: Arch_Amazon-CloudWatch_48
+  status: active
+- id: sqs
+  name: Amazon SQS
+  category: integration
+  leakPatterns: ["SQS", "Simple Queue Service"]
+  short: "Colas de mensajes administradas."
+  docs: https://docs.aws.amazon.com/sqs/
+  icon: Arch_Amazon-Simple-Queue-Service_48
+  status: active

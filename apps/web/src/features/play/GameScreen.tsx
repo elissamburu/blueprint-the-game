@@ -214,6 +214,19 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     focusPalette();
   };
 
+  // "Me quedo con esta" and the X of the card remove the button that had the focus: it goes back
+  // to the slot of the card instead of being lost (the next Tab would start from the top).
+  const onAccept = (slotId: string) => {
+    game.accept(slotId);
+    focusSlot(slotId);
+  };
+
+  const onCloseFeedback = () => {
+    const slotId = game.feedbackSlotId;
+    game.closeFeedback();
+    if (slotId !== null) focusSlot(slotId);
+  };
+
   const onKeyDown = (event: KeyboardEvent<HTMLDivElement>) => {
     if (event.key !== "Escape") return;
     // Esc inside a popover, dialog or menu closes it; it does not cancel the selection too.
@@ -404,9 +417,9 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
                   services={services}
                   side={placement.side}
                   gap={placement.gap}
-                  onAccept={game.accept}
+                  onAccept={onAccept}
                   onRetry={onRetry}
-                  onClose={game.closeFeedback}
+                  onClose={onCloseFeedback}
                 />
               )}
             </div>

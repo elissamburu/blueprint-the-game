@@ -7,6 +7,11 @@ dist/
 coverage/
 *.tsbuildinfo
 
+# Playwright (pnpm e2e)
+test-results/
+playwright-report/
+blob-report/
+
 # AWS Architecture Icons: downloaded by pnpm icons:fetch, never committed (ADR-0012)
 apps/web/public/icons/
 .cache/

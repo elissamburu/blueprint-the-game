@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Grade label of a slot (RF-PLAY, RNF-02): color is never the only cue, every grade has an icon
 // and a text. The grade comes from game-engine through props; this component does not decide it.
-// Lovable: .slot-status (src/styles.css) and statusStyle in blueprint-app.tsx.
+// Lovable: .slot-status (src/styles.css) and statusStyle in blueprint-app.tsx. The text is 0.875rem
+// (Lovable: 0.61rem), the minimum for labels (docs/design, problem 28); the slots of the board set
+// their own size in px.
 import type * as React from "react";
 import {
   CircleCheckIcon,
@@ -43,7 +45,7 @@ function GradeBadge({ grade, className, ...props }: GradeBadgeProps) {
       data-slot="grade-badge"
       data-grade={grade}
       className={cn(
-        "inline-flex items-center gap-[0.3rem] text-[0.61rem] font-[850] whitespace-nowrap uppercase",
+        "inline-flex items-center gap-[0.3rem] text-sm font-[850] whitespace-nowrap uppercase",
         text,
         className,
       )}

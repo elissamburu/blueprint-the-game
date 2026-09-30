@@ -99,17 +99,91 @@ jobs:
       - name: Check generated content files
         run: pnpm content:gen --check
 
+  # End-to-end tests in a real browser (Playwright + axe; DoD of F1, docs/accesibilidad.md §7).
+  # Like `checks`, it runs the PR code without credentials. Ubuntu only: the suite drives
+  # Chromium, which behaves the same on both systems.
+  e2e:
+    name: e2e
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    permissions:
+      contents: read
+    steps:
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Same cache as `checks`: the game is tested with the official icons.
+      - name: Cache AWS icons package
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/aws-icons
+          key: aws-icons-${{ hashFiles('tools/icons-fetch/icons.config.json') }}
+
+      - name: Fetch AWS icons
+        run: pnpm icons:fetch
+
+      # The browser build is tied to the Playwright version, so that is the cache key. The system
+      # libraries are not cached: on a hit only they are installed.
+      - name: Read Playwright version
+        id: playwright
+        run: echo "version=$(pnpm --filter @blueprint/web exec playwright --version | cut -d ' ' -f 2)" >> "$GITHUB_OUTPUT"
+
+      - name: Cache Playwright browsers
+        id: playwright-cache
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: ~/.cache/ms-playwright
+          key: playwright-${{ runner.os }}-chromium-${{ steps.playwright.outputs.version }}
+
+      - name: Install Chromium and its system dependencies
+        if: steps.playwright-cache.outputs.cache-hit != 'true'
+        run: pnpm --filter @blueprint/web exec playwright install --with-deps chromium
+
+      - name: Install Chromium system dependencies
+        if: steps.playwright-cache.outputs.cache-hit == 'true'
+        run: pnpm --filter @blueprint/web exec playwright install-deps chromium
+
+      # Builds the content bundles and the web, then starts the servers from the Playwright config.
+      - name: Run end-to-end tests
+        run: pnpm e2e
+
+      - name: Upload Playwright report
+        if: failure()
+        uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
+        with:
+          name: playwright-report
+          path: apps/web/playwright-report/
+          if-no-files-found: ignore
+          retention-days: 7
+
   # Single stable status check for branch protection, independent of matrix names.
   ci:
     name: ci
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [checks]
+    needs: [checks, e2e]
     if: always()
     steps:
       - name: Verify checks result
         env:
           CHECKS_RESULT: ${{ needs.checks.result }}
+          E2E_RESULT: ${{ needs.e2e.result }}
         run: |
           echo "checks: $CHECKS_RESULT"
+          echo "e2e: $E2E_RESULT"
           test "$CHECKS_RESULT" = "success"
+          test "$E2E_RESULT" = "success"

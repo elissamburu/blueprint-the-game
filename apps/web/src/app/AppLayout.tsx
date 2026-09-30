@@ -63,7 +63,9 @@ export function AppLayout() {
             }
           >
             {t("app.footer")}{" "}
-            <Link to="/acerca" className="text-primary underline-offset-4 hover:underline">
+            {/* Always underlined: inside a sentence, color alone does not tell a link apart
+                (WCAG 1.4.1). */}
+            <Link to="/acerca" className="text-primary underline underline-offset-4">
               {t("nav.about")}
             </Link>
           </footer>

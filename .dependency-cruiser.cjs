@@ -95,7 +95,7 @@ module.exports = {
   ],
   options: {
     doNotFollow: { path: "node_modules" },
-    exclude: { path: "(^|/)(dist|coverage|\\.turbo)/" },
+    exclude: { path: "(^|/)(dist|coverage|\\.turbo|test-results|playwright-report)/" },
     // Keep pnpm workspace links as node_modules/@blueprint/* paths so they are typed as
     // npm dependencies (declared or not) instead of local files.
     preserveSymlinks: true,

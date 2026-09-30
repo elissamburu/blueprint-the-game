@@ -1,0 +1,7 @@
+# Areas of the e2e fixture bundle.
+- id: serverless
+  name: Serverless
+  description: "Arquitecturas sin servidores que administrar."
+- id: storage
+  name: Almacenamiento
+  description: "Objetos, bloques y archivos."

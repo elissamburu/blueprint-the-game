@@ -11,7 +11,11 @@ const badgeVariants = cva(
   {
     variants: {
       variant: {
-        default: "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80",
+        // Forced colors (docs/accesibilidad.md §3): light text on a solid color has no meaning
+        // there, so the badge takes the system text color over the system background, with a
+        // border that keeps its shape visible.
+        default:
+          "border-transparent bg-primary text-primary-foreground shadow hover:bg-primary/80 forced-colors:border-[CanvasText] forced-colors:bg-[Canvas] forced-colors:text-[CanvasText]",
         secondary:
           "border-transparent bg-secondary text-secondary-foreground hover:bg-secondary/80",
         destructive:
