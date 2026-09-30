@@ -1,10 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The single bar of the game screen (layout v2; it replaces the global header): back, level and
-// title, progress, score, "Ver caso", "Modo foco", "Finalizar" and the "⋯" menu with "Reproducir
-// flujo" and "Reportar un problema" (RF-PLAY-03, RF-PLAY-13). In focus mode, a minimal floating
-// bar: progress, "Ver caso", "Finalizar" and "Salir del foco". On narrow screens (or a large
-// browser zoom) the bar wraps and "Ver caso" and "Modo foco" keep only their icon, with the same
-// accessible name: every action stays visible.
+// title, progress, score, "Ver caso", "Reproducir flujo" (RF-PLAY-03, RF-PLAY-15), "Modo foco",
+// "Finalizar" and the "⋯" menu with "Reportar un problema" (RF-PLAY-13). In focus mode, a minimal
+// floating bar: progress, "Ver caso", "Finalizar" and "Salir del foco". On narrow screens (or a
+// large browser zoom) the bar wraps, the progress bar goes first and then "Ver caso" and "Modo
+// foco" keep only their icon, with the same accessible name; "Reproducir flujo" always keeps its
+// text (CA RF-PLAY-15). Every action stays visible.
 // Lovable: .game-topbar, .scenario-title, .game-progress, .score-box, .focus-bar (src/styles.css),
 // capturas 13 y 15.
 import type { Scenario } from "@blueprint/scenario-schema";
@@ -100,6 +101,10 @@ export function GameBar({
       </p>
       <div className="flex flex-wrap items-center gap-2">
         <ViewCaseButton open={caseOpen} onClick={onViewCase} />
+        <Button variant="outline" className="text-sm" onClick={onPlayFlow}>
+          <PlayIcon aria-hidden />
+          {t("play.top.playFlow")}
+        </Button>
         <Button
           ref={focusModeRef}
           variant="outline"
@@ -117,10 +122,6 @@ export function GameBar({
             </Button>
           </DropdownMenuTrigger>
           <DropdownMenuContent align="end">
-            <DropdownMenuItem onSelect={onPlayFlow}>
-              <PlayIcon aria-hidden />
-              {t("play.top.playFlow")}
-            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href={reportUrl} target="_blank" rel="noreferrer">
                 <FlagIcon aria-hidden />

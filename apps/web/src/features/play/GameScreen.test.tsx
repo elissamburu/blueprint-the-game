@@ -165,7 +165,7 @@ describe("game screen layout", () => {
     expect(await screen.findByRole("navigation", { name: "Principal" })).toBeTruthy();
   });
 
-  it('"⋯" plays the flow and links the report form with the scenario and the slot', async () => {
+  it('"⋯" links the report form with the scenario and the slot', async () => {
     const user = await open();
     const reportHref = async () => {
       await user.click(screen.getByRole("button", { name: "Más acciones" }));
@@ -183,9 +183,21 @@ describe("game screen layout", () => {
     await press(user, slotButton("upload-store"));
     params = await reportHref();
     expect(params.get("slot")).toBe("upload-store");
+  });
 
+  it('"Reproducir flujo" is a button of the bar with visible text, not a menu item', async () => {
+    const user = await open();
     await user.click(screen.getByRole("button", { name: "Más acciones" }));
-    await user.click(await screen.findByRole("menuitem", { name: "Reproducir flujo" }));
+    const menu = await screen.findByRole("menu");
+    expect(within(menu).queryByRole("menuitem", { name: "Reproducir flujo" })).toBeNull();
+    await user.keyboard("{Escape}");
+
+    const play = screen.getByRole("button", { name: "Reproducir flujo" });
+    expect(play.closest("header")).not.toBeNull();
+    // The name is the visible text, not a hidden label.
+    expect(play.textContent).toBe("Reproducir flujo");
+    expect(play.querySelector(".sr-only")).toBeNull();
+    await user.click(play);
     expect(await screen.findByRole("group", { name: "Reproductor de flujo" })).toBeTruthy();
     expect(document.querySelector("[data-slot=diagram] p[aria-live]")?.textContent).toMatch(
       /^Paso 1 de /,
@@ -672,6 +684,8 @@ describe("focus mode", () => {
     // The game bar is gone; the minimal bar keeps progress, "Ver caso" and "Finalizar".
     expect(screen.queryByRole("button", { name: "Modo foco" })).toBeNull();
     expect(screen.queryByRole("button", { name: "Más acciones" })).toBeNull();
+    // "Reproducir flujo" leaves the bar only in focus mode (CA RF-PLAY-15).
+    expect(screen.queryByRole("button", { name: "Reproducir flujo" })).toBeNull();
     const bar = document.querySelector<HTMLElement>("[data-slot=focus-bar]");
     if (bar === null) throw new Error("no focus bar");
     expect(within(bar).getByText(/de \d+ casilleros/)).toBeTruthy();
