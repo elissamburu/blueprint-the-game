@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-import type { Edge } from "@blueprint/scenario-schema";
+import { parseScenario, type Edge } from "@blueprint/scenario-schema";
+import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
-import { fakeServices, staticWebsiteScenario } from "./testing/fixtures";
-import { describeRoute, describeStep, diagramSteps, flowSteps } from "./steps";
+import { fakeServices, realScenarios, staticWebsiteScenario } from "./testing/fixtures";
+import { describeRoute, describeStep, diagramSteps, edgeSteps, flowSteps } from "./steps";
 
 const edge = (id: string, step: number, label: string, description?: string): Edge => ({
   id,
@@ -69,5 +70,94 @@ describe("diagramSteps", () => {
       (id) => id.toUpperCase(),
     );
     expect(steps[0]?.routes).toEqual([{ from: "X", to: "Y" }]);
+  });
+});
+
+describe("edgeSteps", () => {
+  const actor = (id: string, label: string) =>
+    ({ id, type: "actor", icon: "user", label, position: { x: 0, y: 0 } }) as const;
+
+  it("gives each edge its step, label, description and route, in diagram order", () => {
+    const steps = edgeSteps(staticWebsiteScenario.diagram, fakeServices);
+    expect(steps.map((s) => s.edgeId)).toEqual(
+      staticWebsiteScenario.diagram.edges.map((e) => e.id),
+    );
+    const dns = staticWebsiteScenario.diagram.nodes.find((n) => n.id === "dns");
+    if (dns?.type !== "slot") throw new Error("no dns slot");
+    const second = steps.find((s) => s.step === 2);
+    expect(second?.name).toBe(`Paso 2: ${second?.label}`);
+    expect(second?.route).toEqual({ from: "Visitantes", to: dns.role.replace(/\.$/, "") });
+    // A slot is named by its role, never by its hidden service.
+    expect(JSON.stringify(steps)).not.toContain("route53");
+  });
+
+  it("names every button differently, adding the route only when two would repeat", () => {
+    const steps = edgeSteps(
+      {
+        nodes: [actor("a", "Cliente"), actor("b", "Zona A"), actor("c", "Zona B")],
+        edges: [
+          { id: "e1", from: "a", to: "b", step: 1, label: "Pide", style: "sync" },
+          { id: "e2", from: "a", to: "c", step: 1, label: "Pide", style: "sync" },
+          {
+            id: "e3",
+            from: "b",
+            to: "c",
+            step: 2,
+            label: "Copia",
+            style: "async",
+            description: "Cada hora.",
+          },
+        ],
+      },
+      fakeServices,
+    );
+    expect(steps.map((s) => s.name)).toEqual([
+      "Paso 1: Pide (Cliente → Zona A)",
+      "Paso 1: Pide (Cliente → Zona B)",
+      "Paso 2: Copia",
+    ]);
+    expect(steps[2]?.description).toBe("Cada hora.");
+    expect(steps[0]?.description).toBeUndefined();
+  });
+
+  it("tells apart nodes that share a name by their group, and numbers what still repeats", () => {
+    const fixed = (id: string, group: string) =>
+      ({ id, type: "fixed", service: "ecs", group, position: { x: 0, y: 0 } }) as const;
+    const group = (id: string, label: string) =>
+      ({ id, kind: "subnet-private", label, rect: { x: 0, y: 0, w: 10, h: 10 } }) as const;
+    const steps = edgeSteps(
+      {
+        groups: [group("sa", "Subred A"), group("sb", "Subred B")],
+        nodes: [fixed("a", "sa"), fixed("b", "sb"), actor("x", "Destino")],
+        edges: [
+          { id: "e1", from: "a", to: "x", step: 1, label: "Pide", style: "sync" },
+          { id: "e2", from: "b", to: "x", step: 1, label: "Pide", style: "sync" },
+          { id: "e3", from: "x", to: "a", step: 2, label: "Va", style: "sync" },
+          { id: "e4", from: "x", to: "a", step: 2, label: "Va", style: "sync" },
+        ],
+      },
+      fakeServices,
+    );
+    expect(steps.map((s) => s.name)).toEqual([
+      "Paso 1: Pide (Servicio ecs (Subred A) → Destino)",
+      "Paso 1: Pide (Servicio ecs (Subred B) → Destino)",
+      "Paso 2: Va (Destino → Servicio ecs (Subred A)) (1 de 2)",
+      "Paso 2: Va (Destino → Servicio ecs (Subred A)) (2 de 2)",
+    ]);
+  });
+
+  it("has unique names on every scenario of content/", () => {
+    const sources = import.meta.glob("../../../content/scenarios/*/scenario.yaml", {
+      query: "?raw",
+      import: "default",
+      eager: true,
+    });
+    expect(Object.keys(sources).length).toBeGreaterThanOrEqual(realScenarios.length);
+    for (const [path, raw] of Object.entries(sources)) {
+      const parsed = parseScenario(parseYaml(raw));
+      if (!parsed.success) throw new Error(`${path}: ${JSON.stringify(parsed.issues)}`);
+      const names = edgeSteps(parsed.data.diagram, fakeServices).map((s) => s.name);
+      expect(new Set(names).size, path).toBe(names.length);
+    }
   });
 });

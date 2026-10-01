@@ -26,6 +26,8 @@ export interface Segment {
 export const STEP_RADIUS = 10;
 /** Free space kept between a step circle and anything else. */
 export const STEP_CLEARANCE = 4;
+/** Minimum target size of a control, in screen px (WCAG 2.5.8). */
+export const MIN_TARGET = 24;
 /** Length of the arrow head at the end of an edge: the circle never covers it. */
 export const ARROW_LENGTH = 10;
 
@@ -151,4 +153,21 @@ export const placeStepLabels = (
     result.set(id, { point: chosen.point, free: chosen.cost === 0 && candidates.length > 0 });
   }
   return result;
+};
+
+/**
+ * Diameter (canvas units) of the press area of each step circle at a zoom: at least MIN_TARGET
+ * screen px (WCAG 2.5.8) while the visible circle keeps its size, but never so large that it covers
+ * the visible circle of another step (circles may sit close: `placeStepLabels` only avoids it).
+ * Never smaller than the circle itself.
+ */
+export const stepTargetDiameters = (points: readonly Point[], zoom: number): number[] => {
+  const wanted = Math.max(MIN_TARGET, MIN_TARGET / zoom);
+  return points.map((point, i) => {
+    const nearest = Math.min(
+      Infinity,
+      ...points.filter((_, j) => j !== i).map((other) => distance(point, other)),
+    );
+    return Math.max(2 * STEP_RADIUS, Math.min(wanted, 2 * (nearest - STEP_RADIUS)));
+  });
 };

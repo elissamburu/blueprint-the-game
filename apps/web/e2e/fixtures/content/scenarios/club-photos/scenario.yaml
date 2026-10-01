@@ -109,6 +109,7 @@ diagram:
       to: logs
       step: 4
       label: "Registra el resultado"
+      description: "Cada miniatura deja una línea; los errores se revisan al día siguiente."
       style: control
 palette:
   mode: auto

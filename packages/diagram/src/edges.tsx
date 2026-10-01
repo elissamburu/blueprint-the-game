@@ -1,11 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Edge of the flow: a straight arrow between the node borders, with its step number in a 20 px
-// circle on the free stretch of the edge (geometry.ts). The ends come from the YAML geometry,
-// not from the React Flow handles. Lovable: .diagram-edges, .diagram-edge-label (src/styles.css).
+// Edge of the flow: a straight arrow between the node borders. Its step number is a circle on the
+// free stretch of the edge, drawn by StepMarkers (a button on the board). The ends come from the
+// YAML geometry, not from the React Flow handles. Lovable: .diagram-edges (src/styles.css).
 import type { EdgeProps } from "@xyflow/react";
 import { useDiagramContext } from "./context";
 import type { StepFlowEdge } from "./flow-model";
-import { STEP_RADIUS } from "./geometry";
 
 /**
  * Line of an edge, as .diagram-edges line in the prototype: thin, dotted and faint at rest; primary
@@ -22,7 +21,7 @@ const ACTIVE_PERIOD = 9;
 export function StepEdge({ id, data }: EdgeProps<StepFlowEdge>) {
   const { animate, markers } = useDiagramContext();
   if (data === undefined) return null;
-  const { edge, segment, label, state } = data;
+  const { edge, segment, state } = data;
   const active = state === "active";
   const { start, end } = segment;
   const line = active ? LINE.active : LINE.idle;
@@ -57,39 +56,6 @@ export function StepEdge({ id, data }: EdgeProps<StepFlowEdge>) {
           />
         )}
       </path>
-      {/* The number shows its step on hover (docs/design, layout v2). Hidden from assistive
-          technologies: the step list of the board already says it. */}
-      <g
-        aria-hidden="true"
-        data-step-label
-        className="cursor-help"
-        style={{ pointerEvents: "all" }}
-      >
-        <title>{`Paso ${edge.step}: ${edge.label}`}</title>
-        <circle
-          cx={label.x}
-          cy={label.y}
-          r={STEP_RADIUS}
-          style={{
-            fill: active ? "var(--primary)" : "var(--card)",
-            stroke: active ? "var(--primary)" : "var(--foreground)",
-            strokeWidth: 1,
-          }}
-        />
-        <text
-          x={label.x}
-          y={label.y}
-          textAnchor="middle"
-          dominantBaseline="central"
-          style={{
-            fill: active ? "var(--primary-foreground)" : "var(--foreground)",
-            fontSize: 10,
-            fontWeight: 850,
-          }}
-        >
-          {edge.step}
-        </text>
-      </g>
     </g>
   );
 }

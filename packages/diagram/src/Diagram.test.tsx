@@ -422,6 +422,76 @@ describe("Diagram handle", () => {
   });
 });
 
+describe("Diagram step buttons (RF-PLAY-03)", () => {
+  const stepButtons = () =>
+    screen.getAllByRole("button").filter((b) => b.getAttribute("aria-label")?.startsWith("Paso "));
+  const stepDialog = () => screen.getByRole("dialog", { name: "Paso 3" });
+
+  it("are one per edge, named after their step and label, after the slots in the Tab order", () => {
+    renderBoard({ onSlotActivate: () => {} });
+    const buttons = stepButtons();
+    expect(buttons.map((b) => b.getAttribute("aria-label"))).toEqual(
+      pdfScenario.diagram.edges.map((e) => `Paso ${e.step}: ${e.label}`),
+    );
+    const all = screen.getAllByRole("button");
+    const lastSlot = all.indexOf(slotButtons().at(-1)!);
+    expect(all.indexOf(buttons[0]!)).toBeGreaterThan(lastSlot);
+    // A press on them never pans the board.
+    for (const button of buttons) expect(button.classList.contains("nopan")).toBe(true);
+  });
+
+  it("open a popover with the step, the label, the description and the route", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+    await user.click(screen.getByRole("button", { name: "Paso 3: Devuelve una URL temporal" }));
+    const dialog = stepDialog();
+    expect(dialog.textContent).toContain("Devuelve una URL temporal");
+    expect(dialog.textContent).toContain(
+      "La URL vence en pocos minutos y solo permite subir ese archivo.",
+    );
+    expect(dialog.textContent).toMatch(/Recorrido: .+ → .+/);
+    // The route names the actor and the role of the slot, never its hidden service.
+    expect(dialog.textContent).not.toContain("Servicio");
+    expect(dialog.contains(document.activeElement)).toBe(true);
+  });
+
+  it("work with the keyboard: Enter opens, Esc closes and gives the focus back", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+    const button = screen.getByRole("button", { name: "Paso 3: Devuelve una URL temporal" });
+    button.focus();
+    await user.keyboard("{Enter}");
+    expect(stepDialog()).toBeTruthy();
+    await user.keyboard("{Escape}");
+    expect(screen.queryByRole("dialog")).toBeNull();
+    expect(document.activeElement).toBe(button);
+  });
+
+  it("do not touch the flow player, and show the step it plays", async () => {
+    const user = userEvent.setup();
+    renderBoard();
+    await user.click(screen.getByRole("button", { name: "Reproducir flujo" }));
+    await user.click(screen.getByRole("button", { name: "Paso 3: Devuelve una URL temporal" }));
+    await user.keyboard("{Escape}");
+    expect(document.querySelector("p[aria-live]")?.textContent).toBe(
+      "Paso 1 de 9: Pide subir un comprobante.",
+    );
+    const circle = (edge: string) =>
+      document.querySelector(`[data-step-edge="${edge}"]`)?.getAttribute("data-state");
+    expect(circle("e1")).toBe("active");
+    expect(circle("e3")).toBe("dimmed");
+  });
+
+  it("have a press area of at least 24 px around the 20 px circle", () => {
+    renderBoard();
+    const button = screen.getByRole("button", { name: "Paso 3: Devuelve una URL temporal" });
+    const area = button.parentElement!;
+    const zoom = viewport().zoom;
+    expect(parseFloat(area.style.width) * zoom).toBeGreaterThanOrEqual(24);
+    expect(button.querySelector("span")?.style.width).toBe("20px");
+  });
+});
+
 describe("Diagram preview", () => {
   it("is a still picture: no controls, no focusable slots, and slots without text", () => {
     renderBoard({ preview: true, label: "Vista previa" });

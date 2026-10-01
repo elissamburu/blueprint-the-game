@@ -24,10 +24,11 @@ import {
 import type { ServiceInfo, ServiceLookup, SlotView } from "./types";
 
 /**
- * Layers (ReactFlow zIndexMode="manual"): groups at the back by nesting depth, then edges and
- * their step circles, then the nodes. Edges go over the group backgrounds and under the nodes.
+ * Layers (ReactFlow zIndexMode="manual"): groups at the back by nesting depth, then the edges, their
+ * step circles (StepMarkers) and the nodes. Edges go over the group backgrounds and under the
+ * nodes; a step circle goes over its edge and under any node.
  */
-export const Z = { group: 0, edge: 100, node: 200 } as const;
+export const Z = { group: 0, edge: 100, step: 150, node: 200 } as const;
 
 /** React Flow ids are namespaced: a group and a node may share a YAML id. */
 export const flowId = {
