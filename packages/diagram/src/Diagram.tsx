@@ -52,7 +52,7 @@ import {
   type StepFlowEdge,
 } from "./flow-model";
 import type { Box } from "./geometry";
-import { nodeTypes } from "./nodes";
+import { NO_PAN, nodeTypes } from "./nodes";
 import { describeRoute, describeStep, diagramSteps, type FlowStep } from "./steps";
 import {
   isServiceDragData,
@@ -166,6 +166,8 @@ const STILL_CANVAS = {
   panActivationKeyCode: null,
   zoomOnDoubleClick: false,
   zIndexMode: "manual",
+  // Explicit: the nodes and the step buttons put it on their controls.
+  noPanClassName: NO_PAN,
 } as const;
 
 function DiagramPreview({

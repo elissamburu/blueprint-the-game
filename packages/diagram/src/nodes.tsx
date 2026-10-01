@@ -41,6 +41,13 @@ const GROUP_STYLES: Record<GroupKind, string> = {
 };
 
 /**
+ * Class (React Flow's default `noPanClassName`) of the board controls: a press that starts on them
+ * never pans the board. Without it a press that moves a pixel or two starts the pan of d3-zoom,
+ * which then swallows the click. It does not stop the wheel: panOnScroll only checks `nowheel`.
+ */
+export const NO_PAN = "nopan";
+
+/**
  * React Flow only draws an edge between nodes with handles. The board computes the edge ends
  * itself (geometry.ts), so the handles are invisible and cannot be used to connect.
  */
@@ -164,6 +171,7 @@ export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
     );
   }
   const hintAction = slotHintAction?.(node.id, { roleId });
+  const interactive = onSlotActivate !== undefined || hintAction !== undefined;
   const slot = (dropActive: boolean) => (
     <ArchitectureSlot
       data-slot-id={node.id}
@@ -182,7 +190,9 @@ export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
       // React Flow turns pointer events off on nodes that are neither selectable nor draggable;
       // the slot is a button (and holds the hint button), so it takes them back. At least the node
       // box, taller when a larger browser font needs it: the role is never cut.
-      className="pointer-events-auto min-h-full w-full grow"
+      // A press on its controls is not a pan (NO_PAN): React Flow would take any press that moves
+      // a pixel or two and swallow the click, as a hand clicks (issue #48). The wheel still pans.
+      className={cn("pointer-events-auto min-h-full w-full grow", interactive && NO_PAN)}
     />
   );
   return (

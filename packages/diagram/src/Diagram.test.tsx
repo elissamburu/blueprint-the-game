@@ -113,6 +113,15 @@ describe("Diagram slots", () => {
       slotIds.length,
     );
   });
+
+  it("never start a pan when they are controls (issue #48), and do on a read-only board", () => {
+    const slots = () => [...document.querySelectorAll('[data-slot="architecture-slot"]')];
+    const { unmount } = renderBoard();
+    expect(slots().filter((s) => s.classList.contains("nopan"))).toHaveLength(0);
+    unmount();
+    renderBoard({ onSlotActivate: () => {} });
+    expect(slots().every((s) => s.classList.contains("nopan"))).toBe(true);
+  });
 });
 
 describe("Diagram text alternative", () => {

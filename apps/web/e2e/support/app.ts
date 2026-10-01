@@ -68,6 +68,48 @@ export const emptySlotName = (number: number): string =>
 export const hintButton = (page: Page, text: string, number: number): Locator =>
   board(page).getByRole("button", { name: `${text}, casillero ${number}`, exact: true });
 
+/**
+ * A mouse click as a hand does it: the pointer moves a couple of pixels between the press and the
+ * release (`Locator.click` never moves). Over the board that is enough for the pan of React Flow
+ * to take the press, so it is the click the controls of the board have to survive (issue #48).
+ */
+export const handClick = async (page: Page, target: Locator) => {
+  const box = await target.boundingBox();
+  if (box === null) throw new Error("the target of the click is not visible");
+  const x = box.x + box.width / 2;
+  const y = box.y + box.height / 2;
+  await page.mouse.move(x, y);
+  await page.mouse.down();
+  await page.mouse.move(x + 2, y + 1, { steps: 2 });
+  await page.mouse.up();
+};
+
+/** Transform of the board's canvas (pan and zoom): it must not change on a click on a control. */
+export const boardTransform = (page: Page): Promise<string> =>
+  board(page)
+    .locator(".react-flow__viewport")
+    .evaluate((viewport) => (viewport as HTMLElement).style.transform);
+
+/**
+ * Interactive elements of the board inside another interactive element (a button in a button, a
+ * link in a button…): invalid HTML, and a click on the inner one also reaches the outer one. The
+ * board itself is focusable (it pans with the arrows), so only what it contains is checked.
+ */
+export const nestedControls = (page: Page): Promise<string[]> =>
+  board(page).evaluate((root) => {
+    const INTERACTIVE =
+      "a[href], button, input, select, textarea, summary, [tabindex], [contenteditable=true], " +
+      "[role=button], [role=link], [role=checkbox], [role=radio], [role=switch], [role=tab], " +
+      "[role=menuitem], [role=option], [role=slider], [role=textbox]";
+    const describe = (el: Element) =>
+      `${el.tagName.toLowerCase()}[${el.getAttribute("aria-label") ?? el.textContent?.trim() ?? ""}]`;
+    return [...root.querySelectorAll(INTERACTIVE)].flatMap((outer) =>
+      [...outer.querySelectorAll(INTERACTIVE)].map(
+        (inner) => `${describe(inner)} dentro de ${describe(outer)}`,
+      ),
+    );
+  });
+
 /** A service of the palette (its name gets "En uso" once it is placed in some slot). */
 export const paletteService = (page: Page, service: string): Locator =>
   palette(page).getByRole("button", {
