@@ -336,7 +336,6 @@
       "includeSolutionsHint": "Agrega una hoja por casillero con el óptimo, los aceptables y los incorrectos típicos, con el porqué de cada uno.",
       "print": "Imprimir",
       "back": "Volver al escenario",
-      "level": "Nivel {{level}}",
       "areas": "Áreas",
       "minutes": "Duración estimada: {{count}} min",
       "caseTitle": "El caso",
