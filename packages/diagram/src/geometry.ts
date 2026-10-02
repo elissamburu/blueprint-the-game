@@ -42,16 +42,32 @@ export const nodeBox = (node: Pick<DiagramNode, "type" | "position">): Box => ({
 
 export const center = (box: Box): Point => ({ x: box.x + box.w / 2, y: box.y + box.h / 2 });
 
+/** Font size (canvas px) of the label of a group on the board. */
+export const GROUP_LABEL_FONT = 9.6;
+
 /**
  * Box the label chip of a group covers. The width is an upper estimate of the uppercase label
- * (it is never measured, so the layout stays pure and the same in every browser).
+ * (it is never measured, so the layout stays pure and the same in every browser). With
+ * `fontSize` (the printed diagram, RF-PLAY-16) the chip has that font and wraps at the width of
+ * the group, in two lines at most.
  */
-export const groupLabelBox = (group: Pick<Group, "label" | "rect">): Box => ({
-  x: group.rect.x + GROUP_LABEL.offsetX,
-  y: group.rect.y + GROUP_LABEL.offsetY,
-  w: group.label.length * GROUP_LABEL.charWidth + GROUP_LABEL.padding,
-  h: GROUP_LABEL.height,
-});
+export const groupLabelBox = (group: Pick<Group, "label" | "rect">, fontSize?: number): Box => {
+  const x = group.rect.x + GROUP_LABEL.offsetX;
+  const y = group.rect.y + GROUP_LABEL.offsetY;
+  if (fontSize === undefined) {
+    return {
+      x,
+      y,
+      w: group.label.length * GROUP_LABEL.charWidth + GROUP_LABEL.padding,
+      h: GROUP_LABEL.height,
+    };
+  }
+  const scale = fontSize / GROUP_LABEL_FONT;
+  const width = group.label.length * GROUP_LABEL.charWidth * scale + GROUP_LABEL.padding;
+  const room = Math.max(1, group.rect.w - 2 * GROUP_LABEL.offsetX);
+  const lines = Math.min(2, Math.ceil(width / room));
+  return { x, y, w: Math.min(width, room), h: lines * fontSize * 1.15 + 4 };
+};
 
 /** Point where the ray from the center of `box` towards `toward` crosses the border of `box`. */
 export const borderPoint = (box: Box, toward: Point): Point => {

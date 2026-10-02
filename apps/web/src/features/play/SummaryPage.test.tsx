@@ -208,6 +208,9 @@ describe("summary", () => {
     expect(screen.getByRole("link", { name: "Ver escenarios" }).getAttribute("href")).toBe(
       "/escenarios",
     );
+    expect(screen.getByRole("link", { name: "Versión imprimible" }).getAttribute("href")).toBe(
+      `/escenarios/${pdfScenario.id}/imprimir`,
+    );
     const report = screen.getByRole("link", { name: /Reportar un problema en este escenario/ });
     const url = new URL(report.getAttribute("href") ?? "");
     expect(url.pathname).toMatch(/\/issues\/new$/);

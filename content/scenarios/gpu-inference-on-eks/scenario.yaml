@@ -85,7 +85,7 @@ diagram:
       parent: region
     - id: nodes-subnets
       kind: subnet-private
-      label: "Subredes privadas de los nodos"
+      label: "Subredes de los nodos"
       rect: { x: 740, y: 420, w: 280, h: 260 }
       parent: vpc
 
@@ -98,13 +98,13 @@ diagram:
 
     - id: consumers
       type: actor
-      label: "Sistemas internos de reclamos"
+      label: "Sistemas de reclamos"
       icon: server
       position: { x: 40, y: 520 }
 
     - id: gitops
       type: external
-      label: "Repositorio GitOps (charts de Helm)"
+      label: "Repositorio GitOps"
       icon: third-party
       position: { x: 40, y: 760 }
 

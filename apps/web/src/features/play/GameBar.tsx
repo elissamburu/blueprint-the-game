@@ -2,7 +2,7 @@
 // The single bar of the game screen (layout v2; it replaces the global header): back, level and
 // title, progress, score, "Ver caso", "Reproducir flujo" (RF-PLAY-03, RF-PLAY-15), "Modo foco",
 // "Finalizar" and the "⋯" menu with "Ver solución de este casillero", "Ver solución completa"
-// (RF-PLAY-14) and "Reportar un problema" (RF-PLAY-13). In focus mode, a minimal
+// (RF-PLAY-14), "Versión imprimible" (RF-PLAY-16) and "Reportar un problema" (RF-PLAY-13). In focus mode, a minimal
 // floating bar: progress, "Ver caso", "Finalizar" and "Salir del foco". On narrow screens (or a
 // large browser zoom) the bar wraps, the progress bar goes first and then "Ver caso" and "Modo
 // foco" keep only their icon, with the same accessible name; "Reproducir flujo" always keeps its
@@ -23,12 +23,14 @@ import { Progress } from "@blueprint/ui/components/progress";
 import {
   ArrowLeftIcon,
   EllipsisIcon,
+  ExternalLinkIcon,
   EyeIcon,
   EyeOffIcon,
   FlagIcon,
   FocusIcon,
   Minimize2Icon,
   PlayIcon,
+  PrinterIcon,
   StarIcon,
 } from "lucide-react";
 import {
@@ -173,6 +175,15 @@ export function GameBar({
               {t("play.top.solutionAll")}
             </DropdownMenuItem>
             <DropdownMenuSeparator />
+            <DropdownMenuItem asChild>
+              {/* In another tab, so the game in progress is not lost (the session is not saved). */}
+              <Link to={`/escenarios/${scenario.id}/imprimir`} target="_blank" rel="noreferrer">
+                <PrinterIcon aria-hidden />
+                {t("play.top.print")}
+                <ExternalLinkIcon aria-hidden className="ml-auto" />{" "}
+                <span className="sr-only">{t("about.external")}</span>
+              </Link>
+            </DropdownMenuItem>
             <DropdownMenuItem asChild>
               <a href={reportUrl} target="_blank" rel="noreferrer">
                 <FlagIcon aria-hidden />

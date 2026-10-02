@@ -27,6 +27,7 @@ import {
   FlagIcon,
   LockOpenIcon,
   MinusIcon,
+  PrinterIcon,
   RotateCcwIcon,
   SparklesIcon,
   TargetIcon,
@@ -316,6 +317,12 @@ function SummaryView({
             </a>
           </Button>
           <div className="flex flex-col-reverse gap-3 sm:flex-row">
+            <Button asChild variant="outline" size="lg" className="px-5">
+              <Link to={`/escenarios/${scenario.id}/imprimir`}>
+                <PrinterIcon aria-hidden />
+                {t("play.summary.print")}
+              </Link>
+            </Button>
             <Button asChild variant="outline" size="lg" className="px-5">
               <Link to={`/escenarios/${scenario.id}`}>
                 <RotateCcwIcon aria-hidden />

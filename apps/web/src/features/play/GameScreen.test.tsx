@@ -185,6 +185,19 @@ describe("game screen layout", () => {
     expect(params.get("slot")).toBe("upload-store");
   });
 
+  it('"⋯" opens the printable version in another tab, so the game is not lost (RF-PLAY-16)', async () => {
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "Más acciones" }));
+    const menu = await screen.findByRole("menu");
+    // Its name says it opens another tab, as every external link of the game.
+    const link = within(menu).getByRole("menuitem", {
+      name: "Versión imprimible (se abre en otra pestaña)",
+    });
+    expect(link.getAttribute("href")).toBe(`/escenarios/${pdfScenario.id}/imprimir`);
+    expect(link.getAttribute("target")).toBe("_blank");
+    expect(link.getAttribute("rel")).toBe("noreferrer");
+  });
+
   it('"Reproducir flujo" is a button of the bar with visible text, not a menu item', async () => {
     const user = await open();
     await user.click(screen.getByRole("button", { name: "Más acciones" }));

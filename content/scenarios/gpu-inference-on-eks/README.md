@@ -61,11 +61,11 @@ Los casilleros tienen borde punteado.
 ```mermaid
 flowchart LR
   n_data_team(["Equipo de datos"])
-  n_consumers(["Sistemas internos de reclamos"])
-  n_gitops{{"Repositorio GitOps (charts de Helm)"}}
+  n_consumers(["Sistemas de reclamos"])
+  n_gitops{{"Repositorio GitOps"}}
   subgraph g_region["Región"]
     subgraph g_vpc["Red de la plataforma"]
-      subgraph g_nodes_subnets["Subredes privadas de los nodos"]
+      subgraph g_nodes_subnets["Subredes de los nodos"]
         n_gpu_compute["Amazon EC2"]
       end
       n_weights_private_path["Gateway VPC endpoint"]

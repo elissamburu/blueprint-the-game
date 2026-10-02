@@ -21,11 +21,23 @@ export interface StepMarker extends EdgeStep {
 }
 
 /** The visible circle: card and foreground at rest, primary while the player is on its step. */
-function StepCircle({ step, state }: { step: number; state: StepEdgeState }) {
+function StepCircle({
+  step,
+  state,
+  scale = 1,
+}: {
+  step: number;
+  state: StepEdgeState;
+  scale?: number;
+}) {
   return (
     <span
       aria-hidden="true"
-      style={{ width: 2 * STEP_RADIUS, height: 2 * STEP_RADIUS }}
+      style={{
+        width: 2 * STEP_RADIUS * scale,
+        height: 2 * STEP_RADIUS * scale,
+        ...(scale === 1 ? {} : { fontSize: 10 * scale }),
+      }}
       className={cn(
         "grid place-items-center rounded-full border text-[10px] leading-none font-[850]",
         state === "active"
@@ -56,14 +68,16 @@ const zoomOf = (s: { transform: [number, number, number] }) => s.transform[2];
 
 /**
  * The step circles of the board. `interactive`: buttons with their popover; otherwise (the
- * preview) only the circles.
+ * preview) only the circles, `scale` times their size (centered on the same point).
  */
 export function StepMarkers({
   markers,
   interactive,
+  scale = 1,
 }: {
   markers: readonly StepMarker[];
   interactive: boolean;
+  scale?: number;
 }) {
   const zoom = useStore(zoomOf);
   const points = useMemo(() => markers.map((m) => m.point), [markers]);
@@ -71,7 +85,7 @@ export function StepMarkers({
   return (
     <ViewportPortal>
       {markers.map((marker, i) => {
-        const size = interactive ? (diameters[i] ?? 2 * STEP_RADIUS) : 2 * STEP_RADIUS;
+        const size = interactive ? (diameters[i] ?? 2 * STEP_RADIUS) : 2 * STEP_RADIUS * scale;
         return (
           <div
             key={marker.edgeId}
@@ -95,7 +109,7 @@ export function StepMarkers({
             {interactive ? (
               <StepButton marker={marker} />
             ) : (
-              <StepCircle step={marker.step} state={marker.state} />
+              <StepCircle step={marker.step} state={marker.state} scale={scale} />
             )}
           </div>
         );

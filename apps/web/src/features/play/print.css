@@ -1,0 +1,55 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/*
+ * Printed sheets of the printable page (RF-PLAY-16, PrintPage.tsx). A4 portrait, except the
+ * diagram sheet of a diagram too wide for it (printLayout of @blueprint/diagram), which gets a
+ * landscape page of its own. The margin is PRINT_MARGIN_MM of that module.
+ */
+@page print-portrait {
+  size: A4 portrait;
+  margin: 12mm;
+}
+
+@page print-landscape {
+  size: A4 landscape;
+  margin: 12mm;
+}
+
+@media print {
+  /*
+   * Anything around the sheets prints on A4 too, not on the default page of the browser. On
+   * paper the text is a bit smaller than on screen (10.5 pt), so a sheet holds its section.
+   */
+  :root:has(.print-doc) {
+    font-size: 14px;
+  }
+
+  :root:has(.print-doc) body {
+    page: print-portrait;
+  }
+
+  .print-doc {
+    page: print-portrait;
+
+    /*
+     * Black text on white: browsers do not print backgrounds by default, and grades, goals and
+     * restrictions are told apart by their text and icon, never by color.
+     */
+    --foreground: #000;
+    --card-foreground: #000;
+    --muted-foreground: #000;
+    --primary: #000;
+    --success: #000;
+    --warning: #000;
+    --destructive: #000;
+    --blueprint: #000;
+    --card: #fff;
+    --background: #fff;
+    --canvas: #fff;
+    --border: #767676;
+    --slot-border: #000;
+  }
+
+  .print-doc [data-print-sheet="diagram"][data-orientation="landscape"] {
+    page: print-landscape;
+  }
+}

@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Brief shown when a scenario opens (RF-PLAY-01, layout v2): level, areas, estimated time, the
 // context, restrictions and goals, and a still preview of the diagram with empty slots. A modal
-// dialog: the focus stays inside and "Empezar a diseñar" (or Esc) opens the board.
+// dialog: the focus stays inside and "Empezar a diseñar" (or Esc) opens the board. The footer links
+// to the printable version (RF-PLAY-16).
 // Lovable: ScenarioBrief, .scenario-brief-overlay, .scenario-brief-card, .brief-content,
 // .brief-objectives, .mini-diagram (src/components/blueprint-app.tsx, styles.css), captura 12.
 import { Diagram, type ServiceLookup } from "@blueprint/diagram";
@@ -16,7 +17,7 @@ import {
   DialogTitle,
 } from "@blueprint/ui/components/dialog";
 import { LevelBadge } from "@blueprint/ui/components/level-badge";
-import { ArrowLeftIcon, ArrowRightIcon, ClockIcon, LightbulbIcon } from "lucide-react";
+import { ArrowLeftIcon, ArrowRightIcon, ClockIcon, LightbulbIcon, PrinterIcon } from "lucide-react";
 import { useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
@@ -115,12 +116,20 @@ export function ScenarioBrief({
             <LightbulbIcon aria-hidden className="size-4 shrink-0" />
             {t("play.brief.tip")}
           </p>
-          <DialogClose asChild>
-            <Button ref={startRef} size="lg" className="text-base">
-              {t("play.brief.start")}
-              <ArrowRightIcon aria-hidden />
+          <div className="flex flex-wrap items-center gap-3">
+            <Button asChild variant="ghost" className="text-primary">
+              <Link to={`/escenarios/${scenario.id}/imprimir`}>
+                <PrinterIcon aria-hidden />
+                {t("play.brief.print")}
+              </Link>
             </Button>
-          </DialogClose>
+            <DialogClose asChild>
+              <Button ref={startRef} size="lg" className="text-base">
+                {t("play.brief.start")}
+                <ArrowRightIcon aria-hidden />
+              </Button>
+            </DialogClose>
+          </div>
         </footer>
       </DialogContent>
     </Dialog>

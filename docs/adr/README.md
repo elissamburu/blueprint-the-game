@@ -27,7 +27,7 @@ Formato: [MADR](https://adr.github.io/madr/) simplificado (Contexto · Decisión
 | [0021](0021-ui-shadcn-tailwind-y-referencia-visual.md) | UI con shadcn/ui + Tailwind v4; herramientas de diseño solo como referencia | Aceptado |
 | [0022](0022-modo-texto.md) | Modo texto: representación alternativa del juego | Propuesto |
 | [0023](0023-contenido-multiidioma.md) | Contenido multiidioma | Propuesto |
-| [0024](0024-comando-revealsolution.md) | Comando `revealSolution`: ver la solución de un casillero o de todo el escenario | Propuesto |
+| [0024](0024-comando-revealsolution.md) | Comando `revealSolution`: ver la solución de un casillero o de todo el escenario | Aceptado |
 
 ## Plantilla
 

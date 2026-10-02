@@ -152,7 +152,8 @@
       "finishMissing_other": "Faltan {{count}} casilleros",
       "solutionSlot": "Ver solución de este casillero",
       "solutionSlotUnavailable": "Elegí un casillero sin resolver",
-      "solutionAll": "Ver solución completa"
+      "solutionAll": "Ver solución completa",
+      "print": "Versión imprimible"
     },
     "case": {
       "kicker": "El caso",
@@ -309,7 +310,8 @@
       "readings": "Lecturas del escenario",
       "replay": "Volver a jugar",
       "browse": "Ver escenarios",
-      "report": "Reportar un problema en este escenario"
+      "report": "Reportar un problema en este escenario",
+      "print": "Versión imprimible"
     },
     "brief": {
       "kicker": "Nuevo desafío",
@@ -318,12 +320,38 @@
       "tip": "Leé las condiciones antes de tomar decisiones.",
       "start": "Empezar a diseñar",
       "preview": "Vista previa",
-      "previewLabel": "Vista previa del diagrama con los casilleros vacíos"
+      "previewLabel": "Vista previa del diagrama con los casilleros vacíos",
+      "print": "Versión imprimible"
     },
     "locked": {
       "kicker": "Nivel {{level}}",
       "title": "Escenario bloqueado",
       "description": "«{{title}}» todavía no está disponible para vos."
+    },
+    "print": {
+      "kicker": "Versión imprimible",
+      "lead": "Para resolver el escenario en papel. Imprimila o guardala como PDF desde el diálogo de impresión del navegador. Ni abrirla ni imprimirla cambia tu progreso ni tu puntaje.",
+      "controls": "Opciones de impresión",
+      "includeSolutions": "Incluir soluciones",
+      "includeSolutionsHint": "Agrega una hoja por casillero con el óptimo, los aceptables y los incorrectos típicos, con el porqué de cada uno.",
+      "print": "Imprimir",
+      "back": "Volver al escenario",
+      "areas": "Áreas",
+      "minutes": "Duración estimada: {{count}} min",
+      "caseTitle": "El caso",
+      "diagramTitle": "Diagrama para completar",
+      "diagramLead": "Escribí en cada casillero numerado el servicio que elegirías.",
+      "diagramLabel": "Diagrama de la arquitectura con los casilleros vacíos numerados",
+      "slots": "Casilleros",
+      "slot": "Casillero {{number}}",
+      "solutionsTitle": "Soluciones",
+      "slotTitle": "Casillero {{number}}: {{role}}",
+      "optimal": "Óptimo",
+      "acceptable": "Aceptables",
+      "incorrect": "Incorrectos típicos",
+      "why": "Por qué:",
+      "objectives": "Objetivos",
+      "docs": "Documentación oficial"
     }
   },
   "profile": {
