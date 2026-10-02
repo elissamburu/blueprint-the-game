@@ -158,10 +158,42 @@ function PreviewSlot() {
   );
 }
 
+/**
+ * Slot of the printable page (RF-PLAY-16): an empty box to write the answer in, with the number of
+ * the slot in a circle drawn with borders only, so it prints without backgrounds.
+ */
+function PrintSlot({ number }: { number: number | undefined }) {
+  return (
+    <div
+      data-slot="architecture-slot"
+      data-grade="empty"
+      data-number={number}
+      className="size-full rounded-[7px] border-2 border-dashed border-foreground bg-card p-[8px]"
+    >
+      {number !== undefined && (
+        <span
+          aria-hidden="true"
+          className="grid size-[52px] place-items-center rounded-full border-[3px] border-foreground text-[30px] leading-none font-[850] text-foreground"
+        >
+          {number}
+        </span>
+      )}
+    </div>
+  );
+}
+
 export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
   const { node, view, service, box } = data;
-  const { onSlotActivate, slotHintAction, droppable, reveal, preview } = useDiagramContext();
+  const { onSlotActivate, slotHintAction, droppable, reveal, preview, print } = useDiagramContext();
   const roleId = useId();
+  if (print) {
+    return (
+      <>
+        <HiddenHandles />
+        <PrintSlot number={view.number} />
+      </>
+    );
+  }
   if (preview) {
     return (
       <>

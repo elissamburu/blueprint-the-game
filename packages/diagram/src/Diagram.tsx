@@ -3,7 +3,8 @@
 // Flow at the YAML positions, with floating zoom controls, the flow player and the list of steps,
 // which is the text alternative of the board. It does not decide grades nor import game-engine:
 // slot states come in by props and it only emits events (ADR-0008: the app turns them into engine
-// commands). With `preview` it is a small, still picture of the diagram with empty slots.
+// commands). With `preview` it is a small, still picture of the diagram with empty slots; with
+// `print`, the still picture of the printable page (RF-PLAY-16), with the slots numbered.
 // Lovable: .board-zoom, .zoom-controls, .architecture-board, .mini-diagram (src/styles.css).
 import "@xyflow/react/dist/base.css";
 import { Button } from "@blueprint/ui/components/button";
@@ -118,6 +119,14 @@ export interface DiagramProps {
    * empty boxes without text. For the brief before playing.
    */
   preview?: boolean | undefined;
+  /**
+   * Still picture for the printable page (RF-PLAY-16): like `preview`, but every slot shows its
+   * number (`slots[id].number`) and the canvas has no dotted background. The app gives it a fixed
+   * size (`printLayout`), since printing does not fit the picture again.
+   */
+  print?: boolean | undefined;
+  /** Ids of the elements that describe the still picture (its text alternative). */
+  describedBy?: string | undefined;
   /** Every change of zoom or position (pan, zoom, reveal, arrows). */
   onViewportChange?: ((viewport: Viewport) => void) | undefined;
   /**
@@ -132,7 +141,11 @@ export interface DiagramProps {
 export function Diagram(props: DiagramProps) {
   return (
     <ReactFlowProvider>
-      {props.preview === true ? <DiagramPreview {...props} /> : <DiagramBoard {...props} />}
+      {props.preview === true || props.print === true ? (
+        <DiagramPreview {...props} />
+      ) : (
+        <DiagramBoard {...props} />
+      )}
     </ReactFlowProvider>
   );
 }
@@ -174,12 +187,18 @@ const STILL_CANVAS = {
 function DiagramPreview({
   diagram,
   services,
+  slots,
+  print = false,
   label = "Vista previa del diagrama",
+  describedBy,
   className,
 }: DiagramProps) {
   const markers = useMarkers();
   const layout = useMemo(() => layoutDiagram(diagram), [diagram]);
-  const nodes = useMemo(() => toFlowNodes(diagram, { services }), [diagram, services]);
+  const nodes = useMemo(
+    () => toFlowNodes(diagram, { slots, services }),
+    [diagram, slots, services],
+  );
   const edges = useMemo(() => toFlowEdges(diagram, layout, null), [diagram, layout]);
   const stepMarkers = useMemo(
     () => toStepMarkers(edges, edgeSteps(diagram, services)),
@@ -191,20 +210,29 @@ function DiagramPreview({
       slotHintAction: undefined,
       droppable: false,
       reveal: () => {},
-      preview: true,
+      preview: !print,
+      print,
       animate: false,
       markers,
     }),
-    [markers],
+    [markers, print],
   );
   const content = useMemo(() => contentBox(diagram), [diagram]);
   return (
     <DiagramContext.Provider value={context}>
       <div
-        data-slot="diagram-preview"
+        data-slot={print ? "diagram-print" : "diagram-preview"}
         role="img"
         aria-label={label}
-        className={cn("relative overflow-hidden bg-canvas", className)}
+        aria-describedby={describedBy}
+        className={cn(
+          "relative overflow-hidden",
+          // Printed, Chrome splits a node across pages by its box before the zoom transform: a
+          // group taller than the rest of the sheet would lose its bottom. Contained, the picture
+          // is one piece.
+          print ? "bg-card [contain:strict]" : "bg-canvas",
+          className,
+        )}
       >
         {/* A picture: the canvas inside is inert, out of the Tab order and of the a11y tree. */}
         <div inert className="absolute inset-0">
@@ -226,13 +254,23 @@ function DiagramPreview({
             maxZoom={1}
             panOnDrag={false}
             panOnScroll={false}
+            // On paper the attribution would read as part of the diagram.
+            proOptions={{ hideAttribution: print }}
             zoomOnScroll={false}
             zoomOnPinch={false}
             preventScrolling={false}
             className="pointer-events-none"
           >
-            <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--border)" />
-            <StepMarkers markers={stepMarkers} interactive={false} />
+            {!print && (
+              <Background
+                variant={BackgroundVariant.Dots}
+                gap={18}
+                size={1}
+                color="var(--border)"
+              />
+            )}
+            {/* Printed, the circles are bigger: the picture is drawn at about half its size. */}
+            <StepMarkers markers={stepMarkers} interactive={false} scale={print ? 1.6 : 1} />
           </ReactFlow>
         </div>
       </div>
@@ -380,6 +418,7 @@ function DiagramBoard({
       droppable: onServiceDrop !== undefined,
       reveal,
       preview: false,
+      print: false,
       animate: !reducedMotion,
       markers,
     }),

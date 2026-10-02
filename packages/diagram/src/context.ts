@@ -17,6 +17,8 @@ export interface DiagramContextValue {
   reveal: (box: Box, renderedHeight?: number) => void;
   /** Read-only preview (the brief): slots are drawn as empty boxes, without text. */
   preview: boolean;
+  /** Still picture of the printable page: slots are empty boxes with their number. */
+  print: boolean;
   /** Animate the active edges (false with prefers-reduced-motion). */
   animate: boolean;
   /** Ids of the arrow markers (defs rendered once by the board). */

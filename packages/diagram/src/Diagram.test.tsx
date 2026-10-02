@@ -503,3 +503,19 @@ describe("Diagram preview", () => {
     for (const slot of slots) expect(slot.textContent).toBe("");
   });
 });
+
+describe("Diagram print", () => {
+  it("is a still picture with every slot numbered and its text alternative linked", () => {
+    const slots = Object.fromEntries(
+      slotIds.map((id, i) => [id, { grade: "empty" as const, number: i + 1 }]),
+    );
+    renderBoard({ print: true, slots, label: "Diagrama", describedBy: "steps slots" });
+    const picture = screen.getByRole("img", { name: "Diagrama" });
+    expect(picture.getAttribute("aria-describedby")).toBe("steps slots");
+    expect(within(picture).queryAllByRole("button")).toHaveLength(0);
+    expect(screen.queryByRole("group", { name: "Zoom" })).toBeNull();
+    expect(screen.queryByRole("button", { name: "Reproducir flujo" })).toBeNull();
+    const printed = [...picture.querySelectorAll('[data-slot="architecture-slot"]')];
+    expect(printed.map((s) => s.textContent)).toEqual(slotIds.map((_, i) => String(i + 1)));
+  });
+});
