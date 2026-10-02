@@ -106,9 +106,13 @@ describe("scenario listing", () => {
 describe("scenario page", () => {
   it("loads and validates the scenario, and opens it with its brief", async () => {
     renderAt("/escenarios/serverless-pdf-processing");
+    const brief = await screen.findByRole("dialog", {
+      name: "Comprobantes en PDF para un estudio contable",
+    });
+    // The brief links the printable version (RF-PLAY-16).
     expect(
-      await screen.findByRole("dialog", { name: "Comprobantes en PDF para un estudio contable" }),
-    ).toBeTruthy();
+      within(brief).getByRole("link", { name: "Versión imprimible" }).getAttribute("href"),
+    ).toBe("/escenarios/serverless-pdf-processing/imprimir");
   });
 
   it("says so when the scenario is not listed", async () => {

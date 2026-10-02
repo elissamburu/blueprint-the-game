@@ -2,7 +2,9 @@
 // Layout of every game screen: skip link, the notices of the beta, header, the route page and a
 // footer with the link to "Acerca de". Starts loading the content bundle and the stored progress. An immersive page
 // (the game screen, useImmersiveLayout) hides the header and the footer and fills the viewport;
-// a standalone one (the onboarding, useStandaloneLayout) hides only the header.
+// a standalone one (the onboarding, useStandaloneLayout) hides only the header. Printed, only the
+// page is: the skip link, the notices, the header, the banner, the footer and the toasts are not
+// printed (the fixed container of the toasts alone would add a blank page).
 import { Button } from "@blueprint/ui/components/button";
 import { Toaster, toast } from "@blueprint/ui/components/sonner";
 import { Suspense, useEffect, useState } from "react";
@@ -36,12 +38,14 @@ export function AppLayout() {
       >
         <a
           href={`#${MAIN_ID}`}
-          className="sr-only z-50 rounded-md bg-card px-4 py-2 focus:not-sr-only focus:absolute focus:top-2 focus:left-2"
+          className="sr-only z-50 rounded-md bg-card px-4 py-2 focus:not-sr-only focus:absolute focus:top-2 focus:left-2 print:hidden"
         >
           {t("app.skipToContent")}
         </a>
-        <SiteNotices focusTargetId={MAIN_ID} />
-        {mode === "default" && <AppHeader />}
+        <div className="contents print:hidden">
+          <SiteNotices focusTargetId={MAIN_ID} />
+          {mode === "default" && <AppHeader />}
+        </div>
         <IncompatibleProgressBanner />
         <main
           id={MAIN_ID}
@@ -60,8 +64,8 @@ export function AppLayout() {
           <footer
             className={
               mode === "standalone"
-                ? "border-t px-4 py-6 text-center text-sm text-muted-foreground"
-                : "border-t px-4 py-6 pb-24 text-center text-sm text-muted-foreground md:pb-6"
+                ? "border-t px-4 py-6 text-center text-sm text-muted-foreground print:hidden"
+                : "border-t px-4 py-6 pb-24 text-center text-sm text-muted-foreground md:pb-6 print:hidden"
             }
           >
             {t("app.footer")}{" "}
@@ -73,7 +77,9 @@ export function AppLayout() {
           </footer>
         )}
         <ProgressNotices />
-        <Toaster />
+        <div className="contents print:hidden">
+          <Toaster />
+        </div>
       </div>
     </ImmersiveContext.Provider>
   );
@@ -104,7 +110,7 @@ function IncompatibleProgressBanner() {
   return (
     <div
       role="alert"
-      className="flex flex-wrap items-center justify-center gap-3 border-b bg-warning-soft px-4 py-3 text-center text-sm"
+      className="flex flex-wrap items-center justify-center gap-3 border-b bg-warning-soft px-4 py-3 text-center text-sm print:hidden"
     >
       <span>{t("progress.incompatible")}</span>
       <Button size="sm" variant="outline" onClick={() => window.location.reload()}>

@@ -185,6 +185,17 @@ describe("game screen layout", () => {
     expect(params.get("slot")).toBe("upload-store");
   });
 
+  it('"⋯" opens the printable version in the same tab (RF-PLAY-16)', async () => {
+    const user = await open();
+    await user.click(screen.getByRole("button", { name: "Más acciones" }));
+    const menu = await screen.findByRole("menu");
+    const link = within(menu).getByRole("menuitem", { name: "Versión imprimible" });
+    expect(link.getAttribute("href")).toBe(`/escenarios/${pdfScenario.id}/imprimir`);
+    expect(link.getAttribute("target")).toBeNull();
+    await user.click(link);
+    expect(await screen.findByRole("checkbox", { name: "Incluir soluciones" })).toBeTruthy();
+  });
+
   it('"Reproducir flujo" is a button of the bar with visible text, not a menu item', async () => {
     const user = await open();
     await user.click(screen.getByRole("button", { name: "Más acciones" }));
