@@ -1,6 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { describe, expect, it } from "vitest";
-import { MIN_PRINT_ZOOM, PRINT_AREA, PRINT_PADDING, printLayout } from "./print";
+import {
+  BOARD_LABEL_SIZE,
+  MIN_PRINT_ZOOM,
+  PRINT_AREA,
+  PRINT_LABEL_MIN_PX,
+  PRINT_LABEL_PX,
+  PRINT_PADDING,
+  printLayout,
+} from "./print";
 import { realScenarios } from "./testing/fixtures";
 
 const slot = (id: string, x: number, y: number) => ({
@@ -41,6 +49,22 @@ describe("printLayout", () => {
 
   it("keeps a tall diagram portrait: a landscape sheet would draw it smaller", () => {
     expect(printLayout(diagramOf(1600, 1600)).orientation).toBe("portrait");
+  });
+
+  it("sizes the names so they print at 6.5 pt at least, and lets them shrink only to 6 pt", () => {
+    for (const scenario of realScenarios) {
+      const { zoom, labelSize, minLabelSize } = printLayout(scenario.diagram);
+      expect(labelSize).toBe(Math.max(BOARD_LABEL_SIZE, PRINT_LABEL_PX / zoom));
+      expect(labelSize * zoom).toBeCloseTo(PRINT_LABEL_PX);
+      expect(minLabelSize * zoom).toBeCloseTo(PRINT_LABEL_MIN_PX);
+      expect(minLabelSize).toBeLessThan(labelSize);
+    }
+  });
+
+  it("keeps the board size of the names when the zoom already prints them big enough", () => {
+    const { zoom, labelSize } = printLayout(diagramOf(400, 300));
+    expect(zoom).toBe(1);
+    expect(labelSize).toBe(BOARD_LABEL_SIZE);
   });
 
   it("never draws a small diagram bigger than the canvas", () => {

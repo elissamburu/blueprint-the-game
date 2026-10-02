@@ -53,7 +53,7 @@ import {
   type StepFlowEdge,
 } from "./flow-model";
 import type { Box } from "./geometry";
-import { NO_PAN, nodeTypes } from "./nodes";
+import { NO_PAN, nodeTypes, PrintGroupLabels } from "./nodes";
 import { StepMarkers, toStepMarkers } from "./step-markers";
 import { describeRoute, describeStep, diagramSteps, edgeSteps, type FlowStep } from "./steps";
 import {
@@ -125,6 +125,11 @@ export interface DiagramProps {
    * size (`printLayout`), since printing does not fit the picture again.
    */
   print?: boolean | undefined;
+  /**
+   * With `print`: font size (canvas px) of the names of fixed nodes, actors and groups, and the
+   * smallest one a name may shrink to (`labelSize` and `minLabelSize` of printLayout).
+   */
+  printLabels?: { size: number; min: number } | undefined;
   /** Ids of the elements that describe the still picture (its text alternative). */
   describedBy?: string | undefined;
   /** Every change of zoom or position (pan, zoom, reveal, arrows). */
@@ -189,12 +194,14 @@ function DiagramPreview({
   services,
   slots,
   print = false,
+  printLabels,
   label = "Vista previa del diagrama",
   describedBy,
   className,
 }: DiagramProps) {
   const markers = useMarkers();
-  const layout = useMemo(() => layoutDiagram(diagram), [diagram]);
+  const printLabelSize = print ? printLabels?.size : undefined;
+  const layout = useMemo(() => layoutDiagram(diagram, printLabelSize), [diagram, printLabelSize]);
   const nodes = useMemo(
     () => toFlowNodes(diagram, { slots, services }),
     [diagram, slots, services],
@@ -212,10 +219,11 @@ function DiagramPreview({
       reveal: () => {},
       preview: !print,
       print,
+      printLabels: print ? (printLabels ?? null) : null,
       animate: false,
       markers,
     }),
-    [markers, print],
+    [markers, print, printLabels],
   );
   const content = useMemo(() => contentBox(diagram), [diagram]);
   return (
@@ -268,6 +276,9 @@ function DiagramPreview({
                 size={1}
                 color="var(--border)"
               />
+            )}
+            {print && printLabels !== undefined && (
+              <PrintGroupLabels groups={diagram.groups} labels={printLabels} />
             )}
             {/* Printed, the circles are bigger: the picture is drawn at about half its size. */}
             <StepMarkers markers={stepMarkers} interactive={false} scale={print ? 1.6 : 1} />
@@ -419,6 +430,7 @@ function DiagramBoard({
       reveal,
       preview: false,
       print: false,
+      printLabels: null,
       animate: !reducedMotion,
       markers,
     }),

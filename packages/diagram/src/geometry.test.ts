@@ -63,6 +63,18 @@ describe("groupLabelBox", () => {
     expect(short).toMatchObject({ x: 108, y: 56, h: 18 });
     expect(long.w).toBeGreaterThan(short.w);
   });
+
+  it("printed, grows with the font and wraps at the width of the group, in two lines at most", () => {
+    const rect = { x: 100, y: 50, w: 200, h: 300 };
+    const board = groupLabelBox({ label: "VPC", rect });
+    const printed = groupLabelBox({ label: "VPC", rect }, 19.2);
+    expect(printed).toMatchObject({ x: 108, y: 56 });
+    expect(printed.w).toBeGreaterThan(board.w);
+    expect(printed.h).toBeCloseTo(19.2 * 1.15 + 4);
+    const long = groupLabelBox({ label: "Subredes privadas de los nodos", rect }, 19.2);
+    expect(long.w).toBe(200 - 16);
+    expect(long.h).toBeCloseTo(2 * 19.2 * 1.15 + 4);
+  });
 });
 
 describe("placeStepLabels", () => {

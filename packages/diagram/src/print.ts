@@ -40,12 +40,26 @@ export const MIN_PRINT_ZOOM = 0.45;
 /** Room around the content, as a fraction of its size (as the fit of the board). */
 export const PRINT_PADDING = 0.04;
 
+/** Font size (canvas px) of the names of the nodes and groups on the board. */
+export const BOARD_LABEL_SIZE = 11;
+/** Printed size (CSS px, 6.5 pt) the names of the nodes and groups reach at least. */
+export const PRINT_LABEL_PX = 8.7;
+/** Printed size (CSS px, 6 pt) a name that does not fit in two lines may shrink to, no further. */
+export const PRINT_LABEL_MIN_PX = 8;
+
 export interface PrintLayout {
   orientation: PrintOrientation;
   /** Size of the picture in CSS px. */
   width: number;
   height: number;
   zoom: number;
+  /**
+   * Font size (canvas px) of the names of fixed nodes, actors and groups, so that at `zoom` they
+   * print at PRINT_LABEL_PX at least: max(11, 8.7 / zoom).
+   */
+  labelSize: number;
+  /** Smallest font size (canvas px) a name may shrink to so it fits its box: 6 pt printed. */
+  minLabelSize: number;
 }
 
 const zoomIn = (
@@ -70,5 +84,7 @@ export const printLayout = (diagram: Pick<Diagram, "canvas" | "groups" | "nodes"
     width: Math.floor(content.w * (1 + PRINT_PADDING) * zoom),
     height: Math.floor(content.h * (1 + PRINT_PADDING) * zoom),
     zoom,
+    labelSize: Math.max(BOARD_LABEL_SIZE, PRINT_LABEL_PX / zoom),
+    minLabelSize: PRINT_LABEL_MIN_PX / zoom,
   };
 };

@@ -169,6 +169,7 @@ function DiagramSheet({
   const slotsId = useId();
   const lookup = useMemo(() => createServiceLookup(bundle.catalog.services), [bundle]);
   const layout = useMemo(() => printLayout(scenario.diagram), [scenario]);
+  const labels = useMemo(() => ({ size: layout.labelSize, min: layout.minLabelSize }), [layout]);
   const views = useMemo(
     () =>
       Object.fromEntries(
@@ -208,6 +209,7 @@ function DiagramSheet({
             diagram={scenario.diagram}
             services={lookup}
             slots={views}
+            printLabels={labels}
             label={t("play.print.diagramLabel")}
             describedBy={steps.length > 0 ? `${stepsId} ${slotsId}` : slotsId}
             className="size-full"

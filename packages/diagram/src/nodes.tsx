@@ -3,12 +3,12 @@
 // are in px: on the board, text scales with the board zoom, not with the browser font (the nodes
 // have fixed canvas sizes; docs/design, problem 28).
 // Lovable: .diagram-group + .group-*, .diagram-fixed-node, .diagram-actor (src/styles.css).
-import type { ActorNode as ActorSchemaNode, GroupKind } from "@blueprint/scenario-schema";
+import type { ActorNode as ActorSchemaNode, Group, GroupKind } from "@blueprint/scenario-schema";
 import { ArchitectureSlot } from "@blueprint/ui/components/architecture-slot";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { cn } from "@blueprint/ui/lib/utils";
 import { useDroppable } from "@dnd-kit/core";
-import { Handle, Position, type NodeProps } from "@xyflow/react";
+import { Handle, Position, ViewportPortal, type NodeProps } from "@xyflow/react";
 import {
   AppWindowIcon,
   Building2Icon,
@@ -19,9 +19,17 @@ import {
   UsersIcon,
   type LucideIcon,
 } from "lucide-react";
-import { useId, type ReactNode } from "react";
+import { useId, useRef, type ReactNode } from "react";
 import { useDiagramContext } from "./context";
-import type { ActorFlowNode, FixedFlowNode, GroupFlowNode, SlotFlowNode } from "./flow-model";
+import { GROUP_LABEL } from "./geometry";
+import { FitLabel } from "./fit-label";
+import {
+  Z,
+  type ActorFlowNode,
+  type FixedFlowNode,
+  type GroupFlowNode,
+  type SlotFlowNode,
+} from "./flow-model";
 
 const GROUP_STYLES: Record<GroupKind, string> = {
   "aws-cloud":
@@ -63,6 +71,16 @@ function HiddenHandles() {
 
 export function GroupNode({ data }: NodeProps<GroupFlowNode>) {
   const { group } = data;
+  const { printLabels } = useDiagramContext();
+  // Printed, the name is drawn by PrintGroupLabels, over the edges.
+  if (printLabels !== null) {
+    return (
+      <div
+        data-group-kind={group.kind}
+        className={cn("size-full rounded-[9px]", GROUP_STYLES[group.kind])}
+      />
+    );
+  }
   return (
     <div
       data-group-kind={group.kind}
@@ -85,9 +103,47 @@ const ACTOR_ICONS: Record<ActorSchemaNode["icon"], LucideIcon> = {
   "third-party": Building2Icon,
 };
 
+/**
+ * Names of the groups of the printed diagram, in a layer of their own between the edges and the
+ * nodes: an edge never crosses a name. Their white background is printed (print-color-adjust),
+ * since browsers drop backgrounds; it carries no information, it only masks the edges.
+ */
+export function PrintGroupLabels({
+  groups,
+  labels,
+}: {
+  groups: readonly Group[];
+  labels: { size: number; min: number };
+}) {
+  return (
+    <ViewportPortal>
+      {groups.map((group) => (
+        <span
+          key={group.id}
+          data-group-label={group.id}
+          style={{
+            position: "absolute",
+            left: group.rect.x + GROUP_LABEL.offsetX,
+            top: group.rect.y + GROUP_LABEL.offsetY,
+            // As wide as the name, up to the group: the portal around it has no width.
+            width: "max-content",
+            maxWidth: group.rect.w - 2 * GROUP_LABEL.offsetX,
+            zIndex: Z.edge + 1,
+          }}
+          className="pointer-events-none rounded-[4px] bg-card px-[5.6px] py-[2px] font-[850] text-primary [print-color-adjust:exact]"
+        >
+          <FitLabel text={group.label} size={labels.size} min={labels.min} oneLineFirst />
+        </span>
+      ))}
+    </ViewportPortal>
+  );
+}
+
 export function ActorNode({ data }: NodeProps<ActorFlowNode>) {
   const { node } = data;
   const Icon = ACTOR_ICONS[node.icon];
+  const { printLabels } = useDiagramContext();
+  if (printLabels !== null) return <PrintActorNode data={data} labels={printLabels} />;
   return (
     <>
       <HiddenHandles />
@@ -106,9 +162,94 @@ export function ActorNode({ data }: NodeProps<ActorFlowNode>) {
   );
 }
 
+/**
+ * Box of the printed nodes: the same as on the board, without shadow (it does not print). Its
+ * white background is printed so no edge shows through the name (print-color-adjust).
+ */
+const PRINT_NODE = "rounded-[7px] border border-foreground bg-card [print-color-adjust:exact]";
+
+/** Printed actor or external system: a smaller icon leaves room for a bigger name. */
+function PrintActorNode({
+  data: { node },
+  labels,
+}: {
+  data: ActorFlowNode["data"];
+  labels: { size: number; min: number };
+}) {
+  const Icon = ACTOR_ICONS[node.icon];
+  const area = useRef<HTMLDivElement>(null);
+  return (
+    <>
+      <HiddenHandles />
+      <div
+        data-node-type={node.type}
+        className={cn(
+          "flex size-full flex-col items-center gap-[2px] p-[5px] text-center",
+          PRINT_NODE,
+          node.type === "external" && "border-dashed",
+        )}
+      >
+        <Icon aria-hidden="true" className="size-[16px] shrink-0" />
+        <div ref={area} className="flex min-h-0 w-full flex-1 items-center justify-center">
+          <FitLabel
+            text={node.label}
+            size={labels.size}
+            min={labels.min}
+            boxRef={area}
+            className="font-bold"
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
+/** Printed fixed node: icon and name, the name as big as printLayout asks. */
+function PrintFixedNode({
+  data: { node, service },
+  labels,
+}: {
+  data: FixedFlowNode["data"];
+  labels: { size: number; min: number };
+}) {
+  const name = service?.name ?? node.service;
+  const area = useRef<HTMLDivElement>(null);
+  return (
+    <>
+      <HiddenHandles />
+      <div
+        data-node-type="fixed"
+        className={cn(
+          "grid size-full grid-cols-[auto_minmax(0,1fr)] grid-rows-[minmax(0,1fr)] items-center gap-[6px] p-[6px]",
+          PRINT_NODE,
+        )}
+      >
+        <ServiceIcon
+          src={service?.iconSrc}
+          name={name}
+          category={service?.category ?? ""}
+          decorative
+          className="size-[28px] text-[9.28px]"
+        />
+        <div ref={area} className="flex h-full min-h-0 items-center">
+          <FitLabel
+            text={name}
+            size={labels.size}
+            min={labels.min}
+            boxRef={area}
+            className="font-bold"
+          />
+        </div>
+      </div>
+    </>
+  );
+}
+
 export function FixedNode({ data }: NodeProps<FixedFlowNode>) {
   const { node, service } = data;
   const name = service?.name ?? node.service;
+  const { printLabels } = useDiagramContext();
+  if (printLabels !== null) return <PrintFixedNode data={data} labels={printLabels} />;
   return (
     <>
       <HiddenHandles />

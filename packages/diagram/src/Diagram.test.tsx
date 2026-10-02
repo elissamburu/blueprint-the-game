@@ -518,4 +518,23 @@ describe("Diagram print", () => {
     const printed = [...picture.querySelectorAll('[data-slot="architecture-slot"]')];
     expect(printed.map((s) => s.textContent)).toEqual(slotIds.map((_, i) => String(i + 1)));
   });
+
+  it("draws the names of fixed nodes, actors and groups at the printed label size", () => {
+    renderBoard({ print: true, printLabels: { size: 18, min: 16 }, label: "Diagrama" });
+    const picture = screen.getByRole("img", { name: "Diagrama" });
+    const names = [...picture.querySelectorAll<HTMLElement>("[data-fit-label]")];
+    const expected = [
+      ...pdfScenario.diagram.groups.map((g) => g.label),
+      ...pdfScenario.diagram.nodes.flatMap((n) =>
+        n.type === "actor" || n.type === "external"
+          ? [n.label]
+          : n.type === "fixed"
+            ? [fakeServices(n.service)?.name ?? n.service]
+            : [],
+      ),
+    ];
+    expect(names.map((n) => n.textContent).sort()).toEqual(expected.sort());
+    // jsdom has no layout: every name fits at the size printLayout asks for.
+    for (const name of names) expect(name.style.fontSize).toBe("18px");
+  });
 });

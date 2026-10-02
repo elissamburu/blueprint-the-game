@@ -26,7 +26,10 @@ export {
   type StepRoute,
 } from "./steps";
 export {
+  BOARD_LABEL_SIZE,
   MIN_PRINT_ZOOM,
+  PRINT_LABEL_MIN_PX,
+  PRINT_LABEL_PX,
   PRINT_AREA,
   PRINT_MARGIN_MM,
   printLayout,

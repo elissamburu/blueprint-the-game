@@ -19,6 +19,11 @@ export interface DiagramContextValue {
   preview: boolean;
   /** Still picture of the printable page: slots are empty boxes with their number. */
   print: boolean;
+  /**
+   * Printed: font size (canvas px) of the names of fixed nodes, actors and groups, and the size
+   * a name may shrink to so it fits its box (printLayout). Null on screen.
+   */
+  printLabels: { size: number; min: number } | null;
   /** Animate the active edges (false with prefers-reduced-motion). */
   animate: boolean;
   /** Ids of the arrow markers (defs rendered once by the board). */

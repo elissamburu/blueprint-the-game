@@ -68,7 +68,14 @@ export interface DiagramLayout {
   labels: ReadonlyMap<string, { point: Point; free: boolean }>;
 }
 
-export const layoutDiagram = (diagram: Pick<Diagram, "groups" | "nodes" | "edges">) => {
+/**
+ * `groupLabelSize`: font size of the group labels when it is not the one of the board (the
+ * printed diagram), so the step circles keep clear of the bigger labels.
+ */
+export const layoutDiagram = (
+  diagram: Pick<Diagram, "groups" | "nodes" | "edges">,
+  groupLabelSize?: number,
+) => {
   const boxes = new Map(diagram.nodes.map((node) => [node.id, nodeBox(node)]));
   const segments = new Map<string, Segment>();
   for (const edge of diagram.edges) {
@@ -78,7 +85,10 @@ export const layoutDiagram = (diagram: Pick<Diagram, "groups" | "nodes" | "edges
     const segment = edgeSegment(source, target);
     if (segment !== null) segments.set(edge.id, segment);
   }
-  const obstacles = [...boxes.values(), ...diagram.groups.map(groupLabelBox)];
+  const obstacles = [
+    ...boxes.values(),
+    ...diagram.groups.map((group) => groupLabelBox(group, groupLabelSize)),
+  ];
   // Steps in flow order, so earlier steps keep the middle of their edge.
   const requests = [...diagram.edges]
     .sort((a, b) => a.step - b.step)
