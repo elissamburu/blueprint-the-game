@@ -30,11 +30,11 @@ export const PRINT_AREA: Record<PrintOrientation, { width: number; height: numbe
 };
 
 /**
- * Below this zoom the names of the nodes (11 px on the canvas) print under ~3.7 pt: the sheet turns
- * landscape if that draws the diagram bigger. Slot numbers and step circles are drawn bigger for
- * print, so they stay readable at it. A portrait sheet keeps the steps of the flow under the
- * diagram, which a landscape one has no room for: content up to ~1500 canvas units wide (every
- * scenario so far) prints portrait.
+ * Below this zoom the picture is too small to read and write on (a slot prints under ~19 mm and
+ * the names, sized by `labelSize`, crowd their boxes): the sheet turns landscape if that draws
+ * the diagram bigger. A portrait sheet keeps the steps of the flow under the diagram, which a
+ * landscape one has no room for: content up to ~1500 canvas units wide (every scenario so far)
+ * prints portrait.
  */
 export const MIN_PRINT_ZOOM = 0.45;
 /** Room around the content, as a fraction of its size (as the fit of the board). */
