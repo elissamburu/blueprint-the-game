@@ -1,6 +1,6 @@
 # 0024 · Comando `revealSolution`: ver la solución de un casillero o de todo el escenario
 
-- Estado: Propuesto
+- Estado: Aceptado
 - Fecha: 2026-09-30
 - Extiende: [ADR-0008](0008-interaccion-desacoplada.md)
 
