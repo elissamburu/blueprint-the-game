@@ -23,6 +23,7 @@ import { Progress } from "@blueprint/ui/components/progress";
 import {
   ArrowLeftIcon,
   EllipsisIcon,
+  ExternalLinkIcon,
   EyeIcon,
   EyeOffIcon,
   FlagIcon,
@@ -175,9 +176,12 @@ export function GameBar({
             </DropdownMenuItem>
             <DropdownMenuSeparator />
             <DropdownMenuItem asChild>
-              <Link to={`/escenarios/${scenario.id}/imprimir`}>
+              {/* In another tab, so the game in progress is not lost (the session is not saved). */}
+              <Link to={`/escenarios/${scenario.id}/imprimir`} target="_blank" rel="noreferrer">
                 <PrinterIcon aria-hidden />
                 {t("play.top.print")}
+                <ExternalLinkIcon aria-hidden className="ml-auto" />{" "}
+                <span className="sr-only">{t("about.external")}</span>
               </Link>
             </DropdownMenuItem>
             <DropdownMenuItem asChild>

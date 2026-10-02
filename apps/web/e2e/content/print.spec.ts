@@ -1,28 +1,42 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Printable version of a scenario (RF-PLAY-16) over the real content: reached from the "⋯" menu
-// of the game, printed without the bars and controls, one sheet per section, a PDF of several
+// Printable version of a scenario (RF-PLAY-16) over the real content: opened from the "⋯" menu
+// of the game in another tab (the game stays), printed without the bars and controls, one sheet per section, a PDF of several
 // pages with and without solutions (page.pdf only exists in Chromium), and axe on the screen view.
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { onboard, playFromListing } from "../support/app";
+import { board, onboard, playFromListing } from "../support/app";
 import { loadDevBundle } from "../support/dev-bundle";
 
 const bundle = loadDevBundle();
 const ID = "serverless-pdf-processing";
 const entry = bundle.scenarios.find((s) => s.id === ID);
 
-const pdfPages = (pdf: Buffer): number => pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g)?.length ?? 0;
+const pdfPages = (pdf: Buffer): number =>
+  pdf.toString("latin1").match(/\/Type\s*\/Page[^s]/g)?.length ?? 0;
 
-/** "Experto" opens every level, then the printable page of the scenario from the "⋯" menu. */
-const openFromMenu = async (page: Page, title: string) => {
+/**
+ * "Experto" opens every level, then the printable page of the scenario from the "⋯" menu. It
+ * opens in another tab, so the game in progress stays as it was: returns the new tab.
+ */
+const openFromMenu = async (page: Page, title: string): Promise<Page> => {
   await onboard(page, { areas: bundle.areas.slice(0, 1), experience: "Experto" });
   await playFromListing(page, title);
   await page.getByRole("button", { name: "Más acciones" }).click();
-  await page.getByRole("menuitem", { name: "Versión imprimible" }).click();
-  await expect(page).toHaveURL(new RegExp(`/escenarios/${ID}/imprimir$`));
-  await expect(page.getByRole("heading", { level: 1, name: title })).toBeVisible();
+  const opened = page.context().waitForEvent("page");
+  await page
+    .getByRole("menuitem", { name: "Versión imprimible (se abre en otra pestaña)" })
+    .click();
+  const printable = await opened;
+  await expect(printable).toHaveURL(new RegExp(`/escenarios/${ID}/imprimir$`));
+  await expect(printable.getByRole("heading", { level: 1, name: title })).toBeVisible();
   // The diagram is drawn (React Flow measured its nodes) before anything is printed.
-  await expect(page.locator('[data-slot="diagram-print"] .react-flow__node').first()).toBeVisible();
+  await expect(
+    printable.locator('[data-slot="diagram-print"] .react-flow__node').first(),
+  ).toBeVisible();
+  // The game is still on its board, in the first tab.
+  await expect(page).toHaveURL(new RegExp(`/escenarios/${ID}$`));
+  await expect(board(page)).toBeVisible();
+  return printable;
 };
 
 const solutionsCheckbox = (page: Page) =>
@@ -33,9 +47,9 @@ test.describe("versión imprimible", () => {
   const title = entry?.title ?? "";
 
   test("se abre desde el menú ⋯ y al imprimir quedan solo las hojas, cada una en página nueva", async ({
-    page,
+    page: game,
   }) => {
-    await openFromMenu(page, title);
+    const page = await openFromMenu(game, title);
     const controls = page.getByRole("region", { name: "Opciones de impresión" });
     await expect(controls.getByRole("button", { name: "Imprimir" })).toBeVisible();
     await expect(page.getByRole("banner")).toBeVisible();
@@ -57,12 +71,18 @@ test.describe("versión imprimible", () => {
     const breaks = await sheets.evaluateAll((elements) =>
       elements.map((e) => getComputedStyle(e).breakBefore),
     );
-    expect(breaks.every((value) => value === "page"), breaks.join(", ")).toBe(true);
+    expect(
+      breaks.every((value) => value === "page"),
+      breaks.join(", "),
+    ).toBe(true);
   });
 
-  test("genera un PDF de varias páginas, sin y con soluciones", async ({ page, browserName }) => {
+  test("genera un PDF de varias páginas, sin y con soluciones", async ({
+    page: game,
+    browserName,
+  }) => {
     test.skip(browserName !== "chromium", "page.pdf() solo existe en Chromium");
-    await openFromMenu(page, title);
+    const page = await openFromMenu(game, title);
     const withoutSolutions = pdfPages(await page.pdf({ preferCSSPageSize: true }));
     expect(withoutSolutions).toBeGreaterThan(1);
 
@@ -72,8 +92,8 @@ test.describe("versión imprimible", () => {
     expect(withSolutions).toBeGreaterThanOrEqual(withoutSolutions + slots);
   });
 
-  test("axe en la vista de pantalla, con y sin soluciones", async ({ page }) => {
-    await openFromMenu(page, title);
+  test("axe en la vista de pantalla, con y sin soluciones", async ({ page: game }) => {
+    const page = await openFromMenu(game, title);
     const analyze = async () => (await new AxeBuilder({ page }).analyze()).violations;
     expect(await analyze()).toEqual([]);
     await solutionsCheckbox(page).check();
