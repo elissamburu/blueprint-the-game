@@ -25,10 +25,18 @@ const hintName = (text: string, number: number) => `${text}, casillero ${number}
 const boardControls = (page: Page) =>
   controlsInside(page, { role: "group", name: /^Diagrama de «/ });
 
+/** The step numbers of the edges, buttons named "Paso N: <etiqueta>" (RF-PLAY-03). */
+const STEPS = [
+  "Paso 1: Sube la foto",
+  "Paso 2: Avisa que llegó",
+  "Paso 3: Anota la miniatura",
+  "Paso 4: Registra el resultado",
+];
+
 /**
  * The names of the slot controls of the board (its buttons), after checking that no interactive
- * control of the board, of any role, has an empty or a repeated name. The board has one more
- * control: the attribution link of React Flow.
+ * control of the board, of any role, has an empty or a repeated name, and that the step buttons
+ * are there, after the slots. The board has one more control: the attribution link of React Flow.
  */
 const uniqueNames = async (page: Page, state: string): Promise<string[]> => {
   const controls = await boardControls(page);
@@ -42,7 +50,14 @@ const uniqueNames = async (page: Page, state: string): Promise<string[]> => {
     names.filter((name, position) => names.indexOf(name) !== position),
     `nombres accesibles repetidos en el tablero (${state})`,
   ).toEqual([]);
-  return controls.filter((control) => control.role !== "link").map((control) => control.name);
+  const buttons = controls.filter((control) => control.role !== "link").map((c) => c.name);
+  const steps = buttons.filter((name) => name.startsWith("Paso "));
+  expect(steps, `botones de los pasos (${state})`).toEqual(STEPS);
+  expect(
+    buttons.slice(-steps.length),
+    `los pasos van después de los casilleros (${state})`,
+  ).toEqual(steps);
+  return buttons.filter((name) => !name.startsWith("Paso "));
 };
 
 test("ningún control del tablero repite su nombre accesible", async ({ page }) => {

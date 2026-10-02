@@ -136,6 +136,12 @@
 - Ningún texto visible antes de acertar (rol, etiquetas, contexto, objetivos, pistas) contiene el nombre de un servicio que el jugador deba adivinar. Esto lo garantiza el lint `L005` en CI, no la UI.
 - Los nodos fijos (`type: fixed`) muestran su servicio e ícono desde el inicio.
 
+**CA RF-PLAY-03**
+- Cada número de paso de las aristas del tablero es un botón que abre un popover con "Paso N", la etiqueta de la arista, su descripción si tiene y el recorrido origen → destino (los casilleros se nombran por su rol, nunca por su servicio oculto). Sigue el mismo patrón visual y de accesibilidad que el popover de pistas.
+- Su nombre accesible es único en el tablero: "Paso 3: <etiqueta>"; si dos aristas lo repetirían, se agrega el recorrido.
+- Se opera con teclado (Tab después de los casilleros, Enter o Espacio para abrir, Esc para cerrar y devolver el foco al número), con foco visible, y su área de toque mide al menos 24 × 24 px (WCAG 2.5.8) con cualquier zoom del tablero, sin agrandar el círculo visible.
+- Un clic en un número (como en cualquier control del tablero) no desplaza el tablero, y abrirlo no cambia el paso del reproductor de flujo.
+
 **CA RF-PLAY-05**
 - Todo lo que se puede hacer con drag se puede hacer con teclado (Tab/Enter/flechas) y con toque. Ambos caminos emiten el mismo comando del motor ([ADR-0008](adr/0008-interaccion-desacoplada.md)).
 

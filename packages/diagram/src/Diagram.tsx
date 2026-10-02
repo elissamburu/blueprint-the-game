@@ -52,8 +52,9 @@ import {
   type StepFlowEdge,
 } from "./flow-model";
 import type { Box } from "./geometry";
-import { nodeTypes } from "./nodes";
-import { describeRoute, describeStep, diagramSteps, type FlowStep } from "./steps";
+import { NO_PAN, nodeTypes } from "./nodes";
+import { StepMarkers, toStepMarkers } from "./step-markers";
+import { describeRoute, describeStep, diagramSteps, edgeSteps, type FlowStep } from "./steps";
 import {
   isServiceDragData,
   type ServiceLookup,
@@ -166,6 +167,8 @@ const STILL_CANVAS = {
   panActivationKeyCode: null,
   zoomOnDoubleClick: false,
   zIndexMode: "manual",
+  // Explicit: the nodes and the step buttons put it on their controls.
+  noPanClassName: NO_PAN,
 } as const;
 
 function DiagramPreview({
@@ -178,6 +181,10 @@ function DiagramPreview({
   const layout = useMemo(() => layoutDiagram(diagram), [diagram]);
   const nodes = useMemo(() => toFlowNodes(diagram, { services }), [diagram, services]);
   const edges = useMemo(() => toFlowEdges(diagram, layout, null), [diagram, layout]);
+  const stepMarkers = useMemo(
+    () => toStepMarkers(edges, edgeSteps(diagram, services)),
+    [edges, diagram, services],
+  );
   const context = useMemo(
     (): DiagramContextValue => ({
       onSlotActivate: undefined,
@@ -225,6 +232,7 @@ function DiagramPreview({
             className="pointer-events-none"
           >
             <Background variant={BackgroundVariant.Dots} gap={18} size={1} color="var(--border)" />
+            <StepMarkers markers={stepMarkers} interactive={false} />
           </ReactFlow>
         </div>
       </div>
@@ -267,6 +275,8 @@ function DiagramBoard({
     () => toFlowEdges(diagram, layout, currentStep?.step ?? null),
     [diagram, layout, currentStep],
   );
+  const namedSteps = useMemo(() => edgeSteps(diagram, services), [diagram, services]);
+  const stepMarkers = useMemo(() => toStepMarkers(edges, namedSteps), [edges, namedSteps]);
 
   const duration = (ms: number) => (reducedMotion ? 0 : ms);
   const { width, height } = diagram.canvas;
@@ -426,6 +436,8 @@ function DiagramBoard({
                 size={1}
                 color="var(--border)"
               />
+              {/* Each step number opens its label, description and route (RF-PLAY-03). */}
+              <StepMarkers markers={stepMarkers} interactive />
             </ReactFlow>
           </div>
           {/* One stack of floating controls, bottom-left: the player (while it runs) over the

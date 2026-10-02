@@ -7,10 +7,12 @@ import {
   circleHitsBox,
   edgeSegment,
   groupLabelBox,
+  MIN_TARGET,
   nodeBox,
   placeStepLabels,
   STEP_CLEARANCE,
   STEP_RADIUS,
+  stepTargetDiameters,
   type Box,
   type Segment,
 } from "./geometry";
@@ -116,5 +118,37 @@ describe("placeStepLabels", () => {
     )!;
     expect(free).toBe(false);
     expect(point.y).toBe(50);
+  });
+});
+
+describe("stepTargetDiameters", () => {
+  const far = [
+    { x: 0, y: 0 },
+    { x: 500, y: 0 },
+  ];
+
+  it("is 24 screen px at any zoom, without growing the visible circle", () => {
+    expect(stepTargetDiameters(far, 1)).toEqual([MIN_TARGET, MIN_TARGET]);
+    expect(stepTargetDiameters(far, 2)).toEqual([MIN_TARGET, MIN_TARGET]);
+    // At 50 % the canvas area doubles so it is still 24 px on screen.
+    expect(stepTargetDiameters(far, 0.5)).toEqual([2 * MIN_TARGET, 2 * MIN_TARGET]);
+  });
+
+  it("never covers the visible circle of a close step, nor shrinks below its own circle", () => {
+    const close = [
+      { x: 0, y: 0 },
+      { x: 26, y: 0 },
+      { x: 26, y: 0 },
+    ];
+    const [a, b, c] = stepTargetDiameters(close, 0.5);
+    // a reaches 16 from its center: 26 − 16 = 10, the edge of the next circle.
+    expect(a).toBe(2 * (26 - STEP_RADIUS));
+    // Two circles on the same point keep just their own circle.
+    expect(b).toBe(2 * STEP_RADIUS);
+    expect(c).toBe(2 * STEP_RADIUS);
+  });
+
+  it("is the wanted size for a single step", () => {
+    expect(stepTargetDiameters([{ x: 0, y: 0 }], 0.8)).toEqual([MIN_TARGET / 0.8]);
   });
 });
