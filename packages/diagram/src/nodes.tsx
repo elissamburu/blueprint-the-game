@@ -324,8 +324,17 @@ function PrintSlot({ number }: { number: number | undefined }) {
 }
 
 export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
-  const { node, view, service, box } = data;
-  const { onSlotActivate, slotHintAction, droppable, reveal, preview, print } = useDiagramContext();
+  const { node, view, service, box, motion } = data;
+  const {
+    onSlotActivate,
+    slotHintAction,
+    droppable,
+    reveal,
+    preview,
+    print,
+    animate,
+    onSlotMotionEnd,
+  } = useDiagramContext();
   const roleId = useId();
   if (print) {
     return (
@@ -359,6 +368,10 @@ export function SlotNode({ data }: NodeProps<SlotFlowNode>) {
       onActivate={onSlotActivate === undefined ? undefined : () => onSlotActivate(node.id)}
       emptyText={onSlotActivate === undefined ? "" : undefined}
       hintAction={hintAction}
+      // Only a change moves the slot (slot-motion.ts); with reduced motion, a fade.
+      motion={motion}
+      reducedMotion={!animate}
+      onMotionEnd={motion === undefined ? undefined : () => onSlotMotionEnd(node.id, motion.key)}
       onFocus={(event) => reveal(box, event.currentTarget.getBoundingClientRect().height)}
       // React Flow turns pointer events off on nodes that are neither selectable nor draggable;
       // the slot is a button (and holds the hint button), so it takes them back. At least the node

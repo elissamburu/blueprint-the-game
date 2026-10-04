@@ -36,3 +36,4 @@ export {
   type PrintLayout,
   type PrintOrientation,
 } from "./print";
+export { useReducedMotion } from "./use-reduced-motion";
