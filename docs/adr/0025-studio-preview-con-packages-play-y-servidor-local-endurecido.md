@@ -28,6 +28,8 @@ Además, el servidor del Studio escribe en el repo. Aunque escuche solo en `127.
   }
   ```
 
+  > **Nota (2026-10-04, al implementarlo).** Además de los seis puntos del contexto, la pantalla dependía de `apps/web` en el enlace a la versión imprimible, en `StatusBadge` del listado, en `formatNumber` y en tres textos fuera de `play.*`. Se resolvió sin otro ADR: `GameHost` suma `printHref?(scenarioId): string` (sin él no se ofrece "Imprimir"); `exit.href` y `printHref` son rutas del router de la app, que `packages/play` enlaza con React Router; `StatusBadge` pasa a `packages/play` con sus textos (`status.*`, y el nombre de la lista de áreas), que `apps/web` usa desde el namespace `play`; `formatNumber` pasa a `@blueprint/ui/lib/format`, y "(se abre en otra pestaña)" queda duplicado en los dos namespaces, con un test que verifica que son iguales. Las claves de las preferencias de los avisos del sitio quedan en `apps/web`.
+
 - Quedan en `apps/web`: la ruta y el control de desbloqueo (`PlayPage`, `ScenarioGate`), el resumen, la versión imprimible, el guardado del progreso (`finish.ts`) y el enlace para reportar un problema.
 - Los textos de la pantalla de juego viven en `packages/play` con el namespace de i18next `play` ([ADR-0017](0017-i18n.md)); cada app lo registra.
 - `packages/play` **puede** importar `game-engine`: es la capa que traduce los eventos del tablero en comandos, el rol que hasta ahora cumplía `apps/web`. `diagram` y `ui` siguen sin poder importarlo.
