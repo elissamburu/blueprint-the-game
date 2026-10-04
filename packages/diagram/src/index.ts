@@ -36,4 +36,5 @@ export {
   type PrintLayout,
   type PrintOrientation,
 } from "./print";
-export { useReducedMotion } from "./use-reduced-motion";
+// Lives in @blueprint/ui; still exported here so the public API of the board does not change.
+export { useReducedMotion } from "@blueprint/ui/lib/use-reduced-motion";

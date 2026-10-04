@@ -1,4 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+// prefers-reduced-motion of the system (docs/accesibilidad.md §3), for the components that pick a
+// motion in JS: the board (flow player, slots), the feedback card and the summary.
 import { useSyncExternalStore } from "react";
 
 const QUERY = "(prefers-reduced-motion: reduce)";

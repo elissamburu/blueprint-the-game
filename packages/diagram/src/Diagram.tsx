@@ -9,6 +9,7 @@
 import "@xyflow/react/dist/base.css";
 import { Button } from "@blueprint/ui/components/button";
 import type { Diagram as DiagramData } from "@blueprint/scenario-schema";
+import { useReducedMotion } from "@blueprint/ui/lib/use-reduced-motion";
 import { cn } from "@blueprint/ui/lib/utils";
 import { useDndMonitor, type DragEndEvent } from "@dnd-kit/core";
 import {
@@ -71,7 +72,6 @@ import {
   type SlotMotionState,
 } from "./slot-motion";
 import { useFlowPlayer, type FlowPlayer } from "./use-flow-player";
-import { useReducedMotion } from "./use-reduced-motion";
 import { contentBox, initialView, revealViewport, steppedZoom } from "./viewport";
 
 export const MIN_ZOOM = 0.2;

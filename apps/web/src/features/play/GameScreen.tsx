@@ -12,7 +12,6 @@ import {
   diagramSteps,
   type DiagramHandle,
   type SlotHintContext,
-  useReducedMotion,
 } from "@blueprint/diagram";
 import {
   buildPalette,
@@ -28,6 +27,7 @@ import {
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { EXIT_MS } from "@blueprint/ui/lib/motion";
+import { useReducedMotion } from "@blueprint/ui/lib/use-reduced-motion";
 import {
   useCallback,
   useEffect,

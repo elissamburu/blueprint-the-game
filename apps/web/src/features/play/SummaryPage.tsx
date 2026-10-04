@@ -16,13 +16,13 @@ import {
   type ProgressEvent,
   type SlotReview,
 } from "@blueprint/game-engine";
-import { useReducedMotion } from "@blueprint/diagram";
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { Badge } from "@blueprint/ui/components/badge";
 import { Button } from "@blueprint/ui/components/button";
 import { GradeBadge, type SlotGrade } from "@blueprint/ui/components/grade-badge";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { motionClass } from "@blueprint/ui/lib/motion";
+import { useReducedMotion } from "@blueprint/ui/lib/use-reduced-motion";
 import { cn } from "@blueprint/ui/lib/utils";
 import {
   ArrowRightIcon,
