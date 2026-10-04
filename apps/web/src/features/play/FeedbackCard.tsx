@@ -3,7 +3,8 @@
 // over the board (layout v2), only while there is something to show: after a placement or when a
 // resolved slot is activated. Where it floats (bottom or top) is decided by feedback-placement.ts
 // so that it never covers its slot. Grade, objective statuses and the available actions come from
-// game-engine; this component only presents them.
+// game-engine; this component only presents them. It rises in and, while it leaves, sinks out
+// without being reachable (inert); with reduced motion it only fades (RF-PLAY-17).
 // Lovable: FeedbackPanel, .floating-feedback, .feedback-panel, .goal-links
 // (src/components/blueprint-app.tsx, styles.css), captura 17.
 import {
@@ -18,6 +19,7 @@ import { Button } from "@blueprint/ui/components/button";
 import { gradeLabel } from "@blueprint/ui/components/grade-badge";
 import { ObjectiveTag } from "@blueprint/ui/components/objective-tag";
 import { Popover, PopoverContent, PopoverTrigger } from "@blueprint/ui/components/popover";
+import { motionClass } from "@blueprint/ui/lib/motion";
 import { cn } from "@blueprint/ui/lib/utils";
 import {
   ChevronDownIcon,
@@ -68,7 +70,15 @@ export interface FeedbackCardProps {
   /** Edge of the board the card floats at, and its distance to it in px. */
   side?: FeedbackSide;
   gap?: number;
-  ref?: Ref<HTMLElement>;
+  ref?: Ref<HTMLElement> | undefined;
+  /**
+   * The card is closing: it plays its exit, cannot be focused nor read, and calls `onExited`
+   * when the exit ends.
+   */
+  leaving?: boolean;
+  onExited?: () => void;
+  /** prefers-reduced-motion: it fades in and out, without moving. */
+  reducedMotion?: boolean;
 }
 
 /** The slot has an evaluation to explain (it is not empty). */
@@ -87,6 +97,9 @@ export function FeedbackCard({
   side = "bottom",
   gap = 16,
   ref,
+  leaving = false,
+  onExited,
+  reducedMotion = false,
 }: FeedbackCardProps) {
   const { t } = useTranslation();
   const titleId = useId();
@@ -124,10 +137,18 @@ export function FeedbackCard({
       data-status={status}
       data-side={side}
       data-slot-feedback={slot.slotId}
+      data-leaving={leaving ? "" : undefined}
+      inert={leaving}
+      aria-hidden={leaving ? true : undefined}
+      onAnimationEnd={(event) => {
+        if (leaving && event.target === event.currentTarget) onExited?.();
+      }}
       style={side === "bottom" ? { bottom: gap } : { top: gap }}
       className={cn(
         "pointer-events-auto absolute left-1/2 grid max-h-[45%] w-[min(47.5rem,calc(100%-2rem))] -translate-x-1/2 grid-cols-[auto_minmax(0,1fr)_auto] gap-x-4 overflow-y-auto rounded-lg border border-t-[3px] px-5 py-4 shadow-[0_18px_45px_color-mix(in_oklab,var(--foreground)_18%,transparent)]",
         style.panel,
+        motionClass(leaving ? "exit" : "enter", reducedMotion),
+        leaving && "pointer-events-none",
       )}
     >
       <span

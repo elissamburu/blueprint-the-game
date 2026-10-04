@@ -5,6 +5,9 @@
 // the review, the counts and every number come from game-engine. No badges: they are F4.
 // The title takes the focus when the page opens and the XP, rank and unlocks are announced in a
 // polite live region (the game screen does not toast them, so they are read once).
+// Motion (RF-PLAY-17): the trophy and each achievement scale in, and a rank up or an unlocked
+// level throws decorative confetti once; with reduced motion they only fade and there is no
+// confetti.
 // Lovable: Summary, .celebration-band, .burst, .score-summary, .summary-content, .new-badge,
 // .review-heading, .answer-list, .summary-actions (blueprint-app.tsx, styles.css).
 import {
@@ -13,11 +16,14 @@ import {
   type ProgressEvent,
   type SlotReview,
 } from "@blueprint/game-engine";
+import { useReducedMotion } from "@blueprint/diagram";
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { Badge } from "@blueprint/ui/components/badge";
 import { Button } from "@blueprint/ui/components/button";
 import { GradeBadge, type SlotGrade } from "@blueprint/ui/components/grade-badge";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
+import { motionClass } from "@blueprint/ui/lib/motion";
+import { cn } from "@blueprint/ui/lib/utils";
 import {
   ArrowRightIcon,
   AwardIcon,
@@ -35,7 +41,7 @@ import {
   ZapIcon,
   type LucideIcon,
 } from "lucide-react";
-import { useEffect, useMemo, useRef, useState, type ReactNode } from "react";
+import { useEffect, useMemo, useRef, useState, type CSSProperties, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useLocation, useParams } from "react-router";
 import { PageHeading, PageShell, usePageTitle } from "../../app/page";
@@ -143,6 +149,7 @@ function SummaryView({
   const counts = reviewCounts(review);
   const achievements = state.events.filter((e) => e.type !== "xpGained");
   const gained = state.comparison?.gained ?? 0;
+  const reducedMotion = useReducedMotion();
 
   // Focus on the title, then the announcement: screen readers read a live region that gets its
   // text after it is rendered, not one rendered with its text.
@@ -173,10 +180,14 @@ function SummaryView({
 
   return (
     <div className="pb-24">
-      <section className="bg-blueprint px-4 pt-12 pb-10 text-center text-primary-foreground md:px-8 md:pt-16 md:pb-12">
+      <section className="relative overflow-hidden bg-blueprint px-4 pt-12 pb-10 text-center text-primary-foreground md:px-8 md:pt-16 md:pb-12">
+        {achievements.length > 0 && !reducedMotion && <Confetti />}
         <div
           aria-hidden="true"
-          className="mx-auto mb-4 grid size-[74px] place-items-center rounded-full bg-warning shadow-[0_0_0_10px_color-mix(in_oklab,var(--warning)_25%,transparent)]"
+          className={cn(
+            "relative mx-auto mb-4 grid size-[74px] place-items-center rounded-full bg-warning shadow-[0_0_0_10px_color-mix(in_oklab,var(--warning)_25%,transparent)]",
+            motionClass("celebrate", reducedMotion),
+          )}
         >
           <TrophyIcon className="size-[34px]" />
         </div>
@@ -263,6 +274,7 @@ function SummaryView({
                   key={event.type === "rankUp" ? event.to.id : `level-${event.level}`}
                   event={event}
                   areas={bundle.index.areas}
+                  reducedMotion={reducedMotion}
                 />
               ))}
             </ul>
@@ -417,12 +429,29 @@ const achievementText = (
         areas: areaList(event.areas, areas),
       });
 
+/** Ten pieces that fall once from the trophy (.motion-confetti). Decoration only. */
+function Confetti() {
+  return (
+    <div
+      aria-hidden="true"
+      data-slot="confetti"
+      className="motion-confetti pointer-events-none absolute inset-0"
+    >
+      {Array.from({ length: 10 }, (_, i) => (
+        <i key={i} style={{ "--i": i } as CSSProperties} />
+      ))}
+    </div>
+  );
+}
+
 function Achievement({
   event,
   areas,
+  reducedMotion,
 }: {
   event: AchievementEvent;
   areas: ContentBundle["index"]["areas"];
+  reducedMotion: boolean;
 }) {
   const { t } = useTranslation();
   const Icon = event.type === "rankUp" ? AwardIcon : LockOpenIcon;
@@ -430,7 +459,10 @@ function Achievement({
     <li className="grid grid-cols-[auto_1fr] items-center gap-4 rounded-lg border border-warning bg-warning-soft p-[1.2rem]">
       <span
         aria-hidden="true"
-        className="grid size-[55px] place-items-center rounded-lg bg-warning text-primary-foreground"
+        className={cn(
+          "grid size-[55px] place-items-center rounded-lg bg-warning text-primary-foreground",
+          motionClass("celebrateLate", reducedMotion),
+        )}
       >
         <Icon className="size-6" />
       </span>

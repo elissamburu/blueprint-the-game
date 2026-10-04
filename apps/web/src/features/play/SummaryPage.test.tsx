@@ -142,6 +142,51 @@ describe("summary", () => {
     );
   });
 
+  it("celebrates a rank up: the trophy and the badge scale in, and confetti falls once", async () => {
+    if (aprendiz === undefined || constructor === undefined) throw new Error("< 2 ranks");
+    renderSummary(
+      stateFor({ kind: "first", gained: 1 }, [{ type: "rankUp", from: aprendiz, to: constructor }]),
+    );
+    await title();
+    expect(document.querySelector(".motion-badge")).not.toBeNull();
+    const badge = screen
+      .getByRole("region", { name: "Logros" })
+      .querySelector(".motion-badge-late");
+    expect(badge).not.toBeNull();
+    const confetti = document.querySelector<HTMLElement>("[data-slot=confetti]");
+    expect(confetti?.getAttribute("aria-hidden")).toBe("true");
+    expect(confetti?.className).toMatch(/pointer-events-none/);
+    expect(confetti?.querySelectorAll("i")).toHaveLength(10);
+  });
+
+  it("throws no confetti without a rank up nor an unlocked level", async () => {
+    renderSummary(stateFor({ kind: "first", gained: 1 }));
+    await title();
+    expect(document.querySelector("[data-slot=confetti]")).toBeNull();
+  });
+
+  it("with reduced motion only fades the trophy and the badge in, without confetti", async () => {
+    if (aprendiz === undefined || constructor === undefined) throw new Error("< 2 ranks");
+    vi.stubGlobal("matchMedia", (query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    }));
+    renderSummary(
+      stateFor({ kind: "first", gained: 1 }, [
+        { type: "rankUp", from: aprendiz, to: constructor },
+        { type: "levelUnlocked", level: 300, areas: ["serverless"] },
+      ]),
+    );
+    await title();
+    expect(document.querySelector("[data-slot=confetti]")).toBeNull();
+    expect(document.querySelector(".motion-badge, .motion-badge-late")).toBeNull();
+    const faded = document.querySelectorAll(".animate-in.fade-in");
+    // The trophy and the two achievements.
+    expect(faded).toHaveLength(3);
+  });
+
   it("says when the XP does not go up because the best result was higher or equal", async () => {
     renderSummary(stateFor({ kind: "lower", gained: 0, previousXp: 99_999 }));
     await title();
