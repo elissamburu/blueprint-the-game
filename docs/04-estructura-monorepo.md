@@ -38,11 +38,10 @@ blueprint/
 │   │   │   │   ├── auth/
 │   │   │   │   ├── onboarding/
 │   │   │   │   ├── catalog-browse/    # listado, filtros, recomendados
-│   │   │   │   ├── play/              # pantalla de juego (usa packages/diagram + game-engine)
+│   │   │   │   ├── play/              # ruta, desbloqueo, resumen e imprimible; la pantalla de juego es packages/play (ADR-0025)
 │   │   │   │   ├── summary/
 │   │   │   │   ├── profile/           # XP, rango, insignias, álbum
 │   │   │   │   └── about/
-│   │   │   ├── interaction/           # adaptadores drag / tap / teclado → comandos (ADR-0008)
 │   │   │   ├── progress/              # repositorio de progreso: LocalStorageRepo | ApiRepo
 │   │   │   ├── i18n/                  # strings de UI (es por defecto)
 │   │   │   └── main.tsx
@@ -51,15 +50,16 @@ blueprint/
 │   │   ├── e2e/                       # Playwright
 │   │   └── vite.config.ts
 │   │
-│   └── studio/                        # 🛠️ Scenario Studio — solo local (ADR-0013)
-│       ├── src/                       # UI React (formulario, editor visual, YAML, validación, preview)
-│       ├── server/                    # Node (Hono) en 127.0.0.1: lee/escribe content/, IA, gh
+│   └── studio/                        # 🛠️ Scenario Studio — solo local (ADR-0013, ADR-0025)
+│       ├── src/                       # UI React (formulario, editor visual, YAML, validación, respuestas, preview con packages/play)
+│       ├── server/                    # Node (Hono) en 127.0.0.1, endurecido (ADR-0025 §4): lee/escribe content/scenarios/
 │       │   ├── routes/
-│       │   │   ├── scenarios.ts       # GET/PUT content/scenarios/*
-│       │   │   ├── validate.ts        # schema + lint
-│       │   │   ├── ai.ts              # generar / reparar / revisar / regenerar parcial
-│       │   │   └── pr.ts              # rama + commit -s + gh pr create
+│       │   │   ├── scenarios.ts       # GET/PUT/POST content/scenarios/* (sin borrar)
+│       │   │   ├── shared.ts          # catálogo, áreas, game-rules e insignias para la validación en vivo
+│       │   │   ├── ai.ts              # F5: generar / reparar / revisar / regenerar parcial
+│       │   │   └── pr.ts              # F5: rama + commit -s + gh pr create (con ADR propio: en F2 no se ejecutan procesos, S11)
 │       │   └── index.ts
+│       ├── README.md                  # reglas de seguridad S1–S12 como lista de verificación
 │       └── vite.config.ts
 │
 ├── services/
@@ -79,9 +79,11 @@ blueprint/
 │   │   ├── src/
 │   │   ├── migrations/                # schemaVersion N → N+1
 │   │   └── dist/scenario.schema.json  # ⚙️ generado (para autocompletado YAML)
-│   ├── content-lint/                  # reglas de docs/03 §3, reporter para CLI/Studio/CI
+│   ├── content-lint/                  # reglas de docs/03 §3, reporter para CLI/Studio/CI y generador de diagram.mmd/README.md
 │   ├── game-engine/                   # 🧠 puro: evaluar, puntaje, XP, rangos, desbloqueos, insignias, paleta por nivel
-│   ├── diagram/                       # renderer React Flow compartido (web + studio), auto-layout (elkjs), export Mermaid
+│   ├── diagram/                       # renderer React Flow compartido (web + studio), editor visual (studio); auto-layout con elkjs en el subpath `layout`, sin React
+│   ├── play/                          # pantalla de juego compartida (web + preview del studio): controlador, paleta, feedback,
+│   │                                  # adaptadores drag / tap / teclado → comandos (ADR-0008); lo propio de cada app entra por GameHost (ADR-0025)
 │   ├── ai-generator/                  # prompts, tool schema, bucle de reparación, revisión crítica
 │   │   └── src/providers/             # bedrock.ts (default), anthropic.ts — interfaz LlmProvider
 │   ├── catalog/                       # loader y helpers del catálogo (búsqueda, categorías, grupos de confusión)
@@ -146,29 +148,47 @@ blueprint/
 ## 2. Dependencias entre paquetes
 
 ```
-                     ┌──────────────────┐
-                     │ scenario-schema  │  (Zod, tipos)
-                     └────────┬─────────┘
-          ┌──────────┬────────┼──────────┬───────────────┐
-          ▼          ▼        ▼          ▼               ▼
-   content-lint   catalog  game-engine  api-contract   ai-generator
-          │          │        │          │               │ (usa content-lint para reparar)
-          │          └───┬────┘          │               │
-          │              ▼               │               │
-          │           diagram            │               │
-          │              │               │               │
-   ┌──────┴───┬──────────┼───────────────┼───────┐       │
-   ▼          ▼          ▼               ▼       ▼       ▼
- tools/    apps/web   apps/studio ◀──────┴── services/api
- content              (usa todo lo anterior + ai-generator)
+                ┌─────────────────┐
+                │ scenario-schema │  (Zod, tipos)
+                └────────┬────────┘
+      ┌──────────────────┼──────────────────┐
+      ▼                  ▼                  ▼
+ content-lint       game-engine          diagram ◀───────┬──── ui  (componentes y tokens)
+      │                  │                  │            │
+      │                  │                  ▼            │
+      │                  └──────────────▶  play  ◀───────┘
+      │                                     │
+      ▼                                     ▼
+ tools/content                     apps/web · apps/studio
 ```
+
+El grafo muestra los paquetes que existen y `play` ([ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). `ui` no depende de ningún paquete interno. Dependencias internas completas (sin `config`, que solo aporta tooling): las de los paquetes que existen salen de sus `package.json`; las de los marcados con fase o "planificado" son las previstas.
+
+| Paquete | Depende de |
+|---|---|
+| `scenario-schema` | — |
+| `ui` | — |
+| `content-lint` | `scenario-schema` |
+| `game-engine` | `scenario-schema` |
+| `diagram` | `scenario-schema`, `ui` |
+| `play` (F2) | `scenario-schema`, `game-engine`, `diagram`, `ui` |
+| `catalog` (planificado) | `scenario-schema` |
+| `api-contract` (F4) | `scenario-schema` |
+| `ai-generator` (F5) | `scenario-schema`, `content-lint` (para reparar) |
+| `tools/content` | `scenario-schema`, `content-lint` |
+| `apps/web` | `scenario-schema`, `game-engine`, `diagram`, `ui`; `play` desde F2 |
+| `apps/studio` (F2) | `scenario-schema`, `content-lint`, `game-engine`, `diagram`, `ui`, `play`; `ai-generator` en F5 |
+| `services/api` (F4) | `scenario-schema`, `game-engine`, `api-contract` |
 
 Reglas (enforced con `eslint-plugin-boundaries` o `dependency-cruiser`):
 - `packages/*` **no** importan de `apps/*` ni de `services/*`.
 - `game-engine`, `scenario-schema`, `content-lint`, `catalog` **no tienen IO** (ni `fs`, ni `fetch`, ni SDKs de AWS) en su `src/`, tests incluidos. Reciben datos y devuelven datos. Sus scripts de build (`scripts/`) pueden usar Node, pero `src/` no puede importarlos.
-- `services/api` no importa `diagram` ni `ui`.
+- `services/api` no importa `diagram`, `play` ni `ui`.
+- `diagram` y `ui` no importan `game-engine`: el tablero recibe el estado por props y emite eventos. `play` es la única capa de UI que traduce esos eventos en comandos del motor ([ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)).
+- Nada alcanzable desde `apps/web` importa `@codemirror/*` ni `elkjs`: son dependencias exclusivas del Studio. Además de la regla de dependency-cruiser, el build de `apps/web` falla si alguno de esos módulos entra al bundle.
 - `ai-generator` define la interfaz `LlmProvider`; solo `providers/*` importan SDKs de IA.
-- Nada fuera de `apps/studio/server` puede escribir en `content/`.
+- Nada fuera de `apps/studio/server` puede escribir en `content/`, con una excepción: `pnpm content:gen` (`tools/content`) regenera los archivos **derivados** de cada escenario (`diagram.mmd` y `README.md`), nunca un `scenario.yaml` ni los archivos compartidos. Los dos usan el mismo generador de `content-lint`.
+- `apps/studio/server` no ejecuta procesos en F2 (S11 de [ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)).
 
 ## 3. Scripts raíz (`package.json`)
 
