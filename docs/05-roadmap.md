@@ -30,6 +30,8 @@ Fases pensadas para implementarse con Claude Code **en orden**. Cada fase termin
 **DoD**: un invitado completa los 3 escenarios, ve colores + explicaciones, sube de rango y desbloquea el nivel siguiente; e2e en Playwright; axe sin violaciones críticas.
 
 ## F1.1 · Pulido del MVP
+**Estado**: ✅ terminada el 2026-10-04 (#36, #50 y #51).
+
 **Objetivo**: que el juego sea más amable para aprender y se pueda usar fuera de la pantalla (talleres, estudio en papel).
 
 - **Mostrar solución** por casillero y completa, con aviso previo que invita a usar pistas; 0 puntos por casillero revelado y sin restar progreso (RF-PLAY-14).
@@ -43,8 +45,23 @@ Fases pensadas para implementarse con Claude Code **en orden**. Cada fase termin
 **Objetivo**: crear y editar escenarios cómodamente, con preview jugable.
 
 - `apps/studio` (UI + server local): formulario, editor visual, auto-layout, YAML sincronizado, validación en vivo, preview jugable, vista de respuestas, guardar/descargar.
+- Decisiones: [ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md) (preview con `packages/play`, modelo de edición y reglas de seguridad S1–S12 del servidor local).
 
-**DoD**: se crea un escenario nuevo sin tocar YAML a mano, se juega en preview, se guarda y pasa `content:validate`.
+Se implementa en 7 PRs, en este orden. Cada uno deja algo usable:
+
+| PR | Alcance | RF | Dependencias nuevas |
+|---|---|---|---|
+| 0 · `docs` | ADR-0025, [04](04-estructura-monorepo.md) (`packages/play`, generador en `content-lint`, aclaración de `content:gen`) y este plan. | — | — |
+| 1 · `refactor(play)` | Extraer la pantalla de juego y los adaptadores de interacción a `packages/play` con el puerto `GameHost`. Sin cambios de comportamiento: el e2e del juego no cambia. Los archivos se mueven con `git mv` en un commit de solo movimientos, separado de los commits que cambian código. | (habilita RF-STU-08) | — |
+| 2 · `feat(studio)` base | Servidor endurecido (S1–S12, cada regla con su test), listar y abrir escenarios, editor YAML, validación en vivo (schema + lint) con salto a la línea, guardar con regeneración de `diagram.mmd` y `README.md` (el generador pasa a `content-lint`). Chequeo automático de que el bundle de `apps/web` no incluye `@codemirror/*` ni `elkjs`. | RF-STU-02, 06 (solo YAML), 07, 14 (guardar), 18 | `hono`, `@hono/node-server`, `@codemirror/*` |
+| 3 · `feat(studio)` preview + respuestas | Botón "Jugar" con `packages/play` (sin guardar progreso) y vista "respuestas" con todos los casilleros revelados. | RF-STU-08, 09 | — |
+| 4 · `feat(studio)` formulario | Editor por formulario sincronizado con el YAML (comandos sobre el documento, conserva comentarios), con clic del panel de validación al campo. Componentes nuevos de `packages/ui` (input, textarea, label, tabs, checkbox). | RF-STU-03, 06, 07 | — |
+| 5 · `feat(studio)` diagrama | Editor visual en `packages/diagram` (mover, crear y borrar nodos y grupos, aristas, pasos), con alternativa por teclado y formulario, y "Ordenar" con elkjs (subpath `@blueprint/diagram/layout`, carga diferida). El wireframe ASCII va en la descripción del PR; si no convence, se pasa por la herramienta de diseño antes de implementar. | RF-STU-04, 05 | `elkjs` |
+| 6 · `feat(studio)` crear + .zip | Crear vacío, desde `_templates` o duplicando; descargar `.zip` con el escenario y sus archivos generados. | RF-STU-01 (parte F2), 14 (descargar) | `fflate` |
+
+L014 (control de `version` contra `main`) no corre en el Studio: queda en `pnpm content:validate --base origin/main` y en el CI de F3.
+
+**DoD**: se crea un escenario nuevo sin tocar YAML a mano, se juega en preview, se guarda y pasa `content:validate`; los tests de S1–S12 pasan; el bundle de `apps/web` no incluye `@codemirror/*` ni `elkjs`; pruebas manuales de [accesibilidad](accesibilidad.md#7-protocolo-de-pruebas) completas sobre el Studio.
 
 ## F3 · Infraestructura y despliegue
 **Objetivo**: el juego (modo invitado) publicado en AWS con CI/CD por OIDC.

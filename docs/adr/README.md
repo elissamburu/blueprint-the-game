@@ -28,6 +28,7 @@ Formato: [MADR](https://adr.github.io/madr/) simplificado (Contexto · Decisión
 | [0022](0022-modo-texto.md) | Modo texto: representación alternativa del juego | Propuesto |
 | [0023](0023-contenido-multiidioma.md) | Contenido multiidioma | Propuesto |
 | [0024](0024-comando-revealsolution.md) | Comando `revealSolution`: ver la solución de un casillero o de todo el escenario | Aceptado |
+| [0025](0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md) | Studio: preview con `packages/play` y servidor local endurecido | Aceptado |
 
 ## Plantilla
 
