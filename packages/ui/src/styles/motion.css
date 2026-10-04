@@ -21,7 +21,8 @@
   --motion-duration-base: 260ms;
   --motion-duration-result: 360ms;
   --motion-duration-celebrate: 1100ms;
-  --motion-duration-confetti: 1400ms;
+  /* Prototipo: 1400ms. Con el escalonado (hasta 180 ms) el confeti termina a los 1,48 s. */
+  --motion-duration-confetti: 1300ms;
   --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
   --motion-ease-in: cubic-bezier(0.55, 0, 1, 0.45);
   --motion-ease-soft-pop: cubic-bezier(0.34, 1.2, 0.64, 1);

@@ -2,7 +2,7 @@
 // Classes of each moment of docs/design/motion-spec.md (RF-PLAY-17), built on tw-animate-css with
 // the --motion-* tokens of styles/motion.css. With reduced motion every moment is a 150 ms fade,
 // without transform (docs/accesibilidad.md §3); the caller says which one it wants, from
-// prefers-reduced-motion. Nothing loops and nothing lasts more than 1.4 s.
+// prefers-reduced-motion. Nothing loops and nothing ends later than 1.5 s.
 
 export type MotionMoment =
   /** A service lands on a slot (.placed-service). */

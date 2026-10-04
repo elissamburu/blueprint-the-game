@@ -2,7 +2,7 @@
 // Animations (RF-PLAY-17, docs/design/motion-spec.md, docs/accesibilidad.md §3): placing a service,
 // the result of a slot, the feedback card, the progress bar and the celebration of the summary.
 // With prefers-reduced-motion nothing moves (fades only, no confetti, the bar jumps); without it,
-// every animation plays once and none lasts more than 1.5 s.
+// every animation plays once and all of them end within 1.5 s, the last confetti piece included.
 import { expect, test, type Page } from "@playwright/test";
 import { expectNoBlockingViolations } from "../support/axe";
 import { feedback, finish, onboard, place, placeAll, playFromListing } from "../support/app";
@@ -29,6 +29,12 @@ const moving = (animations: readonly ScreenAnimation[]) =>
     .map(({ name, target, transforms }) => `${name} en ${target}: ${transforms.join(" → ")}`);
 
 const confetti = (page: Page) => page.locator(".motion-confetti i");
+
+/** When an animation ends, from the moment it was started: its delay (a stagger) plus its run. */
+const end = ({ delay, duration }: ScreenAnimation) => delay + duration;
+
+/** The whole moment ends within 1.5 s, measured up to the animation that ends last. */
+const LIMIT_MS = 1_500;
 
 test.describe("prefers-reduced-motion: reduce", () => {
   test.use({ contextOptions: { reducedMotion: "reduce" } });
@@ -83,8 +89,8 @@ test.describe("prefers-reduced-motion: no-preference", () => {
     expect(moving(placed).length).toBeGreaterThanOrEqual(4);
     for (const animation of placed) {
       expect(animation.iterations).toBe(1);
-      expect(animation.duration).toBeLessThanOrEqual(1_500);
     }
+    expect(Math.max(...placed.map(end))).toBeLessThanOrEqual(LIMIT_MS);
 
     // The card sinks out and is gone.
     await page.getByRole("button", { name: "Cerrar explicación" }).click();
@@ -102,8 +108,11 @@ test.describe("prefers-reduced-motion: no-preference", () => {
     );
     for (const animation of summary) {
       expect(animation.iterations).toBe(1);
-      expect(animation.duration).toBeLessThanOrEqual(1_500);
     }
+    // The last of the ten pieces starts 180 ms late: 180 + 1300 = 1480 ms.
+    const confettiEnds = summary.filter((a) => a.name === "motion-confetti").map(end);
+    expect(Math.max(...confettiEnds)).toBe(1_480);
+    expect(Math.max(...summary.map(end))).toBeLessThanOrEqual(LIMIT_MS);
     await restore();
     // Decoration: hidden from assistive technology and from the pointer.
     await expect(page.locator(".motion-confetti")).toHaveAttribute("aria-hidden", "true");
