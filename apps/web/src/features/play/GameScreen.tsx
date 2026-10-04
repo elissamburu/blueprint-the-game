@@ -197,7 +197,11 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     if (slot === null || slot.dataset.slotId === game.feedbackSlotId) return;
     window.setTimeout(() => {
       const card = cardRef.current;
-      if (card === null || !slot.isConnected) return;
+      // The card of this very slot: a placement focuses its slot before the render that opens
+      // its card, so `game.feedbackSlotId` above can still be the previous one.
+      if (card === null || !slot.isConnected || card.dataset.slotFeedback === slot.dataset.slotId) {
+        return;
+      }
       const a = card.getBoundingClientRect();
       const b = slot.getBoundingClientRect();
       const covered = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
