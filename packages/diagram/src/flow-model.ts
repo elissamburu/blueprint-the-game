@@ -12,6 +12,7 @@ import type {
   SlotNode,
 } from "@blueprint/scenario-schema";
 import type { Edge, Node } from "@xyflow/react";
+import type { SlotMotion } from "./slot-motion";
 import {
   edgeSegment,
   groupLabelBox,
@@ -45,6 +46,8 @@ export type SlotNodeData = {
   view: SlotView;
   service: ServiceInfo | undefined;
   box: Box;
+  /** A change of the slot to animate (slot-motion.ts). */
+  motion?: SlotMotion | undefined;
 };
 
 export type GroupFlowNode = Node<GroupNodeData, "group">;
@@ -117,6 +120,8 @@ export const orderGroups = (groups: readonly Group[]): { group: Group; depth: nu
 export interface NodeStateInput {
   slots?: Readonly<Record<string, SlotView>> | undefined;
   services: ServiceLookup;
+  /** Motions to play, by slot id (only on the board). */
+  motions?: Readonly<Record<string, SlotMotion>> | undefined;
 }
 
 const emptyView = (node: SlotNode): SlotView => ({
@@ -130,7 +135,7 @@ const relative = (point: Point, parent: Group | undefined): Point =>
 
 export const toFlowNodes = (
   diagram: Pick<Diagram, "groups" | "nodes">,
-  { slots, services }: NodeStateInput,
+  { slots, services, motions }: NodeStateInput,
 ): FlowNode[] => {
   const groupsById = new Map(diagram.groups.map((g) => [g.id, g]));
   const fixed = { draggable: false, selectable: false, focusable: false, connectable: false };
@@ -179,6 +184,7 @@ export const toFlowNodes = (
             view: { ...view, hints: view.hints ?? emptyView(node).hints },
             service: serviceId === undefined ? undefined : services(serviceId),
             box,
+            motion: motions?.[node.id],
           },
         };
       }

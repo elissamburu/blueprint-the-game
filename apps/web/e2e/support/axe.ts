@@ -6,10 +6,16 @@ import { expect, type Page } from "@playwright/test";
 
 const BLOCKING = new Set(["critical", "serious"]);
 
-/** Entrance animations (dialogs, popovers) fade the text in: axe waits for them to end. */
+/**
+ * Entrance animations (dialogs, popovers, slots, the feedback card) fade the text in: axe waits
+ * for them to end. One cancelled meanwhile (its element left, e.g. the card that sinks out)
+ * rejects `finished` with an AbortError: it is gone, which is just as good.
+ */
 const settle = (page: Page) =>
   page.evaluate(async () => {
-    await Promise.all(document.getAnimations().map((animation) => animation.finished));
+    await Promise.all(
+      document.getAnimations().map((animation) => animation.finished.catch(() => undefined)),
+    );
   });
 
 /**

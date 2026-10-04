@@ -1,0 +1,134 @@
+/* SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0 */
+/*
+ * Movimiento (RF-PLAY-17). Tokens y keyframes de docs/design/motion.css.txt, que es la referencia
+ * del prototipo; los momentos y sus alternativas salen de docs/design/motion-spec.md.
+ *
+ * Los momentos que son una entrada o una salida (colocar, resultado, feedback) se arman con
+ * tw-animate-css (animate-in / animate-out con fade, slide y zoom): sus keyframes enter y exit
+ * cubren motion-settle, -pop-in, -soft-in, -fade-in, -rise-in, -sink-out y -fade-out del
+ * prototipo, así que no se duplican. Las clases de cada momento están en lib/motion.ts. Acá
+ * quedan solo los keyframes que tw-animate-css no tiene: la insignia (sube a 1.04 y vuelve) y el
+ * confeti.
+ *
+ * Movimiento reducido (docs/accesibilidad.md §3): las apps eligen la variante de fundido con
+ * useReducedMotion. Además, la media query de abajo saca el transform de todo lo que se marca con
+ * motion-reducible, por si la preferencia cambia antes de que React vuelva a renderizar.
+ */
+
+:root {
+  --motion-duration-instant: 120ms;
+  --motion-duration-fast: 200ms;
+  --motion-duration-base: 260ms;
+  --motion-duration-result: 360ms;
+  --motion-duration-celebrate: 1100ms;
+  /* Prototipo: 1400ms. Con el escalonado (hasta 180 ms) el confeti termina a los 1,48 s. */
+  --motion-duration-confetti: 1300ms;
+  --motion-ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --motion-ease-in: cubic-bezier(0.55, 0, 1, 0.45);
+  --motion-ease-soft-pop: cubic-bezier(0.34, 1.2, 0.64, 1);
+  --motion-reduced-fade: 150ms;
+
+  /* No están en motion.css.txt; salen de la tabla de motion-spec.md. */
+  --motion-duration-progress: 400ms;
+  /* Insignia: 700 ms después de 400 ms, así termina con --motion-duration-celebrate (1,1 s). */
+  --motion-delay-badge: 400ms;
+  --motion-duration-badge: calc(var(--motion-duration-celebrate) - var(--motion-delay-badge));
+}
+
+/* ease-motion-out, ease-motion-in y ease-motion-pop: también fijan la curva de tw-animate-css. */
+@theme inline {
+  --ease-motion-out: var(--motion-ease-out);
+  --ease-motion-in: var(--motion-ease-in);
+  --ease-motion-pop: var(--motion-ease-soft-pop);
+}
+
+@keyframes motion-badge-in {
+  0% {
+    opacity: 0;
+    transform: scale(0.7);
+  }
+  70% {
+    opacity: 1;
+    transform: scale(1.04);
+  }
+  100% {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes motion-confetti {
+  0% {
+    opacity: 0;
+    transform: translate(0, 0) rotate(0);
+  }
+  15% {
+    opacity: 1;
+  }
+  100% {
+    opacity: 0;
+    transform: translate(var(--dx), 120px) rotate(200deg);
+  }
+}
+
+/* Trofeo del resumen (.burst del prototipo). */
+.motion-badge {
+  animation: motion-badge-in var(--motion-duration-badge) var(--motion-ease-out) both;
+}
+
+/* Logro del resumen (.badge-medal del prototipo): después del trofeo. */
+.motion-badge-late {
+  animation: motion-badge-in var(--motion-duration-badge) var(--motion-ease-out)
+    var(--motion-delay-badge) both;
+}
+
+/*
+ * Confeti decorativo: 10 piezas <i style="--i: n">, una sola vez. El contenedor lo posiciona la
+ * app (absoluto, aria-hidden, sin eventos de puntero).
+ */
+.motion-confetti i {
+  position: absolute;
+  top: 3.5rem;
+  left: calc(50% - 3px);
+  width: 6px;
+  height: 10px;
+  border-radius: 2px;
+  opacity: 0;
+  background: color-mix(in oklab, var(--warning) 70%, var(--primary-foreground));
+  --dx: calc((var(--i) - 4.5) * 34px);
+  animation: motion-confetti var(--motion-duration-confetti) var(--motion-ease-out)
+    calc(var(--i) * 20ms) 1 both;
+}
+
+.motion-confetti i:nth-child(even) {
+  background: color-mix(in oklab, var(--success) 60%, var(--primary-foreground));
+}
+
+/*
+ * Fuera de las capas de Tailwind a propósito: le gana a las utilidades de tw-animate-css sin
+ * importar el orden.
+ */
+@media (prefers-reduced-motion: reduce) {
+  .motion-reducible {
+    --tw-enter-translate-x: 0;
+    --tw-enter-translate-y: 0;
+    --tw-enter-scale: 1;
+    --tw-enter-rotate: 0;
+    --tw-exit-translate-x: 0;
+    --tw-exit-translate-y: 0;
+    --tw-exit-scale: 1;
+    --tw-exit-rotate: 0;
+    --tw-animation-duration: var(--motion-reduced-fade);
+    --tw-ease: linear;
+  }
+
+  .motion-badge,
+  .motion-badge-late {
+    animation: enter var(--motion-reduced-fade) linear both;
+    --tw-enter-opacity: 0;
+  }
+
+  .motion-confetti {
+    display: none;
+  }
+}

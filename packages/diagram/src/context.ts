@@ -24,8 +24,13 @@ export interface DiagramContextValue {
    * a name may shrink to so it fits its box (printLayout). Null on screen.
    */
   printLabels: { size: number; min: number } | null;
-  /** Animate the active edges (false with prefers-reduced-motion). */
+  /**
+   * Full motion: animated active edges and slot changes that move. False with
+   * prefers-reduced-motion: no edge animation and slot changes only fade (RF-PLAY-17).
+   */
   animate: boolean;
+  /** The motion `key` of a slot has played (slot-motion.ts). */
+  onSlotMotionEnd: (slotId: string, key: number) => void;
   /** Ids of the arrow markers (defs rendered once by the board). */
   markers: { idle: string; active: string };
 }

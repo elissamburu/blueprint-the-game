@@ -26,6 +26,8 @@ import {
 } from "@blueprint/game-engine";
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
+import { EXIT_MS } from "@blueprint/ui/lib/motion";
+import { useReducedMotion } from "@blueprint/ui/lib/use-reduced-motion";
 import {
   useCallback,
   useEffect,
@@ -57,6 +59,7 @@ import { PALETTE_COLLAPSED_KEY, useFlagPreference } from "./ui-preferences";
 import { useFeedbackPlacement } from "./use-feedback-placement";
 import { useFocusMode } from "./use-focus-mode";
 import { useGameController, type Names } from "./use-game-controller";
+import { usePresence } from "./use-presence";
 
 const REPOSITORY = repositoryUrl(import.meta.env.VITE_REPO_URL);
 /** A slot reached with Tab is in place once the board's reveal (200 ms) is over. */
@@ -165,6 +168,16 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
   const cardRef = useRef<HTMLElement>(null);
   const panBoard = useCallback((dx: number, dy: number) => diagramRef.current?.panBy(dx, dy), []);
   const showFeedback = hasFeedback(session, game.feedbackSlotId);
+  const reducedMotion = useReducedMotion();
+  // The card that closes stays while it sinks out, with what it showed (RF-PLAY-17).
+  const feedback = useMemo(
+    () =>
+      showFeedback && game.feedbackSlotId !== null
+        ? { session, slotId: game.feedbackSlotId }
+        : null,
+    [showFeedback, session, game.feedbackSlotId],
+  );
+  const card = usePresence(feedback, EXIT_MS + 100);
   const placement = useFeedbackPlacement({
     area: boardArea,
     card: cardRef,
@@ -184,7 +197,11 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     if (slot === null || slot.dataset.slotId === game.feedbackSlotId) return;
     window.setTimeout(() => {
       const card = cardRef.current;
-      if (card === null || !slot.isConnected) return;
+      // The card of this very slot: a placement focuses its slot before the render that opens
+      // its card, so `game.feedbackSlotId` above can still be the previous one.
+      if (card === null || !slot.isConnected || card.dataset.slotFeedback === slot.dataset.slotId) {
+        return;
+      }
       const a = card.getBoundingClientRect();
       const b = slot.getBoundingClientRect();
       const covered = a.left < b.right && b.left < a.right && a.top < b.bottom && b.top < a.bottom;
@@ -419,11 +436,16 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
               <p key={game.announcement.key} className="sr-only">
                 {game.announcement.text}
               </p>
-              {showFeedback && (
+              {card.shown !== null && (
                 <FeedbackCard
-                  ref={cardRef}
-                  session={session}
-                  slotId={game.feedbackSlotId}
+                  // Another slot: its card comes in.
+                  key={card.shown.slotId}
+                  ref={card.leaving ? undefined : cardRef}
+                  session={card.shown.session}
+                  slotId={card.shown.slotId}
+                  leaving={card.leaving}
+                  onExited={card.exited}
+                  reducedMotion={reducedMotion}
                   services={services}
                   side={placement.side}
                   gap={placement.gap}

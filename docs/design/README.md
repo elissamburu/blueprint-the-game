@@ -8,6 +8,8 @@ Capturas y tokens del prototipo hecho en Lovable (28/09/2026; layout de juego v2
 |---|---|
 | [tokens.css](tokens.css) | Tokens listos para `packages/ui` (formato shadcn + Tailwind v4, OKLCH). Incluye ajustes de contraste respecto del prototipo. |
 | [lovable-styles.css.txt](lovable-styles.css.txt) | CSS original del prototipo, sin tocar. Sirve para consultar medidas y espaciados. **No se copia**: usa clases propias en lugar de utilidades y componentes. |
+| [motion-spec.md](motion-spec.md) | Especificación de movimiento del prototipo (03/10/2026): momento, elemento, duración, curva y alternativa con movimiento reducido (RF-PLAY-17). |
+| [motion.css.txt](motion.css.txt) | CSS de movimiento original del prototipo, sin tocar: variables `--motion-*` y `@keyframes`. **No se copia** tal cual: la implementación está en `packages/ui`. |
 | [pantallas/00-onboarding.png](pantallas/00-onboarding.png) | Onboarding: áreas de interés (multi-selección) y experiencia (RF-ONB-01, RF-ONB-02). |
 | [pantallas/01-juego-escenario-300.png](pantallas/01-juego-escenario-300.png) | Pantalla de juego: caso y objetivos, tablero con grupos, casilleros resueltos, aristas numeradas y paleta. |
 | [pantallas/02-escenarios-recomendado.png](pantallas/02-escenarios-recomendado.png) | Listado de escenarios: cabecera y banda de recomendado. |

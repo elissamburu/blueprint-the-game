@@ -14,6 +14,7 @@
  */
 @import "tailwindcss";
 @import "tw-animate-css";
+@import "./motion.css";
 
 @theme inline {
   --font-sans: "Segoe UI", system-ui, -apple-system, "Helvetica Neue", Arial, sans-serif;

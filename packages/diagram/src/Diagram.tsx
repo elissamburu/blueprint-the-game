@@ -9,6 +9,7 @@
 import "@xyflow/react/dist/base.css";
 import { Button } from "@blueprint/ui/components/button";
 import type { Diagram as DiagramData } from "@blueprint/scenario-schema";
+import { useReducedMotion } from "@blueprint/ui/lib/use-reduced-motion";
 import { cn } from "@blueprint/ui/lib/utils";
 import { useDndMonitor, type DragEndEvent } from "@dnd-kit/core";
 import {
@@ -39,6 +40,7 @@ import {
   useImperativeHandle,
   useMemo,
   useRef,
+  useState,
   type KeyboardEvent,
   type ReactNode,
   type Ref,
@@ -62,8 +64,14 @@ import {
   type SlotHintContext,
   type SlotView,
 } from "./types";
+import {
+  endSlotMotion,
+  initialSlotMotion,
+  SLOT_MOTION_TTL_MS,
+  trackSlotMotion,
+  type SlotMotionState,
+} from "./slot-motion";
 import { useFlowPlayer, type FlowPlayer } from "./use-flow-player";
-import { useReducedMotion } from "./use-reduced-motion";
 import { contentBox, initialView, revealViewport, steppedZoom } from "./viewport";
 
 export const MIN_ZOOM = 0.2;
@@ -221,6 +229,7 @@ function DiagramPreview({
       print,
       printLabels: print ? (printLabels ?? null) : null,
       animate: false,
+      onSlotMotionEnd: ignoreMotionEnd,
       markers,
     }),
     [markers, print, printLabels],
@@ -289,6 +298,38 @@ function DiagramPreview({
   );
 }
 
+/** Still pictures play no motion. */
+const ignoreMotionEnd = () => {};
+
+/**
+ * Motions of the slots of the board (RF-PLAY-17): started when `slots` changes, dropped when they
+ * end or, if their end is never heard, after SLOT_MOTION_TTL_MS.
+ */
+function useSlotMotion(slots: DiagramProps["slots"]) {
+  const [state, setState] = useState<SlotMotionState>(() => initialSlotMotion(slots));
+  // Updated while rendering, from the previous props (react.dev, "Storing information from
+  // previous renders"): the nodes get the motion in the same render as the new state.
+  if (state.slots !== slots) setState(trackSlotMotion(state, slots));
+  const { motions } = state;
+
+  const onSlotMotionEnd = useCallback(
+    (slotId: string, key: number) => setState((current) => endSlotMotion(current, slotId, key)),
+    [],
+  );
+  useEffect(() => {
+    const playing = Object.entries(motions);
+    if (playing.length === 0) return;
+    const timer = window.setTimeout(() => {
+      setState((current) =>
+        playing.reduce((next, [slotId, { key }]) => endSlotMotion(next, slotId, key), current),
+      );
+    }, SLOT_MOTION_TTL_MS);
+    return () => window.clearTimeout(timer);
+  }, [motions]);
+
+  return { motions, onSlotMotionEnd };
+}
+
 function DiagramBoard({
   diagram,
   services,
@@ -316,9 +357,10 @@ function DiagramBoard({
   const currentStep = player.current === null ? null : (steps[player.current] ?? null);
 
   const layout = useMemo(() => layoutDiagram(diagram), [diagram]);
+  const { motions, onSlotMotionEnd } = useSlotMotion(slots);
   const nodes = useMemo(
-    () => toFlowNodes(diagram, { slots, services }),
-    [diagram, slots, services],
+    () => toFlowNodes(diagram, { slots, services, motions }),
+    [diagram, slots, services, motions],
   );
   const edges = useMemo(
     () => toFlowEdges(diagram, layout, currentStep?.step ?? null),
@@ -432,9 +474,18 @@ function DiagramBoard({
       print: false,
       printLabels: null,
       animate: !reducedMotion,
+      onSlotMotionEnd,
       markers,
     }),
-    [onSlotActivate, slotHintAction, onServiceDrop, reveal, reducedMotion, markers],
+    [
+      onSlotActivate,
+      slotHintAction,
+      onServiceDrop,
+      reveal,
+      reducedMotion,
+      onSlotMotionEnd,
+      markers,
+    ],
   );
 
   const describedBy = [steps.length > 0 ? stepsId : null, helpId].filter(Boolean).join(" ");

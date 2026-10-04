@@ -7,6 +7,7 @@ import { createRef } from "react";
 import { ARROW_PAN, Diagram, type DiagramHandle } from "./Diagram";
 import { nodeBox } from "./geometry";
 import { fakeServices, pdfScenario, staticWebsiteScenario } from "./testing/fixtures";
+import type { SlotView } from "./types";
 
 // jsdom has no layout: the mocks React Flow documents for tests (reactflow.dev "Testing").
 beforeAll(() => {
@@ -240,6 +241,86 @@ describe("Diagram viewport stability", () => {
     await user.tab();
     // jsdom has no layout: the board measures 0 × 0, so every slot is out of view.
     await waitFor(() => expect(transform()).not.toBe(initial));
+  });
+});
+
+describe("Diagram slot motion (RF-PLAY-17)", () => {
+  const slotId = "api-entry";
+  const TRANSFORMS = /\b(zoom-in|slide-in-from)-/;
+  const playBoard = (view: SlotView) => (
+    <div style={{ width: 1200, height: 800 }}>
+      <Diagram
+        diagram={pdfScenario.diagram}
+        services={fakeServices}
+        slots={{ [slotId]: view }}
+        onSlotActivate={() => {}}
+      />
+    </div>
+  );
+  /** Classes of the parts of the slot that can move: placed service, grade label and icon. */
+  const motionClasses = () => {
+    const slot = document.querySelector(`[data-slot-id="${slotId}"]`);
+    return ["[data-slot=architecture-slot-service]", "[data-slot=grade-badge]", "svg"]
+      .map((selector) => slot?.querySelector(selector)?.getAttribute("class") ?? "")
+      .join(" ");
+  };
+  const empty: SlotView = { grade: "empty", serviceId: null };
+  const optimal: SlotView = { grade: "optimal", serviceId: "apigateway" };
+
+  it("animates a slot when its grade changes, and not when it is drawn again with it", () => {
+    const { rerender, unmount } = render(playBoard(empty));
+    expect(motionClasses()).not.toMatch(/animate-in/);
+
+    rerender(playBoard(optimal));
+    expect(motionClasses()).toMatch(/slide-in-from-top-\[6px\]/);
+    expect(motionClasses()).toMatch(/zoom-in-60/);
+
+    // Once it played, other changes of the slot (the selection) do not replay it.
+    const icon = document.querySelector(`[data-slot-id="${slotId}"] [data-slot=grade-badge]`);
+    act(() => {
+      fireEvent(icon as Element, new Event("webkitAnimationEnd", { bubbles: true }));
+    });
+    rerender(playBoard({ ...optimal, selected: true }));
+    expect(motionClasses()).not.toMatch(/animate-in/);
+
+    // Mounted again (an opened scenario, a node React Flow draws again): nothing moves.
+    unmount();
+    render(playBoard(optimal));
+    expect(motionClasses()).not.toMatch(/animate-in/);
+  });
+
+  it("drops a motion whose end it never hears", () => {
+    vi.useFakeTimers();
+    try {
+      const { rerender } = render(playBoard(empty));
+      rerender(playBoard(optimal));
+      expect(motionClasses()).toMatch(/animate-in/);
+      act(() => {
+        vi.advanceTimersByTime(1_000);
+      });
+      expect(motionClasses()).not.toMatch(/animate-in/);
+    } finally {
+      vi.useRealTimers();
+    }
+  });
+
+  it("with reduced motion only fades the change in, without transform", () => {
+    // jsdom has no matchMedia. Not vi.stubGlobal: unstubbing would drop the stubs of beforeAll.
+    const original: unknown = Reflect.get(window, "matchMedia");
+    window.matchMedia = ((query: string) => ({
+      matches: query === "(prefers-reduced-motion: reduce)",
+      media: query,
+      addEventListener: () => {},
+      removeEventListener: () => {},
+    })) as unknown as typeof window.matchMedia;
+    try {
+      const { rerender } = render(playBoard(empty));
+      rerender(playBoard(optimal));
+      expect(motionClasses()).toMatch(/fade-in duration-\(--motion-reduced-fade\)/);
+      expect(motionClasses()).not.toMatch(TRANSFORMS);
+    } finally {
+      Reflect.set(window, "matchMedia", original);
+    }
   });
 });
 

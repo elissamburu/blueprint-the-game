@@ -156,6 +156,45 @@ describe("FeedbackCard", () => {
     expect(onClose).toHaveBeenCalled();
   });
 
+  describe("motion (RF-PLAY-17)", () => {
+    const placed = () => play(commands.placeService("api-entry", "apigateway"));
+    const card = (props: { leaving?: boolean; reducedMotion?: boolean; onExited?: () => void }) =>
+      render(
+        <FeedbackCard
+          session={placed()}
+          slotId="api-entry"
+          services={services}
+          onAccept={() => {}}
+          onRetry={() => {}}
+          onClose={() => {}}
+          {...props}
+        />,
+      ).container.querySelector("section");
+
+    it("rises in, and while it leaves it sinks out and cannot be reached", () => {
+      expect(card({})?.className).toMatch(/animate-in .*slide-in-from-bottom-\[12px\]/);
+      cleanup();
+      const onExited = vi.fn();
+      const leaving = card({ leaving: true, onExited });
+      expect(leaving?.className).toMatch(/animate-out .*slide-out-to-bottom-\[12px\]/);
+      expect(leaving?.hasAttribute("inert")).toBe(true);
+      expect(leaving?.getAttribute("aria-hidden")).toBe("true");
+      expect(screen.queryByRole("region")).toBeNull();
+      // React hears the end of a CSS animation in jsdom as webkitAnimationEnd.
+      leaving?.dispatchEvent(new Event("webkitAnimationEnd", { bubbles: true }));
+      expect(onExited).toHaveBeenCalledTimes(1);
+    });
+
+    it("with reduced motion only fades in and out", () => {
+      for (const leaving of [false, true]) {
+        const className = card({ leaving, reducedMotion: true })?.className ?? "";
+        expect(className).toMatch(/fade-(in|out) duration-\(--motion-reduced-fade\)/);
+        expect(className).not.toMatch(/slide-(in-from|out-to)-/);
+        cleanup();
+      }
+    });
+  });
+
   describe("revealed (RF-PLAY-14)", () => {
     /** The PDF scenario with a second optimal answer in api-entry (alb, acceptable in content). */
     const twoOptimal = {

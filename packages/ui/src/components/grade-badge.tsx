@@ -36,9 +36,11 @@ export const gradeLabel = (grade: SlotGrade): string => GRADES[grade].label;
 
 export type GradeBadgeProps = Omit<React.ComponentProps<"span">, "children"> & {
   grade: SlotGrade;
+  /** Extra classes of the icon (e.g. the motion of a new result). */
+  iconClassName?: string | undefined;
 };
 
-function GradeBadge({ grade, className, ...props }: GradeBadgeProps) {
+function GradeBadge({ grade, className, iconClassName, ...props }: GradeBadgeProps) {
   const { label, icon: Icon, text } = GRADES[grade];
   return (
     <span
@@ -51,7 +53,7 @@ function GradeBadge({ grade, className, ...props }: GradeBadgeProps) {
       )}
       {...props}
     >
-      <Icon aria-hidden="true" className="size-3.5 shrink-0" />
+      <Icon aria-hidden="true" className={cn("size-3.5 shrink-0", iconClassName)} />
       {label}
     </span>
   );
