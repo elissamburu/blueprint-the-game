@@ -148,24 +148,37 @@ blueprint/
 ## 2. Dependencias entre paquetes
 
 ```
-                     ┌──────────────────┐
-                     │ scenario-schema  │  (Zod, tipos)
-                     └────────┬─────────┘
-          ┌──────────┬────────┼──────────┬───────────────┐
-          ▼          ▼        ▼          ▼               ▼
-   content-lint   catalog  game-engine  api-contract   ai-generator
-          │          │        │          │               │ (usa content-lint para reparar)
-          │          ▼        │          │               │
-          │       diagram     │          │               │
-          │          └───┬────┘          │               │
-          │              ▼               │               │
-          │             play             │               │
-          │              │               │               │
-   ┌──────┴───┬──────────┼───────────────┼───────┐       │
-   ▼          ▼          ▼               ▼       ▼       ▼
- tools/    apps/web   apps/studio ◀──────┴── services/api
- content              (usa todo lo anterior + ai-generator)
+                ┌─────────────────┐
+                │ scenario-schema │  (Zod, tipos)
+                └────────┬────────┘
+      ┌──────────────────┼──────────────────┐
+      ▼                  ▼                  ▼
+ content-lint       game-engine          diagram ◀───────┬──── ui  (componentes y tokens)
+      │                  │                  │            │
+      │                  │                  ▼            │
+      │                  └──────────────▶  play  ◀───────┘
+      │                                     │
+      ▼                                     ▼
+ tools/content                     apps/web · apps/studio
 ```
+
+El grafo muestra los paquetes que existen y `play` ([ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). `ui` no depende de ningún paquete interno. Dependencias internas completas (sin `config`, que solo aporta tooling): las de los paquetes que existen salen de sus `package.json`; las de los marcados con fase o "planificado" son las previstas.
+
+| Paquete | Depende de |
+|---|---|
+| `scenario-schema` | — |
+| `ui` | — |
+| `content-lint` | `scenario-schema` |
+| `game-engine` | `scenario-schema` |
+| `diagram` | `scenario-schema`, `ui` |
+| `play` (F2) | `scenario-schema`, `game-engine`, `diagram`, `ui` |
+| `catalog` (planificado) | `scenario-schema` |
+| `api-contract` (F4) | `scenario-schema` |
+| `ai-generator` (F5) | `scenario-schema`, `content-lint` (para reparar) |
+| `tools/content` | `scenario-schema`, `content-lint` |
+| `apps/web` | `scenario-schema`, `game-engine`, `diagram`, `ui`; `play` desde F2 |
+| `apps/studio` (F2) | `scenario-schema`, `content-lint`, `game-engine`, `diagram`, `ui`, `play`; `ai-generator` en F5 |
+| `services/api` (F4) | `scenario-schema`, `game-engine`, `api-contract` |
 
 Reglas (enforced con `eslint-plugin-boundaries` o `dependency-cruiser`):
 - `packages/*` **no** importan de `apps/*` ni de `services/*`.
