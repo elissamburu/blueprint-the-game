@@ -7,10 +7,13 @@
 // font never makes slots overlap (docs/design, problem 28); the board zoom goes up to 300 %.
 // Lovable: ArchitectureSlot, .architecture-slot, .slot-status, .placed-service, .empty-slot,
 // .slot-main-action > p, .architecture-slot > button (src/components/blueprint-app.tsx, styles.css).
+// Motion (RF-PLAY-17, docs/design/motion-spec.md): the service settles and the grade appears when
+// the parent says the slot changed; the grade and its text are there from the first frame.
 import * as React from "react";
 import { CircleHelpIcon, PlusIcon } from "lucide-react";
 import { GradeBadge, gradeLabel, type SlotGrade } from "@blueprint/ui/components/grade-badge";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
+import { motionClass, type MotionMoment } from "@blueprint/ui/lib/motion";
 import { cn } from "@blueprint/ui/lib/utils";
 
 const STATES: Record<SlotGrade, string> = {
@@ -23,6 +26,27 @@ const STATES: Record<SlotGrade, string> = {
   // green in forced colors and in black and white too (docs/accesibilidad.md §3). The padding
   // gives back the extra border width.
   revealed: "border-double border-[4px] border-blueprint bg-blueprint-soft p-[6px]",
+};
+
+/**
+ * A change of the slot to animate once. A new `key` plays it again; the same key never does, so
+ * the parent keeps it only until `onMotionEnd`.
+ */
+export interface ArchitectureSlotMotion {
+  key: number;
+  /** A service was placed: it settles into the slot. */
+  placed: boolean;
+  /** The slot got a new result: its grade appears. */
+  graded: boolean;
+}
+
+/** What animates when a grade appears: the icon of a green or orange, the whole label otherwise. */
+const GRADE_MOTION: Record<SlotGrade, { moment: MotionMoment; on: "icon" | "label" } | null> = {
+  optimal: { moment: "optimal", on: "icon" },
+  acceptable: { moment: "acceptable", on: "icon" },
+  incorrect: { moment: "incorrect", on: "label" },
+  revealed: { moment: "revealed", on: "label" },
+  empty: null,
 };
 
 export interface ArchitectureSlotService {
@@ -68,6 +92,12 @@ export type ArchitectureSlotProps = Omit<React.ComponentProps<"div">, "children"
    * outside the main button (buttons cannot nest).
    */
   hintAction?: React.ReactNode;
+  /** A change to animate (placement, new grade). Without it nothing moves. */
+  motion?: ArchitectureSlotMotion | undefined;
+  /** prefers-reduced-motion: the motion is a short fade, without transform. */
+  reducedMotion?: boolean | undefined;
+  /** The last animation of `motion` ended. */
+  onMotionEnd?: (() => void) | undefined;
 };
 
 export interface SlotNameInput {
@@ -111,6 +141,9 @@ function ArchitectureSlot({
   onActivate,
   emptyText = "Arrastrá o elegí un servicio",
   hintAction,
+  motion,
+  reducedMotion = false,
+  onMotionEnd,
   className,
   ...props
 }: ArchitectureSlotProps) {
@@ -127,12 +160,43 @@ function ArchitectureSlot({
     }),
     "aria-describedby": number === undefined ? undefined : roleTextId,
   };
+  const gradeMotion = motion?.graded === true ? GRADE_MOTION[grade] : null;
+  const gradeClass =
+    gradeMotion === null ? undefined : motionClass(gradeMotion.moment, reducedMotion);
+  const settles = motion?.placed === true;
+  // Remounted with each motion, so the same animation plays again on the next change. The grade
+  // lasts longer than the settle, so its end is the end of the motion.
+  const motionKey = (part: string) => (motion === undefined ? part : `${part}-${motion.key}`);
+  const ended = (last: boolean) =>
+    last && onMotionEnd !== undefined
+      ? (event: React.AnimationEvent) => {
+          event.stopPropagation();
+          onMotionEnd();
+        }
+      : undefined;
   const body = (
     <>
-      <GradeBadge grade={grade} className="gap-[4.8px] text-[9.76px] [&_svg]:size-[14px]" />
+      <GradeBadge
+        key={motionKey("grade")}
+        grade={grade}
+        className={cn(
+          "gap-[4.8px] text-[9.76px] [&_svg]:size-[14px]",
+          gradeMotion?.on === "label" && gradeClass,
+        )}
+        iconClassName={gradeMotion?.on === "icon" ? gradeClass : undefined}
+        onAnimationEnd={ended(gradeMotion !== null)}
+      />
       {/* Service and placeholder share the height, so the slot does not jump when it fills. */}
       {service !== undefined ? (
-        <span className="mt-[4.8px] flex min-h-[36px] items-center gap-[6.4px] rounded-[5px] bg-card px-[4.8px] text-[10.88px] leading-tight">
+        <span
+          key={motionKey("service")}
+          data-slot="architecture-slot-service"
+          className={cn(
+            "mt-[4.8px] flex min-h-[36px] items-center gap-[6.4px] rounded-[5px] bg-card px-[4.8px] text-[10.88px] leading-tight",
+            settles && motionClass("settle", reducedMotion),
+          )}
+          onAnimationEnd={ended(settles && gradeMotion === null)}
+        >
           <ServiceIcon
             src={service.iconSrc}
             name={service.name}

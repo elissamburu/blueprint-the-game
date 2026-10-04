@@ -158,3 +158,89 @@ describe("ArchitectureSlot role", () => {
     expect(container.innerHTML).not.toMatch(/\sh-\[/);
   });
 });
+
+/**
+ * End of a CSS animation as React hears it in jsdom: without AnimationEvent in the window, React
+ * listens to the prefixed webkitAnimationEnd (fireEvent.animationEnd would go unheard).
+ */
+const animationEnd = (element: Element) =>
+  fireEvent(element, new Event("webkitAnimationEnd", { bubbles: true }));
+
+describe("ArchitectureSlot motion (RF-PLAY-17)", () => {
+  const TRANSFORMS = /\b(zoom-in|slide-in-from)-/;
+  const parts = (container: HTMLElement) => ({
+    service: container.querySelector<HTMLElement>("[data-slot=architecture-slot-service]"),
+    badge: container.querySelector<HTMLElement>("[data-slot=grade-badge]"),
+    icon: container.querySelector<SVGElement>("[data-slot=grade-badge] svg"),
+  });
+  const motion = { key: 1, placed: true, graded: true };
+
+  it("moves nothing without a motion", () => {
+    const { container } = render(<ArchitectureSlot grade="optimal" role="r" service={service} />);
+    const { service: placed, badge, icon } = parts(container);
+    for (const element of [placed, badge, icon]) {
+      expect(element?.getAttribute("class")).not.toMatch(/animate-in/);
+    }
+  });
+
+  it("settles the placed service and pops the icon of a green in", () => {
+    const { container } = render(
+      <ArchitectureSlot grade="optimal" role="r" service={service} motion={motion} />,
+    );
+    const { service: placed, badge, icon } = parts(container);
+    expect(placed?.className).toMatch(/animate-in .*slide-in-from-top-\[6px\] zoom-in-96/);
+    expect(icon?.getAttribute("class")).toMatch(/animate-in .*zoom-in-60/);
+    // The text of the grade is still from the first frame.
+    expect(badge?.className).not.toMatch(/animate-in/);
+  });
+
+  it("fades the whole label of an incorrect in, without transform, and raises a revealed one", () => {
+    const { container, rerender } = render(
+      <ArchitectureSlot grade="incorrect" role="r" service={service} motion={motion} />,
+    );
+    expect(parts(container).badge?.className).toMatch(/animate-in fade-in/);
+    expect(parts(container).badge?.className).not.toMatch(TRANSFORMS);
+    rerender(
+      <ArchitectureSlot
+        grade="revealed"
+        role="r"
+        service={service}
+        motion={{ ...motion, key: 2 }}
+      />,
+    );
+    expect(parts(container).badge?.className).toMatch(/slide-in-from-bottom-\[12px\]/);
+  });
+
+  it("with reduced motion only fades, without transform classes", () => {
+    const grades: SlotGrade[] = ["optimal", "acceptable", "incorrect", "revealed"];
+    for (const grade of grades) {
+      const { container } = render(
+        <ArchitectureSlot grade={grade} role="r" service={service} motion={motion} reducedMotion />,
+      );
+      const { service: placed, badge, icon } = parts(container);
+      const classes = [placed, badge, icon].map((e) => e?.getAttribute("class") ?? "").join(" ");
+      expect(classes).toMatch(/fade-in duration-\(--motion-reduced-fade\)/);
+      expect(classes).not.toMatch(TRANSFORMS);
+      cleanup();
+    }
+  });
+
+  it("tells when its last animation ends, once per motion", () => {
+    const onMotionEnd = vi.fn();
+    const { container } = render(
+      <ArchitectureSlot
+        grade="acceptable"
+        role="r"
+        service={service}
+        motion={motion}
+        onMotionEnd={onMotionEnd}
+      />,
+    );
+    const { service: placed, icon } = parts(container);
+    // The settle (200 ms) ends before the grade (260 ms): it is not the end yet.
+    animationEnd(placed as HTMLElement);
+    expect(onMotionEnd).not.toHaveBeenCalled();
+    animationEnd(icon as SVGElement);
+    expect(onMotionEnd).toHaveBeenCalledTimes(1);
+  });
+});
