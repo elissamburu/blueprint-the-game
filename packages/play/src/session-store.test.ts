@@ -1,22 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { applyCommand, commands, createSession, slotNodes } from "@blueprint/game-engine";
-import {
-  parseGameRules,
-  parseScenario,
-  type GameRules,
-  type Scenario,
-} from "@blueprint/scenario-schema";
+import type { GameRules, Scenario } from "@blueprint/scenario-schema";
 import { describe, expect, it } from "vitest";
-import { bundleFiles } from "../../content/testing/bundle-fixture";
 import { createSessionStore } from "./session-store";
+import { bundle, staticWebsiteScenario } from "./testing/game-fixture";
 
-const files = bundleFiles();
-const unwrap = <T>(result: { success: true; data: T } | { success: false }): T => {
-  if (!result.success) throw new Error("invalid fixture");
-  return result.data;
-};
-const scenario: Scenario = unwrap(parseScenario(files["static-website-https.v1.json"]));
-const rules: GameRules = unwrap(parseGameRules(files["game-rules.json"]));
+const scenario: Scenario = staticWebsiteScenario;
+const rules: GameRules = bundle.rules;
 const [slot] = slotNodes(scenario);
 if (slot === undefined) throw new Error("fixture without slots");
 const optimal = slot.answers.find((a) => a.grade === "optimal")?.service ?? "";

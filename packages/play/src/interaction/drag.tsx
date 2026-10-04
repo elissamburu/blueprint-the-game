@@ -36,7 +36,7 @@ export function ServiceDndContext({
   renderOverlay: (serviceId: string) => ReactNode;
   children: ReactNode;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const [dragging, setDragging] = useState<string | null>(null);
   // A small distance keeps a plain click on a palette item a click (service-first adapter).
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 4 } }));
@@ -51,16 +51,16 @@ export function ServiceDndContext({
       return id === null ? null : slotRole(id);
     };
     return {
-      onDragStart: ({ active }) => t("play.drag.start", { service: name(active.data.current) }),
+      onDragStart: ({ active }) => t("drag.start", { service: name(active.data.current) }),
       onDragOver: ({ active, over }) => {
         const role = target(over?.data.current);
         return role === null
-          ? t("play.drag.outside", { service: name(active.data.current) })
-          : t("play.drag.over", { service: name(active.data.current), role });
+          ? t("drag.outside", { service: name(active.data.current) })
+          : t("drag.over", { service: name(active.data.current), role });
       },
       // The placement itself is announced by the feedback panel.
-      onDragEnd: ({ over }) => (target(over?.data.current) === null ? t("play.drag.cancel") : ""),
-      onDragCancel: () => t("play.drag.cancel"),
+      onDragEnd: ({ over }) => (target(over?.data.current) === null ? t("drag.cancel") : ""),
+      onDragCancel: () => t("drag.cancel"),
     };
   }, [serviceName, slotRole, t]);
 

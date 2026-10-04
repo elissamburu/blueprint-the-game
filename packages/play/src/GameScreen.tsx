@@ -5,6 +5,8 @@
 // floating on it, and the collapsible palette. "Ver caso" shows the case on demand and focus mode
 // hides the bar. Fixed height, no page scroll. Every gesture goes through the adapters of
 // src/interaction (ADR-0008) and every grade, score, completion and unlock comes from game-engine.
+// What belongs to the app that mounts it (progress, routes, layout, icons) comes through the
+// GameHost port (ADR-0025).
 // Lovable: GameScreen, .game-shell, .game-redesign, .game-layout (src/components/blueprint-app.tsx,
 // styles.css).
 import {
@@ -18,7 +20,6 @@ import {
   canApply,
   commands,
   isSlotResolved,
-  markScenarioStarted,
   revealedHints,
   scenarioResult,
   slotNodes,
@@ -38,20 +39,14 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
-import { useNavigate } from "react-router";
-import { useImmersiveLayout } from "../../app/immersive";
-import type { ContentBundle } from "../../content/load-bundle";
-import { ServiceDndContext } from "../../interaction/drag";
-import { useProgressStore } from "../../progress/progress-store";
-import { serviceIconSrc } from "../../service-icons";
 import { createServiceLookup, slotViews } from "./board";
 import { CaseDrawer } from "./CaseDrawer";
 import { FeedbackCard, hasFeedback } from "./FeedbackCard";
-import { finishScenario, summaryState } from "./finish";
 import { FocusBar, GameBar, type GameProgress } from "./GameBar";
 import { HintAction, showsHintAction } from "./HintAction";
+import type { GameBundle, GameHost } from "./host";
+import { ServiceDndContext } from "./interaction/drag";
 import { Palette } from "./Palette";
-import { repositoryUrl, reportIssueUrl } from "./report-issue";
 import { ScenarioBrief } from "./ScenarioBrief";
 import { createSessionStore } from "./session-store";
 import { SolutionDialog, type SolutionChoice, type SolutionRequest } from "./SolutionDialog";
@@ -61,19 +56,21 @@ import { useFocusMode } from "./use-focus-mode";
 import { useGameController, type Names } from "./use-game-controller";
 import { usePresence } from "./use-presence";
 
-const REPOSITORY = repositoryUrl(import.meta.env.VITE_REPO_URL);
 /** A slot reached with Tab is in place once the board's reveal (200 ms) is over. */
 const REVEAL_SETTLE_MS = 250;
 
 export interface GameScreenProps {
   scenario: Scenario;
-  bundle: ContentBundle;
+  bundle: GameBundle;
+  host: GameHost;
 }
 
-export default function GameScreen({ scenario, bundle }: GameScreenProps) {
-  const { t } = useTranslation();
-  const navigate = useNavigate();
-  useImmersiveLayout();
+const noLayout = () => {};
+
+export default function GameScreen({ scenario, bundle, host }: GameScreenProps) {
+  const { t } = useTranslation("play");
+  const useLayout = host.useLayout ?? noLayout;
+  useLayout();
   const { rules, catalog } = bundle;
   const [store] = useState(() => {
     const created = createSessionStore();
@@ -85,7 +82,11 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
     () => new Map<string, Service>(catalog.services.map((s) => [s.id, s])),
     [catalog],
   );
-  const serviceLookup = useMemo(() => createServiceLookup(catalog.services), [catalog]);
+  const { iconSrc } = host;
+  const serviceLookup = useMemo(
+    () => createServiceLookup(catalog.services, iconSrc),
+    [catalog, iconSrc],
+  );
   const steps = useMemo(
     () => diagramSteps(scenario.diagram, serviceLookup),
     [scenario, serviceLookup],
@@ -126,15 +127,12 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
   };
 
   // The first placement (or viewed solution) makes the scenario "en curso" in the listing
-  // (RF-NAV-01). Without progress nothing is saved, as with the result.
+  // (RF-NAV-01): the host saves it (GameHost.onStarted).
   const started = session.slots.some((slot) => slot.placements > 0 || slot.revealed);
+  const { onStarted } = host;
   useEffect(() => {
-    if (!started) return;
-    const { progress: stored, replace } = useProgressStore.getState();
-    if (stored === null) return;
-    const next = markScenarioStarted(stored, scenario.id);
-    if (next !== stored) void replace(next);
-  }, [started, scenario.id]);
+    if (started) onStarted?.(scenario.id);
+  }, [started, scenario.id, onStarted]);
 
   // Layout v2: brief, "Ver caso", palette collapsed (a browser preference) and focus mode.
   const [briefOpen, setBriefOpen] = useState(true);
@@ -333,27 +331,17 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
   const onFinish = async () => {
     setFinishing(true);
     await focus.exit();
-    const { progress: stored, replace } = useProgressStore.getState();
-    const outcome = await finishScenario({
-      session,
-      progress: stored,
-      rules,
-      scenarios: bundle.index.scenarios,
-      save: replace,
-    });
-    // The summary shows and announces the XP, the rank and the unlocks (and says when nothing
-    // was saved): toasts on top of it would be read twice.
-    void navigate(`/escenarios/${scenario.id}/resumen`, { state: summaryState(outcome) });
+    // Web: saves the result and goes to the summary.
+    await host.onFinish(session);
   };
 
   const areaNames = scenario.areas.map(
     (id) => bundle.index.areas.find((a) => a.id === id)?.name ?? id,
   );
-  const reportUrl = reportIssueUrl(REPOSITORY, {
-    scenarioId: scenario.id,
-    version: scenario.version,
-    slotId: session.selectedSlotId ?? game.feedbackSlotId,
-  });
+  const reportUrl = host.reportIssueUrl?.(
+    session.selectedSlotId ?? game.feedbackSlotId ?? undefined,
+  );
+  const printHref = host.printHref?.(scenario.id);
   const caseOpener = useRef<HTMLElement | null>(null);
   const actions = {
     caseOpen,
@@ -381,6 +369,8 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
           onFocusMode={() => toggleFocus(true)}
           onPlayFlow={() => diagramRef.current?.playFlow()}
           solution={solutionActions}
+          exit={host.exit}
+          printHref={printHref}
           reportUrl={reportUrl}
           focusModeRef={focusModeRef}
           moreRef={moreRef}
@@ -391,7 +381,9 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
       <ServiceDndContext
         serviceName={names.serviceName}
         slotRole={names.slotRole}
-        renderOverlay={(serviceId) => <DragChip service={services.get(serviceId)} id={serviceId} />}
+        renderOverlay={(serviceId) => (
+          <DragChip service={services.get(serviceId)} id={serviceId} iconSrc={iconSrc} />
+        )}
       >
         <div ref={setLayout} className="relative flex min-h-0 flex-1">
           <div
@@ -408,7 +400,7 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
               onSlotActivate={onSlotActivate}
               onServiceDrop={game.drop}
               slotHintAction={slotHintAction}
-              label={t("play.board.label", { title: scenario.title })}
+              label={t("board.label", { title: scenario.title })}
               stepList="hidden"
               playButton={false}
               onViewportChange={placement.onViewportChange}
@@ -459,6 +451,7 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
           <Palette
             serviceIds={palette.services}
             catalog={services}
+            iconSrc={iconSrc}
             categories={catalog.categories}
             placed={placed}
             pendingServiceId={game.pendingServiceId}
@@ -476,6 +469,8 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
         scenario={scenario}
         areaNames={areaNames}
         services={serviceLookup}
+        exit={host.exit}
+        printHref={printHref}
         open={briefOpen}
         onStart={() => setBriefOpen(false)}
         onClosed={() => diagramRef.current?.element()?.focus()}
@@ -501,16 +496,19 @@ export default function GameScreen({ scenario, bundle }: GameScreenProps) {
   );
 }
 
-function DragChip({ service, id }: { service: Service | undefined; id: string }) {
+function DragChip({
+  service,
+  id,
+  iconSrc,
+}: {
+  service: Service | undefined;
+  id: string;
+  iconSrc: GameHost["iconSrc"];
+}) {
   const name = service?.name ?? id;
   return (
     <span className="flex w-[15rem] items-center gap-[0.6rem] rounded-md border border-primary bg-card p-[0.45rem] text-sm font-semibold shadow-lg">
-      <ServiceIcon
-        src={serviceIconSrc(id)}
-        name={name}
-        category={service?.category ?? ""}
-        decorative
-      />
+      <ServiceIcon src={iconSrc(id)} name={name} category={service?.category ?? ""} decorative />
       {name}
     </span>
   );

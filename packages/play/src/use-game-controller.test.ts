@@ -2,7 +2,6 @@
 import { commands, slotStatus, type Command } from "@blueprint/game-engine";
 import { act, renderHook } from "@testing-library/react";
 import { describe, expect, it, vi } from "vitest";
-import "../../i18n";
 import { createSessionStore } from "./session-store";
 import { bundle, pdfScenario, services, slotOf } from "./testing/game-fixture";
 import { useGameController, type GameController, type Names } from "./use-game-controller";

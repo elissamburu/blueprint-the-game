@@ -1,56 +1,51 @@
 {
-  "name": "@blueprint/web",
+  "name": "@blueprint/play",
   "version": "0.0.0",
   "private": true,
-  "description": "El juego: SPA en React + Vite (modo invitado).",
+  "description": "Pantalla de juego: el tablero con la paleta, el feedback, el brief, \"Ver caso\" y los adaptadores de interacción. Traduce los gestos en comandos de game-engine; lo propio de cada app entra por el puerto GameHost.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
+  "sideEffects": false,
+  "exports": {
+    ".": "./src/index.ts",
+    "./game-screen": "./src/GameScreen.tsx",
+    "./locales/es.json": "./src/locales/es.json"
+  },
   "scripts": {
-    "dev": "vite",
-    "build": "vite build",
-    "size": "node scripts/check-bundle-size.js",
-    "preview": "vite preview",
     "typecheck": "tsc --noEmit",
     "lint": "eslint .",
     "test": "vitest run",
-    "e2e": "playwright test",
-    "clean": "rimraf dist coverage .turbo test-results playwright-report"
+    "clean": "rimraf coverage .turbo"
   },
   "dependencies": {
     "@blueprint/diagram": "workspace:*",
     "@blueprint/game-engine": "workspace:*",
-    "@blueprint/play": "workspace:*",
     "@blueprint/scenario-schema": "workspace:*",
     "@blueprint/ui": "workspace:*",
     "@dnd-kit/core": "catalog:",
     "i18next": "catalog:",
     "lucide-react": "catalog:",
-    "radix-ui": "^1.6.7",
-    "react": "catalog:",
-    "react-dom": "catalog:",
     "react-i18next": "catalog:",
     "react-router": "catalog:",
-    "zod": "catalog:",
     "zustand": "catalog:"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
     "@blueprint/config": "workspace:*",
-    "@playwright/test": "^1.63.0",
-    "@tailwindcss/vite": "catalog:",
     "@testing-library/react": "catalog:",
     "@testing-library/user-event": "^14.6.7",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
-    "@vitejs/plugin-react": "catalog:",
-    "axe-core": "catalog:",
     "eslint": "catalog:",
     "jsdom": "catalog:",
+    "react": "catalog:",
+    "react-dom": "catalog:",
     "rimraf": "catalog:",
-    "tailwindcss": "catalog:",
     "typescript": "catalog:",
-    "vite": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:"
+  },
+  "peerDependencies": {
+    "react": "catalog:",
+    "react-dom": "catalog:"
   }
 }

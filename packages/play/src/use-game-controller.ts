@@ -19,7 +19,7 @@ import {
   chooseService as chooseServiceStep,
   dropService,
   type InteractionStep,
-} from "../../interaction/adapters";
+} from "./interaction/adapters";
 import type { SessionStoreState } from "./session-store";
 
 export interface Names {
@@ -28,36 +28,40 @@ export interface Names {
 }
 
 /** Text for the live region after a command; empty when there is nothing to say. */
-export const announceOutcome = (t: TFunction, outcome: CommandOutcome, names: Names): string => {
+export const announceOutcome = (
+  t: TFunction<"play">,
+  outcome: CommandOutcome,
+  names: Names,
+): string => {
   switch (outcome.type) {
     case "slotSelected":
       return outcome.slotId === null
-        ? t("play.announce.deselected")
-        : t("play.announce.selected", { role: names.slotRole(outcome.slotId) });
+        ? t("announce.deselected")
+        : t("announce.selected", { role: names.slotRole(outcome.slotId) });
     case "servicePlaced":
-      return t("play.announce.placed", {
+      return t("announce.placed", {
         service: names.serviceName(outcome.evaluation.serviceId),
         role: names.slotRole(outcome.slotId),
         grade: gradeLabel(outcome.evaluation.grade),
       });
     case "acceptableAccepted":
-      return t("play.announce.accepted", { role: names.slotRole(outcome.slotId) });
+      return t("announce.accepted", { role: names.slotRole(outcome.slotId) });
     case "slotCleared":
-      return t("play.announce.cleared", { role: names.slotRole(outcome.slotId) });
+      return t("announce.cleared", { role: names.slotRole(outcome.slotId) });
     case "hintRevealed":
-      return t("play.announce.hint", { number: outcome.index + 1, hint: outcome.hint });
+      return t("announce.hint", { number: outcome.index + 1, hint: outcome.hint });
     case "solutionRevealed": {
       // One slot names its solution; "Ver solución completa" only says how many, once.
       const [only] = outcome.revealed;
       return outcome.revealed.length === 1 && only !== undefined
-        ? t("play.announce.solutionRevealed", {
+        ? t("announce.solutionRevealed", {
             role: names.slotRole(only.slotId),
             service: names.serviceName(only.serviceId),
           })
-        : t("play.announce.solutionsRevealed", { count: outcome.revealed.length });
+        : t("announce.solutionsRevealed", { count: outcome.revealed.length });
     }
     case "rejected":
-      return t(`play.announce.rejected.${outcome.reason}`);
+      return t(`announce.rejected.${outcome.reason}`);
   }
 };
 
@@ -86,7 +90,7 @@ export const useGameController = (
   store: StoreApi<SessionStoreState>,
   names: Names,
 ): GameController => {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const session = useStore(store, (s) => s.session);
   if (session === null) throw new Error("useGameController needs a started session");
   const [pendingServiceId, setPendingServiceId] = useState<string | null>(null);
@@ -150,8 +154,8 @@ export const useGameController = (
       if (step.commands.length === 0) {
         announce(
           step.pendingServiceId === null
-            ? t("play.announce.serviceDropped")
-            : t("play.announce.servicePicked", { service: names.serviceName(serviceId) }),
+            ? t("announce.serviceDropped")
+            : t("announce.servicePicked", { service: names.serviceName(serviceId) }),
         );
       }
     },
@@ -159,7 +163,7 @@ export const useGameController = (
       const state = interaction();
       if (state.selectedSlotId === null && state.pendingServiceId === null) return false;
       apply(cancelSelection(state));
-      if (state.selectedSlotId === null) announce(t("play.announce.deselected"));
+      if (state.selectedSlotId === null) announce(t("announce.deselected"));
       return true;
     },
     accept: (slotId) => run([commands.acceptAcceptable(slotId)]),

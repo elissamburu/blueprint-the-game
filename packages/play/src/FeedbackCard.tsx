@@ -101,7 +101,7 @@ export function FeedbackCard({
   onExited,
   reducedMotion = false,
 }: FeedbackCardProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const titleId = useId();
   const slot = session.slots.find((s) => s.slotId === slotId);
   const node = slotNodes(session.scenario).find((n) => n.id === slotId);
@@ -167,12 +167,12 @@ export function FeedbackCard({
           </span>
           {status === "accepted" && (
             <span className="text-sm font-semibold text-muted-foreground">
-              {t("play.feedback.acceptedNote")}
+              {t("feedback.acceptedNote")}
             </span>
           )}
           {status === "revealed" && (
             <span className="text-sm font-semibold text-muted-foreground">
-              {t("play.feedback.revealedNote")}
+              {t("feedback.revealedNote")}
             </span>
           )}
         </h2>
@@ -181,17 +181,14 @@ export function FeedbackCard({
         </p>
         {alsoOptimal.length > 0 && (
           <p className="mt-1 text-base font-semibold text-foreground">
-            {t("play.feedback.alsoOptimal", {
+            {t("feedback.alsoOptimal", {
               count: alsoOptimal.length,
               services: new Intl.ListFormat("es", { type: "conjunction" }).format(alsoOptimal),
             })}
           </p>
         )}
         {objectives.length > 0 && (
-          <ul
-            aria-label={t("play.feedback.objectives")}
-            className="mt-2 flex flex-wrap gap-x-4 gap-y-1"
-          >
+          <ul aria-label={t("feedback.objectives")} className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
             {objectives.map(({ objective, status: objectiveStatus }) => (
               <li key={objective.id}>
                 <ObjectiveTag status={objectiveStatus} className="text-sm">
@@ -205,7 +202,7 @@ export function FeedbackCard({
           <div className="mt-3 flex flex-wrap items-center gap-2">
             {status === "acceptable" && (
               <Button size="sm" className="text-sm" onClick={() => onAccept(slot.slotId)}>
-                {t("play.feedback.accept")}
+                {t("feedback.accept")}
               </Button>
             )}
             {actions && (
@@ -215,7 +212,7 @@ export function FeedbackCard({
                 className="text-sm"
                 onClick={() => onRetry(slot.slotId)}
               >
-                {t("play.feedback.retry")}
+                {t("feedback.retry")}
               </Button>
             )}
             <span className="ml-auto">
@@ -228,7 +225,7 @@ export function FeedbackCard({
         variant="ghost"
         size="icon"
         className="-mt-1 -mr-2"
-        aria-label={t("play.feedback.close")}
+        aria-label={t("feedback.close")}
         onClick={onClose}
       >
         <XIcon />
@@ -248,32 +245,29 @@ const referenceLabel = (url: string) => {
 
 /** One "Documentación" link; with several references, it opens the list in a popover. */
 function DocsLink({ references }: { references: readonly string[] }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const [first] = references;
   if (first === undefined) return null;
   if (references.length === 1) {
     return (
       <a href={first} target="_blank" rel="noreferrer" className={LINK}>
-        {t("play.feedback.docs")}
+        {t("feedback.docs")}
         <ExternalLinkIcon aria-hidden className="size-3.5" />
-        <span className="sr-only">{t("about.external")}</span>
+        <span className="sr-only">{t("external")}</span>
       </a>
     );
   }
   return (
     <Popover>
       <PopoverTrigger className={cn(LINK, "cursor-pointer")}>
-        {t("play.feedback.docs")}
-        <span className="sr-only">
-          {" "}
-          ({t("play.feedback.docsCount", { count: references.length })})
-        </span>
+        {t("feedback.docs")}
+        <span className="sr-only"> ({t("feedback.docsCount", { count: references.length })})</span>
         <ChevronDownIcon aria-hidden className="size-3.5" />
       </PopoverTrigger>
       <PopoverContent
         align="end"
         side="top"
-        aria-label={t("play.feedback.docs")}
+        aria-label={t("feedback.docs")}
         className="w-[min(24rem,calc(100vw-2rem))]"
       >
         <ul className="flex flex-col gap-2">
@@ -282,7 +276,7 @@ function DocsLink({ references }: { references: readonly string[] }) {
               <a href={url} target="_blank" rel="noreferrer" className={cn(LINK, "break-all")}>
                 {referenceLabel(url)}
                 <ExternalLinkIcon aria-hidden className="size-3.5 shrink-0" />
-                <span className="sr-only">{t("about.external")}</span>
+                <span className="sr-only">{t("external")}</span>
               </a>
             </li>
           ))}

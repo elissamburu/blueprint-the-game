@@ -14,10 +14,12 @@ import {
   type PlayerProgress,
   type ScenarioStatus,
 } from "@blueprint/game-engine";
+import { StatusBadge } from "@blueprint/play";
 import { LEVELS, type Area, type BundleIndexEntry } from "@blueprint/scenario-schema";
 import { Badge } from "@blueprint/ui/components/badge";
 import { Button } from "@blueprint/ui/components/button";
 import { LevelBadge } from "@blueprint/ui/components/level-badge";
+import { formatNumber } from "@blueprint/ui/lib/format";
 import { cn } from "@blueprint/ui/lib/utils";
 import {
   ArrowRightIcon,
@@ -46,8 +48,6 @@ import {
   type ScenarioFilters,
 } from "./filters";
 import { LockReasonText } from "./LockReasonText";
-import { StatusBadge } from "./StatusBadge";
-import { formatNumber } from "../../i18n/format";
 
 export default function ScenariosPage() {
   const { t } = useTranslation();
@@ -315,7 +315,7 @@ function ScenarioCard({
   scenarios: readonly BundleIndexEntry[];
   lockAreaName: (id: string) => string;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(["translation", "play"]);
   const titleId = `scenario-${scenario.id}`;
   // Without progress (incompatible) the game is played without saving: nothing is locked.
   const lock = progress === null ? null : lockReason(progress.unlocked, scenario, scenarios);
@@ -369,7 +369,7 @@ function ScenarioCard({
         {scenario.title}
       </h2>
       <p className="mt-[0.55rem] leading-[1.55] text-muted-foreground">{scenario.summary}</p>
-      <ul aria-label={t("scenarios.areas")} className="mt-4 flex flex-wrap gap-[0.4rem] self-start">
+      <ul aria-label={t("play:areas")} className="mt-4 flex flex-wrap gap-[0.4rem] self-start">
         {areaNames.map((name) => (
           <li key={name}>
             <Badge variant="secondary" className="text-sm">

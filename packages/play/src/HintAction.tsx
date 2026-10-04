@@ -43,17 +43,17 @@ export function HintAction({
   canReveal,
   onReveal,
 }: HintActionProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const [open, setOpen] = useState(false);
   const titleId = useId();
   const remaining = total - revealed.length;
 
   const label =
     revealed.length === 0
-      ? t("play.hints.reveal", { cost })
+      ? t("hints.reveal", { cost })
       : remaining > 0
-        ? t("play.hints.show")
-        : t("play.hints.none");
+        ? t("hints.show")
+        : t("hints.none");
 
   return (
     <span className="mt-auto flex items-center justify-between gap-[4px] pt-[4px] text-[8.8px]">
@@ -62,7 +62,7 @@ export function HintAction({
           <button
             type="button"
             // The visible text first (WCAG 2.5.3), then the slot: "Ver pista (−15 pts), casillero 3".
-            aria-label={t("play.hints.buttonName", { label, number: slotNumber })}
+            aria-label={t("hints.buttonName", { label, number: slotNumber })}
             aria-describedby={roleId}
             onClick={() => {
               if (!open && revealed.length === 0) onReveal();
@@ -81,7 +81,7 @@ export function HintAction({
         >
           <h3 id={titleId} className="flex items-center gap-2 text-sm font-bold">
             <LightbulbIcon aria-hidden className="size-4 shrink-0 text-warning" />
-            {t("play.hints.title", { role })}
+            {t("hints.title", { role })}
           </h3>
           <ol className="mt-3 flex flex-col gap-2">
             {revealed.map((hint, i) => (
@@ -93,7 +93,7 @@ export function HintAction({
                   {i + 1}
                 </span>
                 <span>
-                  <span className="sr-only">{t("play.hints.number", { number: i + 1 })} </span>
+                  <span className="sr-only">{t("hints.number", { number: i + 1 })} </span>
                   {hint}
                 </span>
               </li>
@@ -101,17 +101,17 @@ export function HintAction({
           </ol>
           {remaining > 0 && canReveal ? (
             <Button size="sm" variant="outline" className="mt-3 text-sm" onClick={onReveal}>
-              {t("play.hints.another", { cost })}
+              {t("hints.another", { cost })}
             </Button>
           ) : (
             remaining === 0 && (
-              <p className="mt-3 text-sm text-muted-foreground">{t("play.hints.none")}</p>
+              <p className="mt-3 text-sm text-muted-foreground">{t("hints.none")}</p>
             )
           )}
         </PopoverContent>
       </Popover>
       <span className="shrink-0 text-warning">
-        {t("play.hints.counter", { used: revealed.length, total })}
+        {t("hints.counter", { used: revealed.length, total })}
       </span>
     </span>
   );

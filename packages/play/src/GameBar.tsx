@@ -20,8 +20,8 @@ import {
 } from "@blueprint/ui/components/dropdown-menu";
 import { LevelBadge } from "@blueprint/ui/components/level-badge";
 import { Progress } from "@blueprint/ui/components/progress";
+import { formatNumber } from "@blueprint/ui/lib/format";
 import {
-  ArrowLeftIcon,
   EllipsisIcon,
   ExternalLinkIcon,
   EyeIcon,
@@ -42,7 +42,8 @@ import {
 import { useId, useState, type Ref } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import { formatNumber } from "../../i18n/format";
+import { ExitButton } from "./ExitButton";
+import type { GameHost } from "./host";
 
 export interface GameProgress {
   resolved: number;
@@ -74,7 +75,11 @@ export interface GameBarProps extends Actions {
   onFocusMode: () => void;
   onPlayFlow: () => void;
   solution: SolutionActions;
-  reportUrl: string;
+  exit: GameHost["exit"];
+  /** Route of the printable version; without it the menu does not offer it. */
+  printHref?: string | undefined;
+  /** Without it the menu does not offer "Reportar un problema". */
+  reportUrl?: string | undefined;
   focusModeRef?: Ref<HTMLButtonElement>;
   moreRef?: Ref<HTMLButtonElement>;
   finishRef?: Ref<HTMLButtonElement>;
@@ -95,20 +100,18 @@ export function GameBar({
   onFinish,
   onPlayFlow,
   solution,
+  exit,
+  printHref,
   reportUrl,
   focusModeRef,
   moreRef,
   finishRef,
   menuContainer,
 }: GameBarProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   return (
     <header className="relative z-20 flex min-h-16 flex-none flex-wrap items-center gap-x-3 gap-y-2 border-b bg-card px-3 py-2">
-      <Button asChild variant="ghost" size="icon">
-        <Link to="/escenarios" aria-label={t("play.back")}>
-          <ArrowLeftIcon aria-hidden />
-        </Link>
-      </Button>
+      <ExitButton exit={exit} />
       <div className="flex min-w-[min(16rem,100%)] flex-1 items-center gap-3">
         <LevelBadge level={scenario.level} variant="solid" className="shrink-0 text-sm" />
         <h1 className="text-base leading-snug font-bold">{scenario.title}</h1>
@@ -117,7 +120,7 @@ export function GameBar({
       <p className="flex items-center gap-2">
         <StarIcon aria-hidden className="size-5 text-warning" />
         <span className="flex flex-col leading-tight">
-          <span className="text-sm text-muted-foreground">{t("play.top.score")}</span>
+          <span className="text-sm text-muted-foreground">{t("top.score")}</span>
           <strong className="text-lg text-warning tabular-nums">
             {formatNumber(progress.score)}
           </strong>
@@ -127,16 +130,16 @@ export function GameBar({
         <ViewCaseButton open={caseOpen} onClick={onViewCase} />
         <Button variant="outline" className="text-sm" onClick={onPlayFlow}>
           <PlayIcon aria-hidden />
-          {t("play.top.playFlow")}
+          {t("top.playFlow")}
         </Button>
         <Button
           ref={focusModeRef}
           variant="outline"
           onClick={onFocusMode}
-          title={t("play.top.focusMode")}
+          title={t("top.focusMode")}
         >
           <FocusIcon aria-hidden />
-          <span className="sr-only lg:not-sr-only">{t("play.top.focusMode")}</span>
+          <span className="sr-only lg:not-sr-only">{t("top.focusMode")}</span>
         </Button>
         <FinishButton
           ref={finishRef}
@@ -149,7 +152,7 @@ export function GameBar({
             still close it, and the focus still moves into it and back to "⋯". */}
         <DropdownMenu modal={false}>
           <DropdownMenuTrigger asChild>
-            <Button ref={moreRef} variant="ghost" size="icon" aria-label={t("play.top.more")}>
+            <Button ref={moreRef} variant="ghost" size="icon" aria-label={t("top.more")}>
               <EllipsisIcon aria-hidden />
             </Button>
           </DropdownMenuTrigger>
@@ -162,35 +165,39 @@ export function GameBar({
             >
               <EyeIcon aria-hidden className="mt-[0.2rem]" />
               <span className="flex flex-col">
-                {t("play.top.solutionSlot")}
+                {t("top.solutionSlot")}
                 {!solution.slotAvailable && (
                   <span className="text-sm text-muted-foreground">
-                    {t("play.top.solutionSlotUnavailable")}
+                    {t("top.solutionSlotUnavailable")}
                   </span>
                 )}
               </span>
             </DropdownMenuItem>
             <DropdownMenuItem disabled={!solution.allAvailable} onSelect={solution.onAll}>
               <EyeOffIcon aria-hidden />
-              {t("play.top.solutionAll")}
+              {t("top.solutionAll")}
             </DropdownMenuItem>
-            <DropdownMenuSeparator />
-            <DropdownMenuItem asChild>
-              {/* In another tab, so the game in progress is not lost (the session is not saved). */}
-              <Link to={`/escenarios/${scenario.id}/imprimir`} target="_blank" rel="noreferrer">
-                <PrinterIcon aria-hidden />
-                {t("play.top.print")}
-                <ExternalLinkIcon aria-hidden className="ml-auto" />{" "}
-                <span className="sr-only">{t("about.external")}</span>
-              </Link>
-            </DropdownMenuItem>
-            <DropdownMenuItem asChild>
-              <a href={reportUrl} target="_blank" rel="noreferrer">
-                <FlagIcon aria-hidden />
-                {t("play.top.report")}
-                <span className="sr-only">{t("about.external")}</span>
-              </a>
-            </DropdownMenuItem>
+            {(printHref !== undefined || reportUrl !== undefined) && <DropdownMenuSeparator />}
+            {printHref !== undefined && (
+              <DropdownMenuItem asChild>
+                {/* In another tab, so the game in progress is not lost (the session is not saved). */}
+                <Link to={printHref} target="_blank" rel="noreferrer">
+                  <PrinterIcon aria-hidden />
+                  {t("top.print")}
+                  <ExternalLinkIcon aria-hidden className="ml-auto" />{" "}
+                  <span className="sr-only">{t("external")}</span>
+                </Link>
+              </DropdownMenuItem>
+            )}
+            {reportUrl !== undefined && (
+              <DropdownMenuItem asChild>
+                <a href={reportUrl} target="_blank" rel="noreferrer">
+                  <FlagIcon aria-hidden />
+                  {t("top.report")}
+                  <span className="sr-only">{t("external")}</span>
+                </a>
+              </DropdownMenuItem>
+            )}
           </DropdownMenuContent>
         </DropdownMenu>
       </div>
@@ -216,7 +223,7 @@ export function FocusBar({
   onExit,
   exitRef,
 }: FocusBarProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   return (
     <div
       data-slot="focus-bar"
@@ -229,7 +236,7 @@ export function FocusBar({
       <FinishButton progress={progress} finishing={finishing} onFinish={onFinish} size="sm" />
       <Button ref={exitRef} variant="outline" size="sm" className="text-sm" onClick={onExit}>
         <Minimize2Icon aria-hidden />
-        {t("play.top.exitFocus")}
+        {t("top.exitFocus")}
       </Button>
     </div>
   );
@@ -244,8 +251,8 @@ function SlotsProgress({
   strong?: boolean;
   barClassName: string;
 }) {
-  const { t } = useTranslation();
-  const text = t("play.top.slots", { resolved: progress.resolved, total: progress.total });
+  const { t } = useTranslation("play");
+  const text = t("top.slots", { resolved: progress.resolved, total: progress.total });
   return (
     <div className="flex items-center gap-3 text-sm">
       {strong ? (
@@ -253,11 +260,7 @@ function SlotsProgress({
       ) : (
         <span className="whitespace-nowrap text-muted-foreground">{text}</span>
       )}
-      <Progress
-        value={percent(progress)}
-        aria-label={t("play.top.progress")}
-        className={barClassName}
-      />
+      <Progress value={percent(progress)} aria-label={t("top.progress")} className={barClassName} />
     </div>
   );
 }
@@ -271,20 +274,20 @@ function ViewCaseButton({
   onClick: () => void;
   size?: "sm";
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   return (
     <Button
       variant="outline"
       size={size}
       aria-haspopup="dialog"
       aria-expanded={open}
-      title={t("play.top.viewCase")}
+      title={t("top.viewCase")}
       onClick={onClick}
       className="text-sm"
     >
       <EyeIcon aria-hidden />
       <span className={size === "sm" ? undefined : "sr-only lg:not-sr-only"}>
-        {t("play.top.viewCase")}
+        {t("top.viewCase")}
       </span>
     </Button>
   );
@@ -308,11 +311,11 @@ function FinishButton({
   size?: "sm";
   ref?: Ref<HTMLButtonElement> | undefined;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const id = useId();
   const missing = progress.total - progress.resolved;
   const blocked = !progress.completed || finishing;
-  const reason = progress.completed ? null : t("play.top.finishMissing", { count: missing });
+  const reason = progress.completed ? null : t("top.finishMissing", { count: missing });
   const [tooltipOpen, setTooltipOpen] = useState(false);
   // The tooltip stays mounted so the button keeps its element (and the focus) when it enables.
   return (
@@ -330,7 +333,7 @@ function FinishButton({
                 if (!blocked) onFinish();
               }}
             >
-              {t("play.top.finish")}
+              {t("top.finish")}
             </Button>
           </TooltipTrigger>
           <TooltipContent aria-hidden="true" className="text-sm">

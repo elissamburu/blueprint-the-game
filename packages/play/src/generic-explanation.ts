@@ -8,12 +8,12 @@ import type { TFunction } from "i18next";
 const SENTENCE_END = /[.!?…]$/u;
 
 export const genericExplanation = (
-  t: TFunction,
+  t: TFunction<"play">,
   service: Pick<Service, "short">,
   role: string,
 ): string => {
   const short = service.short.trim();
-  return t("play.feedback.undeclared", {
+  return t("feedback.undeclared", {
     short: SENTENCE_END.test(short) ? short : `${short}.`,
     role,
   });

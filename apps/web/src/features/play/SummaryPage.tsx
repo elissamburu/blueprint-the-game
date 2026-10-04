@@ -16,6 +16,7 @@ import {
   type ProgressEvent,
   type SlotReview,
 } from "@blueprint/game-engine";
+import { InlineMarkdown } from "@blueprint/play";
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { Badge } from "@blueprint/ui/components/badge";
 import { Button } from "@blueprint/ui/components/button";
@@ -23,6 +24,7 @@ import { GradeBadge, type SlotGrade } from "@blueprint/ui/components/grade-badge
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { motionClass } from "@blueprint/ui/lib/motion";
 import { useReducedMotion } from "@blueprint/ui/lib/use-reduced-motion";
+import { formatNumber } from "@blueprint/ui/lib/format";
 import { cn } from "@blueprint/ui/lib/utils";
 import {
   ArrowRightIcon,
@@ -51,9 +53,7 @@ import { ContentErrorView, Loading, RequireContent } from "../../content/Require
 import { useProgressStore } from "../../progress/progress-store";
 import { serviceIconSrc } from "../../service-icons";
 import { areaList, SummaryStateSchema, type SummaryState } from "./finish";
-import { InlineMarkdown } from "./InlineMarkdown";
 import { repositoryUrl, reportIssueUrl } from "./report-issue";
-import { formatNumber } from "../../i18n/format";
 
 const REPOSITORY = repositoryUrl(import.meta.env.VITE_REPO_URL);
 /** Time between focusing the title and filling the live region. */

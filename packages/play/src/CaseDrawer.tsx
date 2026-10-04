@@ -40,7 +40,7 @@ export function CaseDrawer({
   returnFocus,
   onWidthChange,
 }: CaseDrawerProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const titleId = useId();
   const descriptionId = useId();
   const panelRef = useRef<HTMLElement>(null);
@@ -88,12 +88,12 @@ export function CaseDrawer({
     >
       <header className="flex items-start justify-between gap-4">
         <div>
-          <Kicker>{t("play.case.kicker")}</Kicker>
+          <Kicker>{t("case.kicker")}</Kicker>
           <h2 id={titleId} className="mt-2 text-[1.35rem] leading-[1.35] font-normal">
             {scenario.title}
           </h2>
         </div>
-        <Button variant="ghost" size="icon" aria-label={t("play.case.close")} onClick={close}>
+        <Button variant="ghost" size="icon" aria-label={t("case.close")} onClick={close}>
           <XIcon aria-hidden />
         </Button>
       </header>

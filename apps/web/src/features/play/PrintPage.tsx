@@ -15,6 +15,7 @@ import {
   slotNumbers,
 } from "@blueprint/game-engine";
 import { Diagram, flowSteps, nodeName, printLayout, type SlotView } from "@blueprint/diagram";
+import { CaseContext, CaseObjectives, createServiceLookup, InlineMarkdown } from "@blueprint/play";
 import type { Scenario, Service, SlotNode } from "@blueprint/scenario-schema";
 import { Button } from "@blueprint/ui/components/button";
 import { GradeBadge } from "@blueprint/ui/components/grade-badge";
@@ -26,9 +27,7 @@ import { useId, useMemo, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useParams } from "react-router";
 import type { ContentBundle } from "../../content/load-bundle";
-import { createServiceLookup } from "./board";
-import { CaseContext, CaseObjectives } from "./CaseContent";
-import { InlineMarkdown } from "./InlineMarkdown";
+import { serviceIconSrc } from "../../service-icons";
 import "./print.css";
 import { ScenarioGate } from "./ScenarioGate";
 
@@ -163,11 +162,14 @@ function DiagramSheet({
   bundle: ContentBundle;
   slots: readonly PrintSlot[];
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation(["translation", "play"]);
   const titleId = useId();
   const stepsId = useId();
   const slotsId = useId();
-  const lookup = useMemo(() => createServiceLookup(bundle.catalog.services), [bundle]);
+  const lookup = useMemo(
+    () => createServiceLookup(bundle.catalog.services, serviceIconSrc),
+    [bundle],
+  );
   const layout = useMemo(() => printLayout(scenario.diagram), [scenario]);
   const labels = useMemo(() => ({ size: layout.labelSize, min: layout.minLabelSize }), [layout]);
   const views = useMemo(
@@ -219,7 +221,7 @@ function DiagramSheet({
       {steps.length > 0 && (
         <section aria-labelledby={`${stepsId}-title`} className="mt-5 break-inside-avoid">
           <h3 id={`${stepsId}-title`} className="break-after-avoid text-base font-bold">
-            {t("play.case.steps")}
+            {t("play:case.steps")}
           </h3>
           <ol
             id={stepsId}
@@ -229,7 +231,7 @@ function DiagramSheet({
               <li key={step.step} data-step={step.step} className="flex gap-2 break-inside-avoid">
                 <NumberMark>{step.step}</NumberMark>
                 <span>
-                  <span className="sr-only">{t("play.case.step", { step: step.step })} </span>
+                  <span className="sr-only">{t("play:case.step", { step: step.step })} </span>
                   <strong>{step.labels.join(" / ")}</strong>
                   {step.routes.map((route) => (
                     <span key={`${route.from}-${route.to}`} className="block">

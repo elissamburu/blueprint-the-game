@@ -44,20 +44,20 @@ export function CaseObjectives({
   scenario: Scenario;
   className?: string;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const hard = scenario.objectives.filter((o) => o.kind === "hard");
   const soft = scenario.objectives.filter((o) => o.kind === "soft");
   return (
     <div className={className}>
       <ObjectiveList
-        title={t("play.case.restrictions")}
+        title={t("case.restrictions")}
         icon={ShieldCheckIcon}
         itemIcon={LockIcon}
         objectives={hard}
         kind="hard"
       />
       <ObjectiveList
-        title={t("play.case.goals")}
+        title={t("case.goals")}
         icon={TargetIcon}
         itemIcon={CircleDotIcon}
         objectives={soft}
@@ -114,13 +114,13 @@ function ObjectiveList({
 
 /** The steps of the flow with their routes (Lovable: .case-flow). */
 export function CaseSteps({ steps }: { steps: readonly FlowStep[] }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   if (steps.length === 0) return null;
   return (
     <section className="mt-6">
       <h3 className="flex items-center gap-2 text-sm font-semibold">
         <PlayIcon aria-hidden className="size-4 text-primary" />
-        {t("play.case.steps")}
+        {t("case.steps")}
       </h3>
       <ol className="mt-3 flex flex-col gap-2">
         {steps.map((step) => (
@@ -137,7 +137,7 @@ export function CaseSteps({ steps }: { steps: readonly FlowStep[] }) {
             </span>
             <div className="min-w-0">
               <p className="text-sm font-semibold">
-                <span className="sr-only">{t("play.case.step", { step: step.step })} </span>
+                <span className="sr-only">{t("case.step", { step: step.step })} </span>
                 {step.labels.join(" / ")}
               </p>
               {step.routes.map((route) => (

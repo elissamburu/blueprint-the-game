@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The game screen through the real routes, against the content bundle served by a fake fetch.
 import { createProgress, scenarioReview, slotNodes } from "@blueprint/game-engine";
+import { PALETTE_COLLAPSED_KEY } from "@blueprint/play";
 import type { Experience } from "@blueprint/scenario-schema";
+import { formatNumber } from "@blueprint/ui/lib/format";
 import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
@@ -11,9 +13,7 @@ import { AppRoutes } from "../../app/App";
 import { useContentStore } from "../../content/content-store";
 import { bundleFiles, fetchFrom } from "../../content/testing/bundle-fixture";
 import "../../i18n";
-import { formatNumber } from "../../i18n/format";
 import { PROGRESS_STORAGE_KEY } from "../../progress/local-storage-progress-repository";
-import { PALETTE_COLLAPSED_KEY } from "./ui-preferences";
 import { PROGRESS_SCHEMA_VERSION } from "../../progress/progress-schema";
 import { storedProgress } from "../../testing/progress-fixture";
 import { useProgressStore } from "../../progress/progress-store";

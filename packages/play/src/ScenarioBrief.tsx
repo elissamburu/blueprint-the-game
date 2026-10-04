@@ -17,18 +17,23 @@ import {
   DialogTitle,
 } from "@blueprint/ui/components/dialog";
 import { LevelBadge } from "@blueprint/ui/components/level-badge";
-import { ArrowLeftIcon, ArrowRightIcon, ClockIcon, LightbulbIcon, PrinterIcon } from "lucide-react";
+import { ArrowRightIcon, ClockIcon, LightbulbIcon, PrinterIcon } from "lucide-react";
 import { useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
-import { StatusBadge } from "../catalog-browse/StatusBadge";
 import { CaseContext, CaseObjectives } from "./CaseContent";
+import { ExitButton } from "./ExitButton";
+import type { GameHost } from "./host";
 import { Kicker } from "./Kicker";
+import { StatusBadge } from "./StatusBadge";
 
 export interface ScenarioBriefProps {
   scenario: Scenario;
   areaNames: readonly string[];
   services: ServiceLookup;
+  exit: GameHost["exit"];
+  /** Route of the printable version; without it the brief does not offer it. */
+  printHref?: string | undefined;
   open: boolean;
   /** "Empezar a diseñar", Esc or a click outside. */
   onStart: () => void;
@@ -40,11 +45,13 @@ export function ScenarioBrief({
   scenario,
   areaNames,
   services,
+  exit,
+  printHref,
   open,
   onStart,
   onClosed,
 }: ScenarioBriefProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const previewId = useId();
   const startRef = useRef<HTMLButtonElement>(null);
   return (
@@ -63,14 +70,10 @@ export function ScenarioBrief({
         className="flex max-h-[calc(100dvh-2rem)] w-[min(63.75rem,calc(100vw-2rem))] max-w-none flex-col gap-0 overflow-y-auto rounded-xl bg-card p-0 shadow-[0_30px_80px_color-mix(in_oklab,var(--foreground)_24%,transparent)] sm:rounded-xl"
       >
         <header className="flex min-h-[3.875rem] flex-wrap items-center gap-[0.65rem] border-b px-5 py-3">
-          <Button asChild variant="ghost" size="icon">
-            <Link to="/escenarios" aria-label={t("play.back")}>
-              <ArrowLeftIcon aria-hidden />
-            </Link>
-          </Button>
+          <ExitButton exit={exit} />
           <LevelBadge level={scenario.level} variant="solid" className="text-sm" />
           <StatusBadge status={scenario.status} className="text-sm" />
-          <ul aria-label={t("scenarios.areas")} className="flex flex-wrap gap-2">
+          <ul aria-label={t("areas")} className="flex flex-wrap gap-2">
             {areaNames.map((name) => (
               <li key={name}>
                 <Badge variant="secondary" className="text-sm">
@@ -81,13 +84,13 @@ export function ScenarioBrief({
           </ul>
           <p className="ml-auto flex items-center gap-[0.4rem] text-sm font-bold text-muted-foreground">
             <ClockIcon aria-hidden className="size-4" />
-            <span className="sr-only">{t("play.brief.minutesLabel")}: </span>
-            {t("play.brief.minutes", { count: scenario.estimatedMinutes })}
+            <span className="sr-only">{t("brief.minutesLabel")}: </span>
+            {t("brief.minutes", { count: scenario.estimatedMinutes })}
           </p>
         </header>
         <div className="grid gap-10 px-6 py-8 md:px-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <section className="min-w-0">
-            <Kicker>{t("play.brief.kicker")}</Kicker>
+            <Kicker>{t("brief.kicker")}</Kicker>
             <DialogTitle className="mt-2 max-w-[40.625rem] text-[2rem] leading-[1.16] font-normal tracking-normal">
               {scenario.title}
             </DialogTitle>
@@ -100,13 +103,13 @@ export function ScenarioBrief({
           </section>
           <section aria-labelledby={previewId} className="min-w-0">
             <h3 id={previewId}>
-              <Kicker>{t("play.brief.preview")}</Kicker>
+              <Kicker>{t("brief.preview")}</Kicker>
             </h3>
             <Diagram
               preview
               diagram={scenario.diagram}
               services={services}
-              label={t("play.brief.previewLabel")}
+              label={t("brief.previewLabel")}
               className="mt-3 h-[21.25rem] rounded-lg border"
             />
           </section>
@@ -114,18 +117,20 @@ export function ScenarioBrief({
         <footer className="flex flex-wrap items-center justify-between gap-4 border-t bg-background px-6 py-4 md:px-10">
           <p className="flex items-center gap-[0.45rem] text-sm text-muted-foreground">
             <LightbulbIcon aria-hidden className="size-4 shrink-0" />
-            {t("play.brief.tip")}
+            {t("brief.tip")}
           </p>
           <div className="flex flex-wrap items-center gap-3">
-            <Button asChild variant="ghost" className="text-primary">
-              <Link to={`/escenarios/${scenario.id}/imprimir`}>
-                <PrinterIcon aria-hidden />
-                {t("play.brief.print")}
-              </Link>
-            </Button>
+            {printHref !== undefined && (
+              <Button asChild variant="ghost" className="text-primary">
+                <Link to={printHref}>
+                  <PrinterIcon aria-hidden />
+                  {t("brief.print")}
+                </Link>
+              </Button>
+            )}
             <DialogClose asChild>
               <Button ref={startRef} size="lg" className="text-base">
-                {t("play.brief.start")}
+                {t("brief.start")}
                 <ArrowRightIcon aria-hidden />
               </Button>
             </DialogClose>

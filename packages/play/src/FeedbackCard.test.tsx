@@ -3,7 +3,6 @@ import { applyCommand, commands, type Command, type SessionState } from "@bluepr
 import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
-import "../../i18n";
 import { FeedbackCard, hasFeedback } from "./FeedbackCard";
 import { newSession, pdfScenario, services, slotOf } from "./testing/game-fixture";
 

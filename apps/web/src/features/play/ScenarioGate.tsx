@@ -136,11 +136,11 @@ function ScenarioLoader({
 }
 
 function BackLink() {
-  const { t } = useTranslation();
+  const { t } = useTranslation(["translation", "play"]);
   return (
     <Button asChild variant="outline">
       <Link to="/escenarios">
-        <ArrowLeftIcon aria-hidden /> {t("play.back")}
+        <ArrowLeftIcon aria-hidden /> {t("play:back")}
       </Link>
     </Button>
   );

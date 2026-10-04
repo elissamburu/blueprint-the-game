@@ -1,9 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { describe, expect, it } from "vitest";
-import { i18n } from "../../i18n";
 import { genericExplanation } from "./generic-explanation";
+import { i18n } from "./testing/i18n";
 
-const t = i18n.t.bind(i18n);
+const t = i18n.getFixedT("es", "play");
 
 describe("genericExplanation", () => {
   it("joins the catalog description and the slot role", () => {

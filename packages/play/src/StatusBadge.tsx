@@ -13,7 +13,7 @@ export function StatusBadge({
   status: Scenario["status"];
   className?: string;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   switch (status) {
     case "draft":
       return (

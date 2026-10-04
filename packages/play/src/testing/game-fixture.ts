@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// The real content bundle, parsed, for the game screen tests.
+// The real content files (Vite ?raw, no fs), parsed, for the game screen tests.
 import { createSession, slotNodes, type SessionState } from "@blueprint/game-engine";
 import {
   parseBundleCatalog,
@@ -11,29 +11,38 @@ import {
   type Service,
   type SlotNode,
 } from "@blueprint/scenario-schema";
-import type { ContentBundle } from "../../../content/load-bundle";
-import { bundleFiles } from "../../../content/testing/bundle-fixture";
+import { parse as parseYaml } from "yaml";
+import areasRaw from "../../../../content/areas.yaml?raw";
+import categoriesRaw from "../../../../content/catalog/categories.yaml?raw";
+import confusionGroupsRaw from "../../../../content/catalog/confusion-groups.yaml?raw";
+import servicesRaw from "../../../../content/catalog/services.yaml?raw";
+import gameRulesRaw from "../../../../content/game-rules.yaml?raw";
+import pdfRaw from "../../../../content/scenarios/serverless-pdf-processing/scenario.yaml?raw";
+import staticWebsiteRaw from "../../../../content/scenarios/static-website-https/scenario.yaml?raw";
+import type { GameBundle } from "../host";
 
 const unwrap = <T>(result: ParseResult<T>): T => {
   if (!result.success) throw new Error("invalid fixture");
   return result.data;
 };
 
-const files = bundleFiles(["published", "published", "published"]);
-
-export const bundle: ContentBundle = {
-  index: unwrap(parseBundleIndex(files["index.json"])),
-  catalog: unwrap(parseBundleCatalog(files["catalog.json"])),
-  rules: unwrap(parseGameRules(files["game-rules.json"])),
+export const bundle: GameBundle = {
+  index: unwrap(
+    parseBundleIndex({ schemaVersion: 1, areas: parseYaml(areasRaw) as unknown, scenarios: [] }),
+  ),
+  catalog: unwrap(
+    parseBundleCatalog({
+      services: parseYaml(servicesRaw) as unknown,
+      categories: parseYaml(categoriesRaw) as unknown,
+      confusionGroups: parseYaml(confusionGroupsRaw) as unknown,
+    }),
+  ),
+  rules: unwrap(parseGameRules(parseYaml(gameRulesRaw))),
 };
 
-export const pdfScenario: Scenario = unwrap(
-  parseScenario(files["serverless-pdf-processing.v1.json"]),
-);
+export const pdfScenario: Scenario = unwrap(parseScenario(parseYaml(pdfRaw)));
 
-export const staticWebsiteScenario: Scenario = unwrap(
-  parseScenario(files["static-website-https.v1.json"]),
-);
+export const staticWebsiteScenario: Scenario = unwrap(parseScenario(parseYaml(staticWebsiteRaw)));
 
 export const services = new Map<string, Service>(bundle.catalog.services.map((s) => [s.id, s]));
 

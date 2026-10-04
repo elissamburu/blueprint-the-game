@@ -1,20 +1,17 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Adapters between the game and the board (@blueprint/diagram): catalog → service lookup, and
 // game-engine session → slot states. The grade and the number of each slot come from the engine;
-// this only renames the grade.
+// this only renames the grade. The icon URLs come from the app (GameHost.iconSrc).
 import type { ServiceLookup, SlotView } from "@blueprint/diagram";
 import { slotNodes, slotNumbers, slotStatus, type SessionState } from "@blueprint/game-engine";
 import type { Service } from "@blueprint/scenario-schema";
-import { serviceIconSrc } from "../../service-icons";
 
 export const createServiceLookup = (
   services: readonly Pick<Service, "id" | "name" | "category">[],
+  iconSrc: (serviceId: string) => string | undefined,
 ): ServiceLookup => {
   const byId = new Map(
-    services.map((s) => [
-      s.id,
-      { name: s.name, category: s.category, iconSrc: serviceIconSrc(s.id) },
-    ]),
+    services.map((s) => [s.id, { name: s.name, category: s.category, iconSrc: iconSrc(s.id) }]),
   );
   return (id) => byId.get(id);
 };

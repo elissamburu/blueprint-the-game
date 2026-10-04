@@ -7,23 +7,13 @@ import {
   slotNodes,
   type Command,
 } from "@blueprint/game-engine";
-import {
-  parseGameRules,
-  parseScenario,
-  type GameRules,
-  type Scenario,
-} from "@blueprint/scenario-schema";
+import type { GameRules, Scenario } from "@blueprint/scenario-schema";
 import { describe, expect, it } from "vitest";
-import { bundleFiles } from "../../content/testing/bundle-fixture";
 import { createServiceLookup, slotViews } from "./board";
+import { bundle, pdfScenario } from "./testing/game-fixture";
 
-const files = bundleFiles();
-const unwrap = <T>(result: { success: true; data: T } | { success: false }): T => {
-  if (!result.success) throw new Error("invalid fixture");
-  return result.data;
-};
-const scenario: Scenario = unwrap(parseScenario(files["serverless-pdf-processing.v1.json"]));
-const rules: GameRules = unwrap(parseGameRules(files["game-rules.json"]));
+const scenario: Scenario = pdfScenario;
+const rules: GameRules = bundle.rules;
 const [entry, signer, store] = slotNodes(scenario);
 if (entry === undefined || signer === undefined || store === undefined) {
   throw new Error("fixture without enough slots");
@@ -35,7 +25,10 @@ const run = (...list: Command[]) =>
 
 describe("createServiceLookup", () => {
   it("resolves catalog ids to name, category and icon, and unknown ids to undefined", () => {
-    const lookup = createServiceLookup([{ id: "s3", name: "Amazon S3", category: "storage" }]);
+    const lookup = createServiceLookup(
+      [{ id: "s3", name: "Amazon S3", category: "storage" }],
+      (id) => `/icons/${id}.svg`,
+    );
     expect(lookup("s3")).toEqual({
       name: "Amazon S3",
       category: "storage",

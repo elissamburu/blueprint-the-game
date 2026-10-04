@@ -26,14 +26,15 @@ import {
 } from "lucide-react";
 import { useId, useMemo, useState, type KeyboardEvent, type Ref } from "react";
 import { useTranslation } from "react-i18next";
-import { useServiceDraggable } from "../../interaction/drag";
-import { serviceIconSrc } from "../../service-icons";
+import { useServiceDraggable } from "./interaction/drag";
 import { groupPalette } from "./palette-groups";
 import { Kicker } from "./Kicker";
 
 export interface PaletteProps {
   serviceIds: readonly string[];
   catalog: ReadonlyMap<string, Service>;
+  /** URL of a service icon (GameHost.iconSrc). */
+  iconSrc: (serviceId: string) => string | undefined;
   categories: readonly Pick<Category, "id" | "name">[];
   /** Services placed in some slot: marked, still usable (RF-PAL-04). */
   placed: ReadonlySet<string>;
@@ -51,6 +52,7 @@ export interface PaletteProps {
 export function Palette({
   serviceIds,
   catalog,
+  iconSrc,
   categories,
   placed,
   pendingServiceId,
@@ -60,7 +62,7 @@ export function Palette({
   onCollapsedChange,
   searchRef,
 }: PaletteProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const baseId = useId();
   const contentId = `${baseId}-content`;
   const [query, setQuery] = useState("");
@@ -100,12 +102,12 @@ export function Palette({
 
   const help =
     targetRole !== null
-      ? t("play.palette.forSlot", { role: targetRole })
+      ? t("palette.forSlot", { role: targetRole })
       : pendingServiceId !== null
-        ? t("play.palette.pending", {
+        ? t("palette.pending", {
             service: catalog.get(pendingServiceId)?.name ?? pendingServiceId,
           })
-        : t("play.palette.help");
+        : t("palette.help");
 
   const toggle = (
     <Button
@@ -113,8 +115,8 @@ export function Palette({
       size="icon"
       aria-expanded={!collapsed}
       aria-controls={contentId}
-      aria-label={collapsed ? t("play.palette.expand") : t("play.palette.collapse")}
-      title={collapsed ? t("play.palette.expand") : t("play.palette.collapse")}
+      aria-label={collapsed ? t("palette.expand") : t("palette.collapse")}
+      title={collapsed ? t("palette.expand") : t("palette.collapse")}
       onClick={() => onCollapsedChange(!collapsed)}
     >
       {collapsed ? <PanelRightOpenIcon aria-hidden /> : <PanelRightCloseIcon aria-hidden />}
@@ -125,7 +127,7 @@ export function Palette({
     <aside
       data-palette
       data-collapsed={collapsed ? "" : undefined}
-      aria-label={t("play.palette.label")}
+      aria-label={t("palette.label")}
       className={cn(
         "relative z-10 flex min-h-0 flex-col border-l bg-background transition-[width] duration-200 motion-reduce:transition-none",
         collapsed ? "w-[4.125rem]" : "w-[17.875rem]",
@@ -146,6 +148,7 @@ export function Palette({
                       service={service}
                       pending={pendingServiceId === service.id}
                       placed={placed.has(service.id)}
+                      iconSrc={iconSrc}
                       onChoose={onChoose}
                     />
                   </li>
@@ -159,9 +162,9 @@ export function Palette({
           <div className="flex-none border-b p-4">
             <div className="flex items-start gap-[0.35rem]">
               <div className="min-w-0">
-                <Kicker>{t("play.palette.kicker")}</Kicker>
+                <Kicker>{t("palette.kicker")}</Kicker>
                 <h2 className="mt-1 flex items-center gap-2 text-xl">
-                  {t("play.palette.title")}
+                  {t("palette.title")}
                   <Badge variant="secondary" className="text-sm">
                     {serviceIds.length}
                   </Badge>
@@ -170,7 +173,7 @@ export function Palette({
               <span className="ml-auto">{toggle}</span>
             </div>
             <label htmlFor={`${baseId}-search`} className="sr-only">
-              {t("play.palette.search")}
+              {t("palette.search")}
             </label>
             <div className="relative mt-3">
               <SearchIcon
@@ -184,7 +187,7 @@ export function Palette({
                 value={query}
                 onChange={(event) => setQuery(event.target.value)}
                 onKeyDown={onSearchKey}
-                placeholder={t("play.palette.searchPlaceholder")}
+                placeholder={t("palette.searchPlaceholder")}
                 autoComplete="off"
                 className="min-h-10 w-full rounded-md border bg-card pr-2 pl-9 text-sm focus-visible:ring-[3px] focus-visible:ring-ring/50 focus-visible:outline-none"
               />
@@ -194,7 +197,7 @@ export function Palette({
           <div id={contentId} className="min-h-0 flex-1 overflow-y-auto px-4 py-2">
             {groups.length === 0 && (
               <p className="py-6 text-center text-sm text-muted-foreground">
-                {t("play.palette.noResults")}
+                {t("palette.noResults")}
               </p>
             )}
             {groups.map(({ category, services }) => {
@@ -231,6 +234,7 @@ export function Palette({
                           service={service}
                           pending={pendingServiceId === service.id}
                           placed={placed.has(service.id)}
+                          iconSrc={iconSrc}
                           onChoose={onChoose}
                         />
                       </li>
@@ -250,14 +254,16 @@ function PaletteItem({
   service,
   pending,
   placed,
+  iconSrc,
   onChoose,
 }: {
   service: Service;
   pending: boolean;
   placed: boolean;
+  iconSrc: (serviceId: string) => string | undefined;
   onChoose: (serviceId: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const { setNodeRef, listeners, isDragging } = useServiceDraggable(service.id);
   return (
     <button
@@ -274,7 +280,7 @@ function PaletteItem({
       )}
     >
       <ServiceIcon
-        src={serviceIconSrc(service.id)}
+        src={iconSrc(service.id)}
         name={service.name}
         category={service.category}
         decorative
@@ -283,7 +289,7 @@ function PaletteItem({
       {placed && (
         <span className="flex shrink-0 items-center gap-1 text-sm font-normal text-muted-foreground">
           <CheckIcon aria-hidden className="size-4" />
-          {t("play.palette.placed")}
+          {t("palette.placed")}
         </span>
       )}
     </button>
@@ -295,16 +301,18 @@ function CollapsedItem({
   service,
   pending,
   placed,
+  iconSrc,
   onChoose,
 }: {
   service: Service;
   pending: boolean;
   placed: boolean;
+  iconSrc: (serviceId: string) => string | undefined;
   onChoose: (serviceId: string) => void;
 }) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const { setNodeRef, listeners, isDragging } = useServiceDraggable(service.id);
-  const name = placed ? t("play.palette.placedName", { service: service.name }) : service.name;
+  const name = placed ? t("palette.placedName", { service: service.name }) : service.name;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -323,7 +331,7 @@ function CollapsedItem({
           )}
         >
           <ServiceIcon
-            src={serviceIconSrc(service.id)}
+            src={iconSrc(service.id)}
             name={service.name}
             category={service.category}
             decorative

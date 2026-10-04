@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Interface preferences of this browser (e.g. the palette collapsed). They are not progress: they
+// Interface preferences of this browser (e.g. the palette collapsed; the app keeps its own, such
+// as the dismissed notices, with the same helpers). They are not progress: they
 // live in their own localStorage key, outside the progress schema, and losing them only resets
 // the look. Storage may be blocked, so every access is guarded.
 import { useCallback, useState } from "react";
 
 export const PALETTE_COLLAPSED_KEY = "blueprint.ui.paletteCollapsed";
-export const BETA_NOTICE_DISMISSED_KEY = "blueprint.ui.betaNoticeDismissed";
-export const NARROW_NOTICE_DISMISSED_KEY = "blueprint.ui.narrowNoticeDismissed";
 
 const storage = (): Storage | null => {
   try {

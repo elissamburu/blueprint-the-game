@@ -52,7 +52,7 @@ export function SolutionDialog({
   onClosed,
   onOpenChange,
 }: SolutionDialogProps) {
-  const { t } = useTranslation();
+  const { t } = useTranslation("play");
   const choice = useRef<SolutionChoice>("cancel");
   if (request === null) return null;
   const slot = request.kind === "slot" ? request : null;
@@ -68,30 +68,26 @@ export function SolutionDialog({
       >
         <AlertDialogHeader>
           <AlertDialogTitle>
-            {t(slot === null ? "play.solution.allTitle" : "play.solution.slotTitle")}
+            {t(slot === null ? "solution.allTitle" : "solution.slotTitle")}
           </AlertDialogTitle>
           <AlertDialogDescription asChild>
             <div className="flex flex-col gap-2">
               {slot === null ? (
                 <>
                   <p>
-                    {t("play.solution.all", {
+                    {t("solution.all", {
                       count: request.kind === "all" ? request.pending : 0,
                     })}
                   </p>
-                  <p>{t("play.solution.allHints")}</p>
+                  <p>{t("solution.allHints")}</p>
                 </>
               ) : (
                 <>
                   <p className="font-semibold text-foreground">
-                    {t("play.solution.slotRole", { role: slot.role })}
+                    {t("solution.slotRole", { role: slot.role })}
                   </p>
                   <p>
-                    {t(
-                      slot.canUseHint
-                        ? "play.solution.slotWithHints"
-                        : "play.solution.slotWithoutHints",
-                    )}
+                    {t(slot.canUseHint ? "solution.slotWithHints" : "solution.slotWithoutHints")}
                   </p>
                 </>
               )}
@@ -99,7 +95,7 @@ export function SolutionDialog({
           </AlertDialogDescription>
         </AlertDialogHeader>
         <AlertDialogFooter className="flex-wrap">
-          <AlertDialogCancel>{t("play.solution.cancel")}</AlertDialogCancel>
+          <AlertDialogCancel>{t("solution.cancel")}</AlertDialogCancel>
           {slot?.canUseHint === true && (
             // A plain outline button: AlertDialogAction carries the primary colors.
             <Button
@@ -111,7 +107,7 @@ export function SolutionDialog({
               }}
             >
               <LightbulbIcon aria-hidden />
-              {t("play.solution.useHint")}
+              {t("solution.useHint")}
             </Button>
           )}
           <AlertDialogAction
@@ -121,7 +117,7 @@ export function SolutionDialog({
             }}
           >
             <EyeIcon aria-hidden />
-            {t(slot === null ? "play.solution.revealAll" : "play.solution.reveal")}
+            {t(slot === null ? "solution.revealAll" : "solution.reveal")}
           </AlertDialogAction>
         </AlertDialogFooter>
       </AlertDialogContent>
