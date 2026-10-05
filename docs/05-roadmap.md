@@ -111,7 +111,7 @@ L014 (control de `version` contra `main`) no corre en el Studio: queda en `pnpm 
 El contenido se agrega en cualquier fase, por PR, siguiendo [03 · Modelo de escenarios](03-modelo-de-escenarios.md).
 
 - **Escenarios multicuenta y multirregión**: organización de cuentas y políticas a nivel organización ([Organizations](https://docs.aws.amazon.com/organizations/latest/userguide/orgs_introduction.html)), roles entre cuentas ([tutorial de IAM](https://docs.aws.amazon.com/IAM/latest/UserGuide/tutorial_cross-account-with-roles.html)), landing zone gobernada ([Control Tower](https://docs.aws.amazon.com/controltower/latest/userguide/what-is-control-tower.html)) y recursos compartidos entre cuentas ([RAM](https://docs.aws.amazon.com/ram/latest/userguide/what-is.html)); arquitecturas activas en más de una región. Usan el grupo `account` del diagrama.
-- **Catálogo**:
+- **Catálogo** (✅ hecho el 2026-10-05):
   - Agregar **AWS Control Tower** y **AWS Resource Access Manager (RAM)** a `content/catalog/services.yaml` (con `leakPatterns`, categoría, ícono y grupos de confusión con Organizations), como requisito de los escenarios multicuenta.
   - Marcar **AWS App Runner** como `deprecated`: su documentación indica que ya no está abierto a clientes nuevos; los clientes existentes pueden seguir usándolo, pero AWS no planea agregar funciones ([What is AWS App Runner?](https://docs.aws.amazon.com/apprunner/latest/dg/what-is-apprunner.html), [AWS App Runner availability change](https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html)). Hoy aparece solo en `incorrect` (`insurance-docs-assistant`, `kubernetes-api-migration`), así que el cambio da warnings de L010, no errores; revisar sus rationales en el mismo PR.
 
