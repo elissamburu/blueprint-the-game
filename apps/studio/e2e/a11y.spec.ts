@@ -4,27 +4,16 @@
 // replace the manual tests of that protocol.
 import { readdir, readFile } from "node:fs/promises";
 import path from "node:path";
-import { AxeBuilder } from "@axe-core/playwright";
-import { expect, test, type Page } from "@playwright/test";
+import { expect, test } from "@playwright/test";
 import {
   E2E_CONTENT,
   editorContent,
+  expectNoViolations,
   openScenario,
   scenarioFile,
   SCENARIOS,
   validationSummary,
 } from "./support/studio";
-
-const expectNoViolations = async (page: Page, screen: string) => {
-  const { violations } = await new AxeBuilder({ page }).analyze();
-  const found = violations.flatMap((violation) =>
-    violation.nodes.map(
-      (node) =>
-        `${violation.id} (${violation.impact ?? "?"}) en ${node.target.join(" ")}: ${node.failureSummary ?? violation.help}`,
-    ),
-  );
-  expect.soft(found, `axe en «${screen}»`).toEqual([]);
-};
 
 test("listado", async ({ page }) => {
   await page.goto("/");
