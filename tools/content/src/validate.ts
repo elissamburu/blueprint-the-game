@@ -6,8 +6,10 @@ import path from "node:path";
 import {
   checkGeneratedFiles,
   checkVersionBump,
+  GENERATED_FILES,
   lintScenario,
   lintSharedContent,
+  renderGeneratedFiles,
   sharedRules,
   type SharedContentKey,
 } from "@blueprint/content-lint";
@@ -30,7 +32,6 @@ import {
   type SharedRaw,
 } from "./content.js";
 import { countBySeverity, describePath, fromLintIssue, type Finding } from "./findings.js";
-import { GENERATED_FILES, renderGeneratedFiles } from "./generate.js";
 import { GitUnavailableError, assertWorkTree, readFileAtRef, refExists } from "./git.js";
 
 export interface ValidateOptions {

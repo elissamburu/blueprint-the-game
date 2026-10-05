@@ -1,0 +1,109 @@
+# Blueprint Studio
+
+Editor local de escenarios ([ADR-0013](../../docs/adr/0013-scenario-studio-local-con-ia.md), [ADR-0025](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). Corre en tu máquina, escucha solo en `127.0.0.1` y lee y escribe `content/scenarios/` de tu copia del repo. **Nunca se despliega** (RF-STU-18): no entra en `pnpm build:beta` ni en `pnpm deploy:beta` (lo verifica `tools/deploy-beta/src/studio-excluded.test.ts`).
+
+Qué hace hoy (F2, PR 2): listar los escenarios, abrir uno, editar su `scenario.yaml` con validación en vivo (schema + lint, los mismos mensajes que `pnpm content:validate`) y guardarlo regenerando `diagram.mmd` y `README.md`. El formulario, el editor visual, el preview y la vista de respuestas llegan en los PR siguientes del [roadmap](../../docs/05-roadmap.md).
+
+## Uso
+
+```powershell
+pnpm studio
+```
+
+Compila la UI, levanta el servidor e imprime la dirección (`http://127.0.0.1:4320`). Abrila en el navegador. `Ctrl+C` lo cierra.
+
+| Variable | Default | Para qué |
+|---|---|---|
+| `STUDIO_PORT` | `4320` | Puerto. Si está ocupado, el Studio no arranca (no busca otro). |
+| `STUDIO_CONTENT_DIR` | `<repo>/content` | Carpeta de contenido. Relativa a donde corrés `pnpm`. Útil para probar sobre una copia. |
+
+El host no se configura: siempre es `127.0.0.1` (S1).
+
+```powershell
+# Probar sobre una copia, sin tocar content/
+Copy-Item -Recurse content "$env:TEMP\content-studio"
+$env:STUDIO_CONTENT_DIR = "$env:TEMP\content-studio"; pnpm studio
+Remove-Item Env:STUDIO_CONTENT_DIR
+```
+
+### Editar
+- La lista muestra título, nivel, estado y si el escenario tiene errores. Cada título abre el editor.
+- El editor guarda el texto **tal cual**: no reformatea ni pierde comentarios. Abrir y guardar sin cambios deja el archivo idéntico byte a byte (también con CRLF).
+- La validación corre 250 ms después de cada cambio. Cada problema del panel es un botón que lleva el cursor a su línea. L012 y L014 no corren en el Studio: guardar regenera los archivos generados, y L014 queda en `pnpm content:validate --base origin/main` y en el CI.
+- **Guardar** (o `Ctrl+S`) revalida en el servidor: un YAML con errores de sintaxis, que no pasa el schema o cuyo `id` no es el nombre de la carpeta no se guarda. Los errores de lint no impiden guardar un borrador.
+- Si el archivo cambió en disco desde que lo abriste (otro editor, un `git pull`), el Studio **no lo pisa**: avisa y ofrece recargar.
+- Con cambios sin guardar, el navegador y el Studio preguntan antes de salir.
+
+### Teclado
+- `Tab` indenta dentro del editor. Para salir del editor con el teclado: `Esc` y después `Tab` (o `Mayús+Tab`). La ayuda está visible arriba del editor.
+- `Ctrl+S` guarda; `Ctrl+F` busca.
+
+### Desarrollo
+
+```powershell
+pnpm dev           # juego + Studio (turbo), con recarga en caliente
+pnpm dev:studio    # solo el Studio, con recarga en caliente
+pnpm --filter @blueprint/studio test
+pnpm e2e:studio    # Playwright contra pnpm studio sobre una copia temporal de content/
+```
+
+Los tests nunca usan el `content/` real para escribir: copian el contenido a una carpeta temporal.
+
+## Seguridad: lista de verificación S1–S12
+
+Las reglas están en [ADR-0025 §4](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md#4-seguridad-del-servidor-local). **Todo cambio en `apps/studio/server` revisa esta lista**; cambiar una regla requiere un ADR nuevo.
+
+| # | Regla | Dónde | Tests |
+|---|---|---|---|
+| S1 | Escucha solo en `127.0.0.1`; solo el puerto es configurable. | `server/config.ts` (`HOST`), `server/server.ts` | `server/cli.test.ts` |
+| S2 | `Host` exactamente `127.0.0.1:<puerto>` o `localhost:<puerto>`; si no, 421. | `server/security.ts` (`hostGuard`) | `server/security.test.ts` |
+| S3 | `Origin` propio en métodos no seguros, `Sec-Fetch-Site: same-origin` si viene, `X-Studio-Token` en toda `/api` (comparación en tiempo constante), cuerpos solo `application/json` (415). | `server/security.ts` (`apiGuard`), `server/static.ts` (token en `index.html`) | `server/security.test.ts` |
+| S4 | Sin CORS: ninguna respuesta lleva `Access-Control-Allow-*`. | `server/app.ts` (no se registra CORS) | `server/security.test.ts` |
+| S5 | `id` validado con el patrón del schema antes de tocar el disco; nombres de archivo de una lista cerrada; rutas dentro de `content/scenarios/` también después de `realpath` (symlinks y junctions). | `server/routes/scenarios.ts`, `server/paths.ts` | `server/scenarios.test.ts` |
+| S6 | Cuerpo de 1 MiB como máximo (413). | `server/app.ts` (`bodyLimit`) | `server/security.test.ts` |
+| S7 | Escritura atómica: temporal `*.studio-tmp` en la misma carpeta + `rename`, con reintentos ante `EPERM`/`EBUSY`. | `server/atomic-write.ts` | `server/atomic-write.test.ts` |
+| S8 | Sin rutas para borrar ni renombrar; guardar exige el hash con que se abrió el archivo (409 si falta o cambió). | `server/content-store.ts`, `server/routes/scenarios.ts` | `server/scenarios.test.ts` |
+| S9 | `Content-Security-Policy`, `X-Content-Type-Options: nosniff` y `Referrer-Policy: no-referrer` en `/`, `/api/*` y los errores. | `server/security.ts` (`securityHeaders`) | `server/security.test.ts` |
+| S10 | Zod en cada request y respuesta; antes de escribir se revalidan YAML, schema e `id` (422). | `shared/api.ts`, `shared/validation.ts`, `server/content-store.ts` | `server/scenarios.test.ts` |
+| S11 | El servidor no ejecuta procesos (`child_process`). | `eslint.config.js` (`no-restricted-imports`), `.dependency-cruiser.cjs` (`studio-server-no-processes`) | `server/lint-rules.test.ts` |
+| S12 | Token de 32 bytes por arranque, solo en memoria; nunca en logs, errores ni archivos. | `server/security.ts` (`createToken`), `server/cli.ts`, `server/app.ts` (`onError`) | `server/cli.test.ts` |
+
+Cada test lleva el id de su regla en el nombre (`it("S2: rejects …")`): `pnpm --filter @blueprint/studio exec vitest run -t "S5:"` corre los de una regla.
+
+### Junctions de Windows (S5)
+
+`server/scenarios.test.ts` crea una **junction** en Windows y un **symlink** de carpeta en Linux, así que el CI la prueba en los dos sistemas (el job `checks` corre en `ubuntu-latest` y `windows-latest`). Para probarlo a mano en Windows:
+
+```powershell
+$tmp = Join-Path $env:TEMP "studio-s5"
+Copy-Item -Recurse content "$tmp\content"
+New-Item -ItemType Directory -Force "$tmp\afuera" | Out-Null
+(Get-Content content\scenarios\static-website-https\scenario.yaml -Raw).Replace("id: static-website-https", "id: escape-link") | Set-Content "$tmp\afuera\scenario.yaml" -NoNewline
+New-Item -ItemType Junction -Path "$tmp\content\scenarios\escape-link" -Target "$tmp\afuera" | Out-Null
+$env:STUDIO_CONTENT_DIR = "$tmp\content"; pnpm studio
+```
+
+Abrí `http://127.0.0.1:4320/escenarios/escape-link`: tiene que decir que el escenario apunta fuera de `content/scenarios/`, y `escape-link` no aparece en la lista. Después: `Remove-Item Env:STUDIO_CONTENT_DIR; Remove-Item -Recurse -Force $tmp`.
+
+## Modo desarrollo (Vite)
+
+En `pnpm dev` y `pnpm dev:studio` el HTML y los módulos los sirve Vite con recarga en caliente, y la misma app de Hono corre dentro del proceso de Vite para `/api` e `/icons` (`vite.config.ts`). El modo normal (`pnpm studio`) cumple las doce reglas sin excepciones. En modo dev:
+
+| Regla | Cómo queda |
+|---|---|
+| S1 | Igual: `server.host: "127.0.0.1"` fijo, `strictPort: true`, puerto `STUDIO_PORT`. |
+| S2 | Un middleware que corre antes que los de Vite exige el `Host` exacto en **todas** las respuestas, también los módulos (421). Los hosts que no son una IP ni `localhost` ya los rechaza antes el chequeo propio de Vite, con 403. |
+| S3, S6, S7, S8, S10 | Iguales: la API es la misma app de Hono. El token se inyecta en el `index.html` con `transformIndexHtml`. |
+| S4 | Igual: `server.cors: false` y Hono sin CORS. |
+| S5 | Igual para `/api`. Vite sirve el código fuente del repo (es su función), pero `/@fs/` queda limitado al repo (`server.fs.strict` y `server.fs.allow: [repo]`, con la lista de Vite que niega `.env` y certificados). |
+| S9 | Los tres headers en todas las respuestas, con otra CSP: `script-src 'self' 'nonce-…'` (el preámbulo inline de React Fast Refresh lleva un nonce por proceso, `html.cspNonce` de Vite) y `connect-src` con el websocket de HMR del mismo host. Sigue sin `'unsafe-inline'` ni `'unsafe-eval'` en scripts. |
+| S11 | Igual (la regla de ESLint aplica a `server/`). |
+| S12 | Igual: el token se genera al arrancar y no se imprime; Vite no lo muestra. |
+
+## Probar a mano
+
+1. `pnpm studio` y abrir la dirección que imprime.
+2. Abrir un escenario, romper el YAML (por ejemplo, escribir `roto: [` en una línea vacía): el panel muestra el error con su línea; el botón lleva el cursor ahí.
+3. Corregirlo, guardar y ver "Guardado". `git diff` muestra solo tu cambio y, si cambió algo visible, `README.md`/`diagram.mmd` regenerados. `pnpm content:validate` pasa.
+4. Con un cambio sin guardar, editar el mismo `scenario.yaml` en otro editor y guardar en el Studio: aparece "El archivo cambió en disco" y el archivo no se pisa.
+5. Solo con teclado: `Tab` hasta el editor, `Esc` + `Tab` para salir, `Tab` hasta un problema del panel y `Enter`.

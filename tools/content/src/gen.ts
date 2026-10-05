@@ -3,7 +3,7 @@
 // only reports the ones that are missing or out of date.
 import { writeFile } from "node:fs/promises";
 import path from "node:path";
-import { checkGeneratedFiles } from "@blueprint/content-lint";
+import { checkGeneratedFiles, GENERATED_FILES, renderGeneratedFiles } from "@blueprint/content-lint";
 import type { Service } from "@blueprint/scenario-schema";
 import {
   displayPath,
@@ -14,7 +14,6 @@ import {
   readTextIfExists,
 } from "./content.js";
 import type { Finding } from "./findings.js";
-import { GENERATED_FILES, renderGeneratedFiles } from "./generate.js";
 
 export interface GenOptions {
   contentDir: string;

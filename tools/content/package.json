@@ -5,6 +5,9 @@
   "description": "CLI interno de contenido: validate, gen y build (se ejecuta con tsx).",
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
+  "exports": {
+    ".": "./src/index.ts"
+  },
   "scripts": {
     "content": "tsx src/cli.ts",
     "typecheck": "tsc --noEmit",

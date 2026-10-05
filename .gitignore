@@ -16,6 +16,9 @@ blob-report/
 apps/web/public/icons/
 .cache/
 
+# Temporary files of the atomic writes of the Studio server (ADR-0025, S7)
+*.studio-tmp
+
 # Logs
 *.log
 npm-debug.log*

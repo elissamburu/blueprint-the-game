@@ -9,6 +9,12 @@
 const PURE_PACKAGES = ["scenario-schema", "content-lint", "catalog", "game-engine"];
 const PURE_PATH = `^packages/(${PURE_PACKAGES.join("|")})/src/`;
 
+/**
+ * Heavy dependencies only the local Studio uses (ADR-0025 §3): CodeMirror and elkjs. Matches the
+ * installed path (node_modules/@codemirror/...) and an unresolved import (@codemirror/...).
+ */
+const STUDIO_ONLY_DEPS = "(^|/)(@codemirror/|elkjs(/|$))";
+
 /** @type {import('dependency-cruiser').IConfiguration} */
 module.exports = {
   forbidden: [
@@ -48,6 +54,16 @@ module.exports = {
       to: { path: "(^|/)(@blueprint/play|packages/play)(/|$)" },
     },
     {
+      name: "web-not-to-studio-only-deps",
+      severity: "error",
+      comment:
+        "ADR-0025 §3: nothing reachable from apps/web/src, through any workspace package, may get to " +
+        "@codemirror/* or elkjs: they are Studio-only and would blow up the game bundle (RNF-03). " +
+        "The build of apps/web checks the same on the real bundle.",
+      from: { path: "^apps/web/src/" },
+      to: { path: STUDIO_ONLY_DEPS, reachable: true },
+    },
+    {
       name: "pure-packages-no-node-builtins",
       severity: "error",
       comment:
@@ -67,6 +83,15 @@ module.exports = {
       to: { path: "(^|/)(@aws-sdk|@anthropic-ai)/" },
     },
     {
+      name: "studio-server-no-processes",
+      severity: "error",
+      comment:
+        "S11 (ADR-0025): the Studio server runs no processes in F2 (child_process). Also enforced " +
+        "by ESLint in apps/studio; creating PRs with gh (F5) revisits it with an ADR of its own.",
+      from: { path: "^apps/studio/server/" },
+      to: { dependencyTypes: ["core"], path: "^(node:)?child_process$" },
+    },
+    {
       name: "src-not-to-scripts",
       severity: "error",
       comment:
@@ -79,7 +104,8 @@ module.exports = {
       name: "no-circular",
       severity: "error",
       comment: "Circular dependencies are forbidden.",
-      from: {},
+      // Workspace packages followed through node_modules are checked at their real path.
+      from: { pathNot: "(^|/)node_modules/" },
       to: { circular: true },
     },
     {
@@ -98,12 +124,15 @@ module.exports = {
       name: "no-undeclared-deps",
       severity: "error",
       comment: "Every imported package must be declared in the importing package's package.json.",
-      from: {},
+      // Workspace packages followed through node_modules are checked at their real path.
+      from: { pathNot: "(^|/)node_modules/" },
       to: { dependencyTypes: ["npm-no-pkg", "npm-unknown"] },
     },
   ],
   options: {
-    doNotFollow: { path: "node_modules" },
+    // Workspace packages (node_modules/@blueprint/*) are followed so `reachable` rules see through
+    // them; third-party packages are not.
+    doNotFollow: { path: "node_modules/(?!@blueprint/)" },
     exclude: { path: "(^|/)(dist|coverage|\\.turbo|test-results|playwright-report)/" },
     // Keep pnpm workspace links as node_modules/@blueprint/* paths so they are typed as
     // npm dependencies (declared or not) instead of local files.

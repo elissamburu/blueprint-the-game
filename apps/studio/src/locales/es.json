@@ -1,0 +1,84 @@
+{
+  "app": {
+    "name": "Blueprint Studio",
+    "skipToContent": "Saltar al contenido",
+    "loading": "Cargando…",
+    "localOnly": "Solo local: lee y escribe content/ de tu copia del repo."
+  },
+  "list": {
+    "title": "Escenarios",
+    "description": "Elegí un escenario para editar su scenario.yaml. Se valida mientras escribís y al guardar se regeneran diagram.mmd y README.md.",
+    "loading": "Cargando escenarios…",
+    "empty": "No hay escenarios en content/scenarios/.",
+    "loadFailed": "No se pudo cargar la lista: {{message}}",
+    "retry": "Reintentar",
+    "columns": {
+      "scenario": "Escenario",
+      "level": "Nivel",
+      "status": "Estado",
+      "validation": "Validación"
+    },
+    "untitled": "Sin título (el YAML no es válido)",
+    "noLevel": "—",
+    "hasErrors": "Con errores",
+    "valid": "Sin errores"
+  },
+  "status": {
+    "draft": "Borrador",
+    "beta": "Beta",
+    "published": "Publicado",
+    "retired": "Retirado",
+    "unknown": "—"
+  },
+  "editor": {
+    "back": "Escenarios",
+    "loading": "Abriendo el escenario…",
+    "loadFailed": "No se pudo abrir el escenario: {{message}}",
+    "save": "Guardar",
+    "saving": "Guardando…",
+    "state": {
+      "saved": "Guardado",
+      "dirty": "Cambios sin guardar",
+      "saving": "Guardando…",
+      "error": "No se guardó",
+      "conflict": "No se guardó: el archivo cambió en disco"
+    },
+    "savedRegenerated": "Guardado. Se regeneraron: {{files}}.",
+    "yamlTitle": "scenario.yaml",
+    "yamlLabel": "Editor YAML de {{id}}",
+    "keyboardHelp": "Tab indenta. Para salir del editor con el teclado: Esc y después Tab (o Mayús + Tab). Ctrl + S guarda.",
+    "saveFailed": "No se guardó: {{message}}",
+    "conflict": {
+      "title": "El archivo cambió en disco",
+      "body": "Alguien (u otro programa) modificó scenario.yaml desde que lo abriste. No se guardó para no pisar esos cambios.",
+      "reload": "Recargar desde el disco",
+      "reloadHint": "Recargar descarta tus cambios sin guardar. Si los querés conservar, copialos antes.",
+      "dismiss": "Seguir editando"
+    },
+    "leave": {
+      "title": "¿Salir sin guardar?",
+      "body": "Tenés cambios sin guardar en este escenario. Si salís, se pierden.",
+      "stay": "Seguir editando",
+      "leave": "Salir sin guardar"
+    }
+  },
+  "validation": {
+    "title": "Validación",
+    "checking": "Validando…",
+    "summary": {
+      "ok": "Sin errores ni advertencias",
+      "errors_one": "{{count}} error",
+      "errors_other": "{{count}} errores",
+      "warnings_one": "{{count}} advertencia",
+      "warnings_other": "{{count}} advertencias",
+      "both": "{{errors}}, {{warnings}}"
+    },
+    "severity": {
+      "error": "Error",
+      "warning": "Advertencia"
+    },
+    "line": "Línea {{line}}",
+    "goToLine": "Ir a la línea {{line}}: {{message}}",
+    "sharedFailed": "No se pudo validar: faltan los archivos compartidos ({{message}})."
+  }
+}

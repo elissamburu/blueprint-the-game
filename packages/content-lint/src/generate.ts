@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Renders diagram.mmd and README.md for a scenario (docs/03 §1, RF-CNT-03). Pure and
-// deterministic: same scenario and catalog ⇒ same bytes on every OS (LF, final newline).
+// deterministic: same scenario and catalog ⇒ same bytes on every OS (LF, final newline). The two
+// writers import it from here: pnpm content:gen (tools/content) and the Studio server when it saves
+// (ADR-0025 §2); L012 (checkGeneratedFiles) compares its output with the files on disk.
 import type {
   DiagramNode,
   EdgeStyle,
@@ -32,7 +34,10 @@ const groupRef = (id: string): string => `g_${id.replace(/-/g, "_")}`;
 
 /** Text inside a quoted Mermaid label. */
 const mermaidText = (value: string): string =>
-  value.replace(/\s*\r?\n\s*/g, " ").replace(/"/g, "#quot;").trim();
+  value
+    .replace(/\s*\r?\n\s*/g, " ")
+    .replace(/"/g, "#quot;")
+    .trim();
 
 const optimalNames = (catalog: Catalog, slot: SlotNode): string =>
   slot.answers
@@ -89,7 +94,8 @@ const flowchart = (scenario: Scenario, catalog: Catalog): string[] => {
   };
   const isTopLevel = (group: Group): boolean =>
     group.parent === null || group.parent === undefined || !groupIds.has(group.parent);
-  for (const group of groups) if (isTopLevel(group) && !rendered.has(group.id)) renderGroup(group, 1);
+  for (const group of groups)
+    if (isTopLevel(group) && !rendered.has(group.id)) renderGroup(group, 1);
   for (const group of groups) if (!rendered.has(group.id)) renderGroup(group, 1);
 
   const byStep = [...edges].sort((a, b) => a.step - b.step);
@@ -115,7 +121,10 @@ export const renderDiagram = (scenario: Scenario, catalog: Catalog): string =>
 
 /** Text inside a Markdown table cell. */
 const cell = (value: string): string =>
-  value.replace(/\s*\r?\n\s*/g, " ").replace(/\|/g, "\\|").trim();
+  value
+    .replace(/\s*\r?\n\s*/g, " ")
+    .replace(/\|/g, "\\|")
+    .trim();
 
 const code = (value: string): string => `\`${value}\``;
 
