@@ -83,6 +83,7 @@
   },
   "draft": {
     "tabs": "Vista del borrador",
+    "form": "Formulario",
     "play": "Jugar",
     "answers": "Respuestas",
     "invalid": "El YAML tiene un error en la línea {{line}}: se muestra la última versión válida.",
@@ -109,5 +110,123 @@
     "lead": "Todos los casilleros revelados con su óptimo y, debajo, cada respuesta con su grado, los objetivos y el porqué.",
     "diagramLabel": "Diagrama de «{{title}}» con las respuestas óptimas",
     "slotTitle": "Casillero {{number}}: {{role}}"
+  },
+  "form": {
+    "title": "Formulario del escenario",
+    "lead": "Cada cambio se escribe en el YAML, solo en las líneas del campo, y conserva los comentarios. Ctrl + Z deshace el último cambio, venga del formulario o del YAML.",
+    "expandAll": "Expandir todo",
+    "collapseAll": "Contraer todo",
+    "readOnly": "El YAML tiene un error en la línea {{line}}: el formulario muestra la última versión válida, solo para leer.",
+    "readOnlyNoData": "El YAML tiene un error en la línea {{line}} y todavía no hay una versión válida para mostrar.",
+    "editFailed": "No se pudo aplicar el cambio: {{message}}",
+    "choose": "Elegir…",
+    "invalidValue": "{{value}} (valor inválido)",
+    "unknownOption": "No existe en el escenario",
+    "noOptions": "Todavía no hay opciones.",
+    "cancel": "Cancelar",
+    "up": "Subir",
+    "down": "Bajar",
+    "remove": {
+      "title": "¿Quitar {{item}}?",
+      "body": "Se borra del YAML con sus comentarios. Podés deshacerlo con Ctrl + Z.",
+      "action": "Quitar"
+    },
+    "moved": "{{item}}: ahora en la posición {{position}} de {{count}}.",
+    "removed": "Se quitó {{item}}.",
+    "added": "Se agregó {{item}}.",
+    "metadata": {
+      "title": "Metadatos",
+      "id": "Id",
+      "idHint": "Es el nombre de la carpeta: no se cambia desde el Studio.",
+      "titleField": "Título",
+      "titleHint": "Hasta 80 caracteres, sin nombrar servicios ocultos.",
+      "summary": "Resumen",
+      "summaryHint": "Hasta 200 caracteres, para la tarjeta del listado.",
+      "level": "Nivel",
+      "status": "Estado",
+      "minutes": "Duración estimada (minutos)",
+      "version": "Versión",
+      "versionHint": "Incrementala si cambian respuestas o grados de un escenario publicado.",
+      "areas": "Áreas",
+      "authors": "Autores",
+      "author": "Autor {{number}} (usuario de GitHub)",
+      "authorItem": "el autor {{number}}",
+      "addAuthor": "Agregar autor"
+    },
+    "context": {
+      "title": "Contexto",
+      "label": "Contexto del caso",
+      "hint": "Markdown. La narrativa del caso de negocio, sin nombrar servicios ocultos."
+    },
+    "objectives": {
+      "title": "Objetivos",
+      "lead": "Definen qué es óptimo. Una restricción (hard) violada es rojo; una meta (soft) cumplida a medias es naranja.",
+      "item": "Objetivo {{number}}",
+      "itemName": "el objetivo {{number}}",
+      "context": "del objetivo {{number}}",
+      "id": "Id",
+      "idHint": "kebab-case y único; las respuestas lo referencian.",
+      "text": "Texto",
+      "kind": "Tipo",
+      "category": "Categoría",
+      "kinds": {
+        "hard": "hard (restricción)",
+        "soft": "soft (meta)"
+      },
+      "add": "Agregar objetivo"
+    },
+    "slots": {
+      "title": "Casilleros",
+      "none": "El diagrama no tiene casilleros.",
+      "item": "Casillero {{number}}: {{role}}",
+      "itemNoRole": "Casillero {{number}} (sin rol)",
+      "context": "del casillero {{slot}}",
+      "role": "Rol",
+      "roleHint": "Hasta 140 caracteres, sin nombrar servicios ocultos.",
+      "hints": "Pistas",
+      "hint": "Pista {{number}}",
+      "hintName": "la pista {{number}} del casillero {{slot}}",
+      "addHint": "Agregar pista"
+    },
+    "answers": {
+      "title": "Respuestas",
+      "item": "Respuesta {{number}}",
+      "name": "la respuesta {{answer}} del casillero {{slot}}",
+      "context": "de la respuesta {{answer}} del casillero {{slot}}",
+      "service": "Servicio",
+      "grade": "Grado",
+      "grades": {
+        "optimal": "Óptima (verde)",
+        "acceptable": "Aceptable (naranja)"
+      },
+      "objectives": "Objetivos vinculados",
+      "objectivesHint": "Óptima: los objetivos que cumple. Aceptable: las metas (soft) que cumple a medias.",
+      "rationale": "Rationale",
+      "references": "Referencias",
+      "reference": "Referencia {{number}}",
+      "referenceName": "la referencia {{number}} de la respuesta {{answer}} del casillero {{slot}}",
+      "addReference": "Agregar referencia",
+      "add": "Agregar respuesta"
+    },
+    "incorrect": {
+      "title": "Incorrectos",
+      "lead": "Confusiones típicas, con una explicación específica. Si viola una restricción, marcala.",
+      "item": "Incorrecto {{number}}",
+      "name": "el incorrecto {{number}} del casillero {{slot}}",
+      "context": "del incorrecto {{number}} del casillero {{slot}}",
+      "service": "Servicio",
+      "rationale": "Rationale",
+      "violates": "Objetivos que viola",
+      "violatesHint": "Opcional: los objetivos que este servicio no cumple.",
+      "add": "Agregar incorrecto"
+    },
+    "service": {
+      "none": "Elegir servicio",
+      "unknown": "{{id}} (no está en el catálogo)",
+      "search": "Buscar servicio",
+      "list": "Servicios del catálogo",
+      "deprecated": "(obsoleto)",
+      "noResults": "Ningún servicio coincide con la búsqueda."
+    }
   }
 }
