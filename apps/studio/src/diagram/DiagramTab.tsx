@@ -36,7 +36,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { SharedContent } from "../../shared/api";
 import type { StudioFinding } from "../../shared/validation";
-import { EditError, type EditCommand, type EditPath } from "../form/document-edit";
+import { EditError, type EditCommand, type EditPath } from "../../shared/document-edit";
 import { edgesOfNode } from "../form/diagram-edit";
 import { FormProvider, useForm } from "../form/form-context";
 import { recordOf, textOf, useFormDocument } from "../form/form-data";

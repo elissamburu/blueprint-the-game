@@ -6,7 +6,7 @@
 // by a stale index.
 import type { DiagramCommand, DiagramSelection, Placement } from "@blueprint/diagram/editor";
 import type { LayoutResult } from "@blueprint/diagram/layout";
-import { EditError, type EditCommand, type EditPath } from "../form/document-edit";
+import { EditError, type EditCommand, type EditPath } from "../../shared/document-edit";
 import {
   newEdge,
   newGroup,

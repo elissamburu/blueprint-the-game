@@ -10,7 +10,7 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 import { parseDocument } from "yaml";
 import type { StudioFinding } from "../../shared/validation";
 import { pdfYaml, shared } from "../testing/content-fixture";
-import { planEdits } from "./document-edit";
+import { planEdits } from "../../shared/document-edit";
 import { ScenarioForm, type ScenarioFormHandle } from "./ScenarioForm";
 import { filterServices } from "./ServicePicker";
 

@@ -11,7 +11,7 @@ import type { Service } from "@blueprint/scenario-schema";
 import { CheckIcon, ChevronsUpDownIcon } from "lucide-react";
 import { useId, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
-import type { EditPath } from "./document-edit";
+import type { EditPath } from "../../shared/document-edit";
 import { FieldLabel, useIssues, type LabelText } from "./fields";
 import { textOf, valueAt } from "./form-data";
 import { useForm } from "./form-context";

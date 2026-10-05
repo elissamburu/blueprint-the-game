@@ -24,7 +24,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import type { StudioFinding } from "../../shared/validation";
-import { EditError, type EditCommand, type EditPath } from "./document-edit";
+import { EditError, type EditCommand, type EditPath } from "../../shared/document-edit";
 import { errorId, fieldId, pathKey } from "./form-paths";
 
 export interface EditOptions {

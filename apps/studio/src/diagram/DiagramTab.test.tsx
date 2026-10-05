@@ -12,7 +12,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { parseDocument } from "yaml";
 import type { StudioFinding } from "../../shared/validation";
 import { moveStep } from "../form/diagram-edit";
-import { planEdits, type EditCommand, type EditPath } from "../form/document-edit";
+import { planEdits, type EditCommand, type EditPath } from "../../shared/document-edit";
 import { pdfYaml, shared } from "../testing/content-fixture";
 import { DiagramTab, elementIssues } from "./DiagramTab";
 

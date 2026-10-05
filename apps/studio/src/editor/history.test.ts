@@ -4,7 +4,7 @@
 import { history, redo, undo } from "@codemirror/commands";
 import type { EditorState, TransactionSpec } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
-import { planEdits, type EditCommand } from "../form/document-edit";
+import { planEdits, type EditCommand } from "../../shared/document-edit";
 import { createEditorState, editorText, externalEdit, lfText } from "./editor-state";
 
 const TEXT = '# encabezado\r\ntitle: "Hola"\r\nobjectives:\r\n  - id: a\r\n    text: "A"\r\n';

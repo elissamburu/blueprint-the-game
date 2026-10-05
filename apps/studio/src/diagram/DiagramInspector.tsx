@@ -29,7 +29,7 @@ import {
 import { useId } from "react";
 import { useTranslation } from "react-i18next";
 import type { StudioFinding } from "../../shared/validation";
-import type { EditPath } from "../form/document-edit";
+import type { EditPath } from "../../shared/document-edit";
 import { canMoveStep } from "../form/diagram-edit";
 import { NumberField, SelectField, TextField, type Option } from "../form/fields";
 import { listOf, textOf } from "../form/form-data";

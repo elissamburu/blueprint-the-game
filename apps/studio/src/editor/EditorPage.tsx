@@ -28,7 +28,7 @@ import { usePageTitle } from "../app/page-title";
 import { ValidationPanel } from "../validation/ValidationPanel";
 import { useValidation } from "../validation/use-validation";
 import { DraftTabs, type DraftTab } from "../preview/DraftTabs";
-import { EditError, type EditCommand } from "../form/document-edit";
+import { EditError, type EditCommand } from "../../shared/document-edit";
 import { ScenarioForm, type ScenarioFormHandle } from "../form/ScenarioForm";
 import { DiagramTab } from "../diagram/DiagramTab";
 import { useSharedContent } from "./use-shared-content";

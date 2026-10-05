@@ -5,7 +5,7 @@ import type { DiagramCommand } from "@blueprint/diagram/editor";
 import { describe, expect, it } from "vitest";
 import { parseDocument } from "yaml";
 import { pdfYaml } from "../testing/content-fixture";
-import { EditError, planEdits } from "../form/document-edit";
+import { EditError, planEdits } from "../../shared/document-edit";
 import { indexOf, translate } from "./diagram-commands";
 
 type Raw = {
