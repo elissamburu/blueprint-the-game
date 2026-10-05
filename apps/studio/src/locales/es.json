@@ -7,7 +7,7 @@
   },
   "list": {
     "title": "Escenarios",
-    "description": "Elegí un escenario para editar su scenario.yaml. Se valida mientras escribís y al guardar se regeneran diagram.mmd y README.md.",
+    "description": "Elegí un escenario para editar su scenario.yaml, o creá uno nuevo. Se valida mientras escribís y al guardar se regeneran diagram.mmd y README.md.",
     "loading": "Cargando escenarios…",
     "empty": "No hay escenarios en content/scenarios/.",
     "loadFailed": "No se pudo cargar la lista: {{message}}",
@@ -22,6 +22,43 @@
     "noLevel": "—",
     "hasErrors": "Con errores",
     "valid": "Sin errores"
+  },
+  "create": {
+    "open": "Nuevo escenario",
+    "title": "Nuevo escenario",
+    "description": "Se crea la carpeta content/scenarios/<id>/ con su scenario.yaml en estado borrador, versión 1 y vos como autor, y se abre en el editor.",
+    "id": {
+      "label": "Id",
+      "hint": "Es el nombre de la carpeta: minúsculas, números y guiones, de 3 a 64 caracteres (por ejemplo, colas-de-pedidos). No se cambia una vez publicado.",
+      "errors": {
+        "required": "Escribí un id.",
+        "pattern": "Usá solo minúsculas sin tildes, números y guiones, sin un guion al principio, al final ni dos seguidos.",
+        "length": "Tiene que tener entre 3 y 64 caracteres.",
+        "exists": "Ya existe un escenario con ese id: elegí otro."
+      }
+    },
+    "titleField": {
+      "label": "Título",
+      "required": "Escribí un título."
+    },
+    "source": {
+      "label": "Origen",
+      "empty": "Vacío",
+      "templates": {
+        "scenario": "Plantilla comentada (scenario.template.yaml)"
+      },
+      "duplicate": "Duplicar un escenario existente"
+    },
+    "from": {
+      "label": "Escenario a duplicar",
+      "placeholder": "Elegí un escenario",
+      "option": "{{title}} ({{id}})",
+      "required": "Elegí el escenario a duplicar."
+    },
+    "cancel": "Cancelar",
+    "submit": "Crear y abrir",
+    "creating": "Creando…",
+    "failed": "No se creó: {{message}}"
   },
   "status": {
     "draft": "Borrador",
@@ -60,6 +97,22 @@
       "body": "Tenés cambios sin guardar en este escenario. Si salís, se pierden.",
       "stay": "Seguir editando",
       "leave": "Salir sin guardar"
+    },
+    "created": {
+      "title": "Escenario creado",
+      "body": "Está en content/scenarios/{{id}}/ como borrador. Guardalo cuando pase la validación: al guardar se regeneran diagram.mmd y README.md.",
+      "noAuthor": "No encontramos tu usuario de GitHub en la configuración de git (github.user, o user.name si es un usuario de GitHub): agregalo en «Autores».",
+      "addAuthor": "Ir a «Autores»",
+      "dismiss": "Cerrar aviso"
+    },
+    "download": {
+      "button": "Descargar .zip",
+      "title": "¿Descargar el borrador actual?",
+      "dirty": "Tenés cambios sin guardar: el .zip incluye el borrador actual, no el archivo guardado en disco.",
+      "missingGenerated": "El borrador no pasa el schema: el .zip no incluye diagram.mmd ni README.md.",
+      "confirm": "Descargar",
+      "cancel": "Cancelar",
+      "done": "Se descargó {{file}}."
     }
   },
   "validation": {

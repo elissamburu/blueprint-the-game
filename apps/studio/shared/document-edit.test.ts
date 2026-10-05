@@ -1,16 +1,25 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Edit commands over the Document (ADR-0025 §2): each one changes the data by its path and only
-// the lines of the edited node, in the 8 scenarios of content/ (Vite ?raw, no fs).
+// the lines of the edited node, in the 8 scenarios of content/ (read, never written).
+import { readdirSync, readFileSync } from "node:fs";
+import path from "node:path";
 import { parseDocument } from "yaml";
 import { describe, expect, it } from "vitest";
-import { EditError, planEdit, planEdits, type EditCommand, type TextChange } from "./document-edit";
+import {
+  EditError,
+  planEdit,
+  planEdits,
+  type EditCommand,
+  type TextChange,
+} from "./document-edit.js";
 
-const scenarios = import.meta.glob<string>("../../../../content/scenarios/*/scenario.yaml", {
-  query: "?raw",
-  import: "default",
-  eager: true,
-});
-const real = Object.entries(scenarios).filter(([file]) => !file.includes("/_"));
+const SCENARIOS_DIR = path.join(import.meta.dirname, "..", "..", "..", "content", "scenarios");
+const real: [string, string][] = readdirSync(SCENARIOS_DIR, { withFileTypes: true })
+  .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
+  .map((entry) => {
+    const file = path.join(SCENARIOS_DIR, entry.name, "scenario.yaml");
+    return [file, readFileSync(file, "utf8")];
+  });
 
 const apply = (text: string, change: TextChange | undefined): string =>
   change === undefined ? text : text.slice(0, change.from) + change.insert + text.slice(change.to);

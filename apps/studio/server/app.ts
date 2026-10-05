@@ -22,6 +22,8 @@ export interface AppOptions {
   token: string;
   contentDir: string;
   iconsDir: string;
+  /** Git config files with the author of new scenarios (RF-STU-01), global first. */
+  gitConfigFiles?: readonly string[];
   log: Log;
   /** The built UI; without it (Vite dev server) only /api and /icons are served. */
   client?: ClientFiles;
@@ -35,12 +37,13 @@ export const createApp = ({
   token,
   contentDir,
   iconsDir,
+  gitConfigFiles = [],
   log,
   client,
   fs = nodeFs,
   csp = CSP,
 }: AppOptions): Hono => {
-  const store = createContentStore({ fs, contentDir });
+  const store = createContentStore({ fs, contentDir, gitConfigFiles });
   const app = new Hono();
 
   // S9 first, so every response carries the headers, errors included.

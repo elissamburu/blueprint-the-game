@@ -3,7 +3,7 @@
 // edges, and the edits of more than one command, as one transaction (the steps of the edges and
 // the removal of nodes and groups). Pure: they read the raw document and return values or commands.
 import type { GroupKind, NodeType } from "@blueprint/scenario-schema";
-import type { EditCommand } from "./document-edit";
+import type { EditCommand } from "../../shared/document-edit";
 import { listOf, recordOf, textOf, uniqueId } from "./form-data";
 
 const edgesOf = (raw: unknown) => listOf(recordOf(recordOf(raw).diagram).edges).map(recordOf);

@@ -67,7 +67,12 @@ describe("S1: loopback only", () => {
     const { server } = await start(env);
     expect(server.address.address).toBe("127.0.0.1");
     expect(HOST).toBe("127.0.0.1");
-    expect(Object.keys(readConfig(env))).toEqual(["port", "contentDir", "iconsDir"]);
+    expect(Object.keys(readConfig(env))).toEqual([
+      "port",
+      "contentDir",
+      "iconsDir",
+      "gitConfigFiles",
+    ]);
   });
 
   it("S1: only the port is configurable", () => {

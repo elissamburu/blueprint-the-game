@@ -13,7 +13,7 @@ import {
   removeNodeCommands,
   stepCommands,
 } from "./diagram-edit";
-import { planEdits } from "./document-edit";
+import { planEdits } from "../../shared/document-edit";
 
 const raw = parseDocument(pdfYaml).toJS() as {
   diagram: {

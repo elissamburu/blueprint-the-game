@@ -77,12 +77,22 @@ describe("GET /api/scenarios", () => {
 });
 
 describe("GET /api/scenarios/:id", () => {
-  it("returns the text exactly as it is on disk and its sha256", async () => {
+  it("returns the text exactly as it is on disk, its sha256 and notes.md", async () => {
     const bytes = await workspace.read(ID);
+    const notes = (await workspace.read(ID, "notes.md")).toString("utf8");
     const body = ScenarioFileResponseSchema.parse(
       await (await get(testApp(workspace), `/api/scenarios/${ID}`)).json(),
     );
-    expect(body).toEqual({ id: ID, yaml: bytes.toString("utf8"), hash: sha256(bytes) });
+    expect(body).toEqual({ id: ID, yaml: bytes.toString("utf8"), hash: sha256(bytes), notes });
+  });
+
+  it("notes is null when the scenario has no notes.md", async () => {
+    const { rm } = await import("node:fs/promises");
+    await rm(workspace.scenarioFile(ID, "notes.md"));
+    const body = ScenarioFileResponseSchema.parse(
+      await (await get(testApp(workspace), `/api/scenarios/${ID}`)).json(),
+    );
+    expect(body.notes).toBeNull();
   });
 
   it("answers 404 for a scenario that does not exist", async () => {
@@ -240,7 +250,7 @@ describe("S8: never overwrite blindly", () => {
     expect(await workspace.tmpFiles(ID)).toEqual([]);
   });
 
-  it("S8: there are no routes to delete, rename or create scenarios", async () => {
+  it("S8: there are no routes to delete or rename scenarios", async () => {
     const before = await workspace.read(ID);
     const app = testApp(workspace);
     const attempts = [
@@ -249,11 +259,6 @@ describe("S8: never overwrite blindly", () => {
         method: "PATCH",
         headers: writeHeaders(),
         body: JSON.stringify({ id: "otro-id" }),
-      }),
-      await app.request("/api/scenarios", {
-        method: "POST",
-        headers: writeHeaders(),
-        body: JSON.stringify({ id: ID }),
       }),
       await app.request(`/api/scenarios/${ID}`, {
         method: "POST",

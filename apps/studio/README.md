@@ -2,7 +2,7 @@
 
 Editor local de escenarios ([ADR-0013](../../docs/adr/0013-scenario-studio-local-con-ia.md), [ADR-0025](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). Corre en tu máquina, escucha solo en `127.0.0.1` y lee y escribe `content/scenarios/` de tu copia del repo. **Nunca se despliega** (RF-STU-18): no entra en `pnpm build:beta` ni en `pnpm deploy:beta` (lo verifica `tools/deploy-beta/src/studio-excluded.test.ts`).
 
-Qué hace hoy (F2, PR 5): listar los escenarios, abrir uno, editar su `scenario.yaml` con un formulario (metadatos, contexto, objetivos, casilleros, grupos, nodos y aristas), con el editor visual del diagrama (con «Ordenar») o en el YAML, con validación en vivo (schema + lint, los mismos mensajes que `pnpm content:validate`), jugar el borrador y ver todas sus respuestas, y guardarlo regenerando `diagram.mmd` y `README.md`. Lo que falta de F2 sigue el [roadmap](../../docs/05-roadmap.md).
+Qué hace hoy (F2, PR 6): listar los escenarios, crear uno nuevo (vacío, desde una plantilla o duplicando otro), abrir uno, editar su `scenario.yaml` con un formulario (metadatos, contexto, objetivos, casilleros, grupos, nodos y aristas), con el editor visual del diagrama (con «Ordenar») o en el YAML, con validación en vivo (schema + lint, los mismos mensajes que `pnpm content:validate`), jugar el borrador y ver todas sus respuestas, guardarlo regenerando `diagram.mmd` y `README.md`, y descargarlo como `.zip`. Lo que falta de F2 sigue el [roadmap](../../docs/05-roadmap.md).
 
 ## Uso
 
@@ -26,6 +26,16 @@ $env:STUDIO_CONTENT_DIR = "$env:TEMP\content-studio"; pnpm studio
 Remove-Item Env:STUDIO_CONTENT_DIR
 ```
 
+### Crear
+- **Nuevo escenario** (RF-STU-01), arriba de la lista, abre un diálogo con el **id** (el nombre de la carpeta), el **título** y el **origen**:
+  - **Vacío**: todas las claves que edita el formulario, sin contenido.
+  - **Plantilla**: una de `content/scenarios/_templates/`, con sus comentarios. La lista de plantillas es cerrada (`TEMPLATE_NAMES` en `shared/api.ts`; hoy, `scenario.template.yaml`).
+  - **Duplicar** un escenario existente: copia su `scenario.yaml` tal cual (comentarios incluidos) sin tocar el original. `notes.md` no se copia: son las notas del original.
+- El id se valida mientras lo escribís, con el mismo patrón del schema (kebab-case, de 3 a 64 caracteres) y contra los ids que ya existen; los que empiezan con `_` (como `_templates`) nunca son válidos. Cada error queda asociado a su campo, el foco empieza en el id y vuelve a «Nuevo escenario» al cerrar.
+- El escenario nace con `status: draft`, `version: 1`, el id y el título nuevos, y como único autor tu **usuario de GitHub** según la configuración de git: `github.user` si existe, o `user.name` si parece un usuario de GitHub (un nombre completo con espacios no lo es). Se lee `~/.gitconfig` (o `$HOME/.gitconfig`) y después el `.git/config` del repo que contiene la carpeta de contenido; los `include` no se siguen. Si no lo encuentra, `authors` queda vacío y el editor lo pide con «Ir a «Autores»». Para fijarlo: `git config --global github.user tu-usuario`.
+- Crear escribe `scenario.yaml` y, si el escenario ya pasa el schema (una plantilla o un duplicado con autor), `diagram.mmd` y `README.md`. Un escenario vacío no pasa el schema hasta completarlo, así que **no se puede guardar** hasta entonces (el archivo creado queda en disco); los generados aparecen al guardar.
+- Si ya existe una carpeta (o un archivo) con ese id, no se crea nada (409).
+
 ### Editar
 - La lista muestra título, nivel, estado y si el escenario tiene errores. Cada título abre el editor.
 - El editor guarda el texto **tal cual**: no reformatea ni pierde comentarios. Abrir y guardar sin cambios deja el archivo idéntico byte a byte (también con CRLF).
@@ -33,6 +43,10 @@ Remove-Item Env:STUDIO_CONTENT_DIR
 - **Guardar** (o `Ctrl+S`) revalida en el servidor: un YAML con errores de sintaxis, que no pasa el schema o cuyo `id` no es el nombre de la carpeta no se guarda. Los errores de lint no impiden guardar un borrador.
 - Si el archivo cambió en disco desde que lo abriste (otro editor, un `git pull`), el Studio **no lo pisa**: avisa y ofrece recargar.
 - Con cambios sin guardar, el navegador y el Studio preguntan antes de salir.
+
+### Descargar .zip
+- **Descargar .zip** (RF-STU-14), en la barra del editor, arma en el navegador un `<id>.zip` con una carpeta `<id>/` lista para copiar a `content/scenarios/`: `scenario.yaml` (el texto del editor), `notes.md` si el escenario lo tiene, y `diagram.mmd` y `README.md` generados del mismo texto, como los escribiría guardar.
+- Con cambios sin guardar, antes de descargar avisa que el `.zip` incluye el **borrador actual**, no el archivo en disco. Si el borrador no pasa el schema, avisa que el `.zip` va sin los archivos generados.
 
 ### Formulario
 - Primera pestaña del panel izquierdo (RF-STU-03), en secciones que se expanden y contraen: **Metadatos** (el `id` es de solo lectura), **Contexto**, **Objetivos** (agregar, quitar y reordenar) y **Casilleros** (rol, pistas, respuestas con servicio, grado, objetivos vinculados, rationale y referencias, e incorrectos con servicio, rationale y objetivos que viola), **Grupos**, **Nodos** y **Aristas**.
@@ -80,10 +94,11 @@ Los tests nunca usan el `content/` real para escribir: copian el contenido a una
 
 ## Licencias de terceros
 
-El código del proyecto es PolyForm Noncommercial 1.0.0 ([ADR-0016](../../docs/adr/0016-licenciamiento.md)). Las dependencias de npm conservan su propia licencia. Esta es la que tiene una licencia distinta al resto:
+El código del proyecto es PolyForm Noncommercial 1.0.0 ([ADR-0016](../../docs/adr/0016-licenciamiento.md)). Las dependencias de npm conservan su propia licencia. Estas son las que el Studio agregó con una justificación propia:
 
 | Dependencia | Licencia | Cómo se usa |
 |---|---|---|
+| [fflate](https://github.com/101arrowz/fflate) `0.8.3` (versión exacta) | MIT | Arma el `.zip` de «Descargar .zip» en el navegador (RF-STU-14, [roadmap](../../docs/05-roadmap.md)). Sin dependencias propias y con soporte de árbol: el Studio usa solo `zipSync` y `strToU8`, unos pocos KB. No había nada en el repo que escribiera zips, y armarlo en el cliente evita una ruta nueva en el servidor. Ya estaba en el lockfile como dependencia transitiva; la versión es de mayo de 2026, así que cumple el `minimumReleaseAge` de pnpm. |
 | [elkjs](https://github.com/kieler/elkjs) `0.12.0` | EPL-2.0 OR GPL-3.0-or-later (según el registro de npm) | Sin modificar, como dependencia de npm: no se copia (*vendorea*) código al repo. La importa solo el subpath `@blueprint/diagram/layout` («Ordenar», RF-STU-05), y la usa solo el Studio local, que la carga de forma diferida y nunca se despliega. |
 
 elkjs **nunca llega al bundle del juego** ([ADR-0025 §3](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). Lo garantizan tres chequeos:
@@ -100,13 +115,13 @@ Las reglas están en [ADR-0025 §4](../../docs/adr/0025-studio-preview-con-packa
 | S2 | `Host` exactamente `127.0.0.1:<puerto>` o `localhost:<puerto>`; si no, 421. | `server/security.ts` (`hostGuard`) | `server/security.test.ts` |
 | S3 | `Origin` propio en métodos no seguros, `Sec-Fetch-Site: same-origin` si viene, `X-Studio-Token` en toda `/api` (comparación en tiempo constante), cuerpos solo `application/json` (415). | `server/security.ts` (`apiGuard`), `server/static.ts` (token en `index.html`) | `server/security.test.ts` |
 | S4 | Sin CORS: ninguna respuesta lleva `Access-Control-Allow-*`. | `server/app.ts` (no se registra CORS) | `server/security.test.ts` |
-| S5 | `id` validado con el patrón del schema antes de tocar el disco; nombres de archivo de una lista cerrada; rutas dentro de `content/scenarios/` también después de `realpath` (symlinks y junctions). | `server/routes/scenarios.ts`, `server/paths.ts` | `server/scenarios.test.ts` |
+| S5 | `id` validado con el patrón del schema antes de tocar el disco (también el id nuevo y el del escenario a duplicar al crear); nombres de archivo y de plantillas de listas cerradas; rutas dentro de `content/scenarios/` también después de `realpath` (symlinks y junctions). | `server/routes/scenarios.ts`, `server/paths.ts` | `server/scenarios.test.ts`, `server/create.test.ts` |
 | S6 | Cuerpo de 1 MiB como máximo (413). | `server/app.ts` (`bodyLimit`) | `server/security.test.ts` |
-| S7 | Escritura atómica: temporal `*.studio-tmp` en la misma carpeta + `rename`, con reintentos ante `EPERM`/`EBUSY`. | `server/atomic-write.ts` | `server/atomic-write.test.ts` |
-| S8 | Sin rutas para borrar ni renombrar; guardar exige el hash con que se abrió el archivo (409 si falta o cambió). | `server/content-store.ts`, `server/routes/scenarios.ts` | `server/scenarios.test.ts` |
+| S7 | Escritura atómica: temporal `*.studio-tmp` en la misma carpeta + `rename`, con reintentos ante `EPERM`/`EBUSY`. Si falla al crear, se borra la carpeta nueva (solo si quedó vacía). | `server/atomic-write.ts`, `server/content-store.ts` | `server/atomic-write.test.ts`, `server/create.test.ts` |
+| S8 | Sin rutas para borrar ni renombrar; guardar exige el hash con que se abrió el archivo (409 si falta o cambió); crear usa `mkdir` exclusivo (409 si la carpeta o un archivo con ese nombre existe) y duplicar solo lee el original. | `server/content-store.ts`, `server/paths.ts`, `server/routes/scenarios.ts` | `server/scenarios.test.ts`, `server/create.test.ts` |
 | S9 | `Content-Security-Policy`, `X-Content-Type-Options: nosniff` y `Referrer-Policy: no-referrer` en `/`, `/api/*` y los errores. | `server/security.ts` (`securityHeaders`) | `server/security.test.ts` |
-| S10 | Zod en cada request y respuesta; antes de escribir se revalidan YAML, schema e `id` (422). | `shared/api.ts`, `shared/validation.ts`, `server/content-store.ts` | `server/scenarios.test.ts` |
-| S11 | El servidor no ejecuta procesos (`child_process`). | `eslint.config.js` (`no-restricted-imports`), `.dependency-cruiser.cjs` (`studio-server-no-processes`) | `server/lint-rules.test.ts` |
+| S10 | Zod en cada request y respuesta; antes de escribir se revalidan YAML, schema e `id` (422). Crear no recibe YAML: el servidor escribe su propio texto, que tiene que parsear y llevar el id nuevo, pero puede no pasar el schema todavía (un escenario vacío o sin autor). | `shared/api.ts`, `shared/validation.ts`, `server/content-store.ts` | `server/scenarios.test.ts`, `server/create.test.ts` |
+| S11 | El servidor no ejecuta procesos (`child_process`). El autor de un escenario nuevo sale de leer la configuración de git como archivo, con un parser mínimo, nunca de `git config`. | `eslint.config.js` (`no-restricted-imports`), `.dependency-cruiser.cjs` (`studio-server-no-processes`), `server/git-config.ts` | `server/lint-rules.test.ts`, `server/git-config.test.ts` |
 | S12 | Token de 32 bytes por arranque, solo en memoria; nunca en logs, errores ni archivos. | `server/security.ts` (`createToken`), `server/cli.ts`, `server/app.ts` (`onError`) | `server/cli.test.ts` |
 
 Cada test lleva el id de su regla en el nombre (`it("S2: rejects …")`): `pnpm --filter @blueprint/studio exec vitest run -t "S5:"` corre los de una regla.
@@ -148,3 +163,5 @@ En `pnpm dev` y `pnpm dev:studio` el HTML y los módulos los sirve Vite con reca
 3. Corregirlo, guardar y ver "Guardado". `git diff` muestra solo tu cambio y, si cambió algo visible, `README.md`/`diagram.mmd` regenerados. `pnpm content:validate` pasa.
 4. Con un cambio sin guardar, editar el mismo `scenario.yaml` en otro editor y guardar en el Studio: aparece "El archivo cambió en disco" y el archivo no se pisa.
 5. Solo con teclado: `Tab` hasta el editor, `Esc` + `Tab` para salir, `Tab` hasta un problema del panel y `Enter`.
+6. «Nuevo escenario» con un id inválido (`Mi Escenario`): el error aparece mientras escribís. Con uno válido, origen «Duplicar» y un escenario: se abre el editor del nuevo, `git status` muestra solo la carpeta nueva y el original no cambió. Con `Esc`, el foco vuelve a «Nuevo escenario».
+7. «Descargar .zip» sin cambios: el `.zip` tiene los archivos del disco. Con un cambio sin guardar: avisa antes y el `.zip` lleva el borrador.

@@ -28,7 +28,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { SharedContent } from "../../shared/api";
 import type { StudioFinding } from "../../shared/validation";
-import type { EditCommand, EditPath } from "./document-edit";
+import type { EditCommand, EditPath } from "../../shared/document-edit";
 import {
   AddButton,
   CheckboxGroup,

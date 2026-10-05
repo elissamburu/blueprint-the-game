@@ -27,7 +27,7 @@ import {
 } from "@codemirror/view";
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import type { StudioFinding } from "../../shared/validation";
-import { EditError, planEdits, type EditCommand } from "../form/document-edit";
+import { EditError, planEdits, type EditCommand } from "../../shared/document-edit";
 import {
   createEditorState,
   cursorAt,

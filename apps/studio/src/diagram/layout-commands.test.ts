@@ -10,7 +10,7 @@ import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 import { validateScenarioText } from "../../shared/validation";
 import { createEditorState, editorText, externalEdit, lfText } from "../editor/editor-state";
-import { planEdits } from "../form/document-edit";
+import { planEdits } from "../../shared/document-edit";
 import { recordOf } from "../form/form-data";
 import { shared } from "../testing/content-fixture";
 import { layoutCommands } from "./diagram-commands";

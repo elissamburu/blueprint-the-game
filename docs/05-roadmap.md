@@ -42,6 +42,8 @@ Fases pensadas para implementarse con Claude Code **en orden**. Cada fase termin
 **DoD**: un invitado se traba en un casillero, ve la solución tras el aviso, completa el escenario, que figura como completado (no en verde) sin perder su mejor resultado anterior; el escenario de 200 se imprime a PDF con cada sección en página nueva; con `prefers-reduced-motion` activado no hay animaciones con movimiento; pruebas manuales de [accesibilidad](accesibilidad.md#7-protocolo-de-pruebas) sobre lo nuevo.
 
 ## F2 · Scenario Studio v1 (sin IA)
+**Estado**: 🟡 implementada (PR 0–6: #52–#60). El e2e del Studio cubre la parte automática del DoD: crear un escenario sin tocar el YAML, jugarlo en preview, guardarlo y que pase `content:validate`, con axe en cada pantalla. **Falta para cerrarla**: las pruebas manuales del [protocolo de accesibilidad](accesibilidad.md#7-protocolo-de-pruebas) sobre el Studio (listado, diálogo «Nuevo escenario», formulario, diagrama, YAML, preview, respuestas y «Descargar .zip»), con sus hallazgos resueltos o anotados.
+
 **Objetivo**: crear y editar escenarios cómodamente, con preview jugable.
 
 - `apps/studio` (UI + server local): formulario, editor visual, auto-layout, YAML sincronizado, validación en vivo, preview jugable, vista de respuestas, guardar/descargar.

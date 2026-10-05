@@ -26,7 +26,7 @@ import {
   stepCommands,
   type StepDirection,
 } from "./diagram-edit";
-import type { EditPath } from "./document-edit";
+import type { EditPath } from "../../shared/document-edit";
 import {
   AddButton,
   ItemActions,

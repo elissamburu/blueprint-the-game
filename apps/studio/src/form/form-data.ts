@@ -3,7 +3,7 @@
 // (ADR-0025 §2: the form stays editable by path). These readers never trust its shape.
 import { useState } from "react";
 import { parseDocument } from "yaml";
-import type { EditPath } from "./document-edit";
+import type { EditPath } from "../../shared/document-edit";
 
 export type RawRecord = Readonly<Record<string, unknown>>;
 

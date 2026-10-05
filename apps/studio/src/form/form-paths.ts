@@ -7,7 +7,7 @@
 // make it a slot (role, hints, answers) are in "Casilleros"; its id, place and group, as the ones
 // of every node, in "Nodos".
 import type { StudioFinding } from "../../shared/validation";
-import type { EditPath } from "./document-edit";
+import type { EditPath } from "../../shared/document-edit";
 import { listOf, recordOf } from "./form-data";
 
 /**

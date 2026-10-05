@@ -100,7 +100,7 @@ export const TEST_CLIENT: ClientFiles = {
 
 export const testApp = (
   workspace: Workspace,
-  options: { fs?: ContentFs; log?: Log; iconsDir?: string } = {},
+  options: { fs?: ContentFs; log?: Log; iconsDir?: string; gitConfigFiles?: string[] } = {},
 ) =>
   createApp({
     port: PORT,
@@ -110,6 +110,7 @@ export const testApp = (
     log: options.log ?? silentLog(),
     client: TEST_CLIENT,
     ...(options.fs === undefined ? {} : { fs: options.fs }),
+    ...(options.gitConfigFiles === undefined ? {} : { gitConfigFiles: options.gitConfigFiles }),
   });
 
 /** A port that was free a moment ago on 127.0.0.1. */

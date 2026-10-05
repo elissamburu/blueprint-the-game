@@ -20,7 +20,7 @@ import { cn } from "@blueprint/ui/lib/utils";
 import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, Trash2Icon } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { EditCommand, EditPath } from "./document-edit";
+import type { EditCommand, EditPath } from "../../shared/document-edit";
 import { listOf, textOf, valueAt } from "./form-data";
 import { useForm } from "./form-context";
 
