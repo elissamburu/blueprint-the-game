@@ -437,7 +437,7 @@ const plan = (text: string, command: EditCommand, original: Document, edited: Do
  */
 export const planEdit = (text: string, command: EditCommand): TextChange | undefined => {
   const original = parse(text);
-  const edited = parse(text);
+  const edited = original.clone();
   const change = plan(text, command, original, edited);
   if (change === undefined) return undefined;
   if (sameData(applyChange(text, change), edited)) return shrink(text, change);
