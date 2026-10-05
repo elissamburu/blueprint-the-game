@@ -2,7 +2,7 @@
   "name": "@blueprint/content-lint",
   "version": "0.0.0",
   "private": true,
-  "description": "Lint semántico de escenarios (docs/03 §3): reglas puras, sin IO.",
+  "description": "Lint semántico de escenarios (docs/03 §3) y generador de diagram.mmd y README.md: puro, sin IO.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "exports": {

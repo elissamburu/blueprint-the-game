@@ -1,30 +1,34 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-import { readFile } from "node:fs/promises";
-import path from "node:path";
-import { parseScenario, parseServices, type Scenario, type Service } from "@blueprint/scenario-schema";
-import { beforeAll, describe, expect, it } from "vitest";
-import { parseYaml } from "./content.js";
+// Fixtures loaded with Vite's ?raw and import.meta.glob (no fs): a small scenario and catalog for
+// the unit tests, and every scenario of content/ with its committed generated files.
+import {
+  parseScenario,
+  parseServices,
+  type Scenario,
+  type Service,
+} from "@blueprint/scenario-schema";
+import { describe, expect, it } from "vitest";
+import { parse } from "yaml";
+import realServicesRaw from "../../../content/catalog/services.yaml?raw";
 import { GENERATED_NOTICE, renderDiagram, renderGeneratedFiles, renderReadme } from "./generate.js";
-import { FIXTURE_CONTENT } from "./testing/fixture.js";
+import scenarioRaw from "./testing/generator/club-photos.yaml?raw";
+import servicesRaw from "./testing/generator/services.yaml?raw";
 
-const loadYaml = async (...segments: string[]): Promise<unknown> => {
-  const result = parseYaml(await readFile(path.join(FIXTURE_CONTENT, ...segments), "utf8"), "x");
-  if (!result.ok) throw new Error("invalid fixture YAML");
-  return result.value;
+const parseCatalog = (raw: string): ReadonlyMap<string, Service> => {
+  const result = parseServices(parse(raw));
+  if (!result.success) throw new Error("invalid catalog fixture");
+  return new Map(result.data.map((s) => [s.id, s]));
+};
+const parseFixture = (raw: string): Scenario => {
+  const result = parseScenario(parse(raw));
+  if (!result.success) throw new Error("invalid scenario fixture");
+  return result.data;
 };
 
-let catalog: Map<string, Service>;
-let scenario: Scenario;
+const catalog = parseCatalog(servicesRaw);
+const scenario = parseFixture(scenarioRaw);
 
 const fresh = (): Scenario => structuredClone(scenario);
-
-beforeAll(async () => {
-  const services = parseServices(await loadYaml("catalog", "services.yaml"));
-  const parsed = parseScenario(await loadYaml("scenarios", "club-photos", "scenario.yaml"));
-  if (!services.success || !parsed.success) throw new Error("invalid fixtures");
-  catalog = new Map(services.data.map((s) => [s.id, s]));
-  scenario = parsed.data;
-});
 
 describe("renderDiagram", () => {
   it("starts with the generated-file header and a flowchart", () => {
@@ -101,12 +105,14 @@ describe("renderDiagram", () => {
 describe("renderReadme", () => {
   it("has the generated header, spoiler warning, metadata, objectives and embedded Mermaid", () => {
     const readme = renderReadme(fresh(), catalog);
-    expect(readme.startsWith(`<!-- ${GENERATED_NOTICE} -->\n\n# Fotos de un club de barrio\n`)).toBe(
-      true,
-    );
+    expect(
+      readme.startsWith(`<!-- ${GENERATED_NOTICE} -->\n\n# Fotos de un club de barrio\n`),
+    ).toBe(true);
     expect(readme).toContain("**Spoilers:**");
     expect(readme).toContain("| Versión | 1 |");
-    expect(readme).toContain("| `no-servers` | Restricción | operations | No administrar servidores. |");
+    expect(readme).toContain(
+      "| `no-servers` | Restricción | operations | No administrar servidores. |",
+    );
     expect(readme).toContain("```mermaid\nflowchart LR\n");
   });
 
@@ -143,14 +149,37 @@ describe("renderGeneratedFiles", () => {
     }
   });
 
-  it("matches the files committed in the fixtures", async () => {
-    const files = renderGeneratedFiles(fresh(), catalog);
-    for (const [name, text] of Object.entries(files)) {
-      const committed = await readFile(
-        path.join(FIXTURE_CONTENT, "scenarios", "club-photos", name),
-        "utf8",
+  it("reproduces the generated files committed for every scenario of content/", () => {
+    const files = {
+      ...import.meta.glob("../../../content/scenarios/*/scenario.yaml", {
+        query: "?raw",
+        import: "default",
+        eager: true,
+      }),
+      ...import.meta.glob("../../../content/scenarios/*/diagram.mmd", {
+        query: "?raw",
+        import: "default",
+        eager: true,
+      }),
+      ...import.meta.glob("../../../content/scenarios/*/README.md", {
+        query: "?raw",
+        import: "default",
+        eager: true,
+      }),
+    };
+    const realCatalog = parseCatalog(realServicesRaw);
+    const dirs = Object.keys(files)
+      .filter((file) => file.endsWith("/scenario.yaml") && !file.includes("/_"))
+      .map((file) => file.slice(0, -"scenario.yaml".length));
+    expect(dirs.length).toBeGreaterThanOrEqual(8);
+    for (const dir of dirs) {
+      const generated = renderGeneratedFiles(
+        parseFixture(files[`${dir}scenario.yaml`] ?? ""),
+        realCatalog,
       );
-      expect(committed.replace(/\r\n/g, "\n")).toBe(text);
+      for (const [name, text] of Object.entries(generated)) {
+        expect(files[`${dir}${name}`]?.replace(/\r\n/g, "\n"), `${dir}${name}`).toBe(text);
+      }
     }
   });
 });

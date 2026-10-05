@@ -11,5 +11,13 @@ export type {
   SharedRule,
 } from "./types.js";
 export { createContext, hasErrors, lintScenario, lintSharedContent } from "./lint.js";
+export {
+  GENERATED_FILES,
+  GENERATED_NOTICE,
+  renderDiagram,
+  renderGeneratedFiles,
+  renderReadme,
+  type GeneratedFileName,
+} from "./generate.js";
 export * from "./shared-rules/index.js";
 export * from "./rules/index.js";
