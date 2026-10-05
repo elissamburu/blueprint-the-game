@@ -3,23 +3,22 @@
 // one for narrow screens (the game is desktop-first in v1, RNF-01). Both are static named regions,
 // never live ones: nothing is announced on load. Closing one is an interface preference of this
 // browser. Contrast of their text: docs/design/tokens.css.
+import { useFlagPreference } from "@blueprint/play";
 import { Button } from "@blueprint/ui/components/button";
 import { cn } from "@blueprint/ui/lib/utils";
 import { ExternalLinkIcon, XIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import { repositoryUrl } from "../features/play/report-issue";
-import {
-  BETA_NOTICE_DISMISSED_KEY,
-  NARROW_NOTICE_DISMISSED_KEY,
-  useFlagPreference,
-} from "../features/play/ui-preferences";
 import { feedbackUrl } from "./feedback";
 
 const FEEDBACK_URL = feedbackUrl(
   import.meta.env.VITE_FEEDBACK_URL,
   repositoryUrl(import.meta.env.VITE_REPO_URL),
 );
+
+export const BETA_NOTICE_DISMISSED_KEY = "blueprint.ui.betaNoticeDismissed";
+export const NARROW_NOTICE_DISMISSED_KEY = "blueprint.ui.narrowNoticeDismissed";
 
 /** `focusTargetId`: where the focus goes when a notice is closed, so it is not lost. */
 export function SiteNotices({ focusTargetId }: { focusTargetId: string }) {

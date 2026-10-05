@@ -27,6 +27,7 @@ import {
 } from "@blueprint/ui/components/alert-dialog";
 import { Button, buttonVariants } from "@blueprint/ui/components/button";
 import { LevelBadge } from "@blueprint/ui/components/level-badge";
+import { formatNumber } from "@blueprint/ui/lib/format";
 import { cn } from "@blueprint/ui/lib/utils";
 import {
   ArrowRightIcon,
@@ -45,7 +46,6 @@ import { useProgressStore } from "../../progress/progress-store";
 import { usePlayerProgress } from "../../progress/use-player-progress";
 import { AreaToggles, ExperienceRadios } from "../onboarding/PreferenceFields";
 import { progressEventText } from "../play/finish";
-import { formatNumber } from "../../i18n/format";
 
 export default function ProfilePage() {
   const { t } = useTranslation();

@@ -9,8 +9,10 @@ packages:
 allowBuilds:
   esbuild: false
 
-# Shared versions for tooling used across packages (`"catalog:"` in package.json).
+# Shared versions for tooling and for the libraries more than one package uses, which must
+# resolve to a single copy (one React context, one i18next instance) (`"catalog:"` in package.json).
 catalog:
+  "@dnd-kit/core": ^6.3.1
   "@eslint/js": ^10.0.1
   "@tailwindcss/vite": ^4.3.3
   "@testing-library/react": ^16.3.3
@@ -25,11 +27,14 @@ catalog:
   eslint-config-prettier: ^10.1.8
   eslint-plugin-react-hooks: ^7.1.1
   globals: ^17.12.0
+  i18next: ^26.4.2
   jsdom: ^30.1.1
   lucide-react: ^1.48.0
   prettier: ^3.9.9
   react: ^19.3.0
   react-dom: ^19.3.0
+  react-i18next: ^17.0.15
+  react-router: ^8.4.0
   rimraf: ^6.1.3
   tailwindcss: ^4.3.3
   tsx: ^4.23.15
@@ -40,3 +45,4 @@ catalog:
   vitest: ^5.0.2
   yaml: ^2.9.1
   zod: ^4.6.5
+  zustand: ^5.0.15

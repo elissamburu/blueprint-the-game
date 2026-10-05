@@ -2,6 +2,7 @@
 // The printable version (RF-PLAY-16) through the real routes: its sheets, the solutions only on
 // demand, the same gate as the game, and nothing of the game nor of the progress changes.
 import { slotNodes } from "@blueprint/game-engine";
+import { useSessionStore } from "@blueprint/play";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
@@ -15,7 +16,6 @@ import { PROGRESS_STORAGE_KEY } from "../../progress/local-storage-progress-repo
 import { useProgressStore } from "../../progress/progress-store";
 import { newProgress, storeProgress } from "../../testing/progress-fixture";
 import { mockReactFlowLayout } from "../../testing/react-flow-mocks";
-import { useSessionStore } from "./session-store";
 import { bundle, pdfScenario } from "./testing/game-fixture";
 
 beforeEach(() => {

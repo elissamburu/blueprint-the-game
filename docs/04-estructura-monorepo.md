@@ -162,7 +162,7 @@ blueprint/
  tools/content                     apps/web · apps/studio
 ```
 
-El grafo muestra los paquetes que existen y `play` ([ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). `ui` no depende de ningún paquete interno. Dependencias internas completas (sin `config`, que solo aporta tooling): las de los paquetes que existen salen de sus `package.json`; las de los marcados con fase o "planificado" son las previstas.
+El grafo muestra los paquetes que existen, `play` incluido ([ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). `ui` no depende de ningún paquete interno. Dependencias internas completas (sin `config`, que solo aporta tooling): las de los paquetes que existen salen de sus `package.json`; las de los marcados con fase o "planificado" son las previstas.
 
 | Paquete | Depende de |
 |---|---|
@@ -171,12 +171,12 @@ El grafo muestra los paquetes que existen y `play` ([ADR-0025](adr/0025-studio-p
 | `content-lint` | `scenario-schema` |
 | `game-engine` | `scenario-schema` |
 | `diagram` | `scenario-schema`, `ui` |
-| `play` (F2) | `scenario-schema`, `game-engine`, `diagram`, `ui` |
+| `play` | `scenario-schema`, `game-engine`, `diagram`, `ui` |
 | `catalog` (planificado) | `scenario-schema` |
 | `api-contract` (F4) | `scenario-schema` |
 | `ai-generator` (F5) | `scenario-schema`, `content-lint` (para reparar) |
 | `tools/content` | `scenario-schema`, `content-lint` |
-| `apps/web` | `scenario-schema`, `game-engine`, `diagram`, `ui`; `play` desde F2 |
+| `apps/web` | `scenario-schema`, `game-engine`, `diagram`, `ui`, `play` |
 | `apps/studio` (F2) | `scenario-schema`, `content-lint`, `game-engine`, `diagram`, `ui`, `play`; `ai-generator` en F5 |
 | `services/api` (F4) | `scenario-schema`, `game-engine`, `api-contract` |
 
@@ -184,7 +184,7 @@ Reglas (enforced con `eslint-plugin-boundaries` o `dependency-cruiser`):
 - `packages/*` **no** importan de `apps/*` ni de `services/*`.
 - `game-engine`, `scenario-schema`, `content-lint`, `catalog` **no tienen IO** (ni `fs`, ni `fetch`, ni SDKs de AWS) en su `src/`, tests incluidos. Reciben datos y devuelven datos. Sus scripts de build (`scripts/`) pueden usar Node, pero `src/` no puede importarlos.
 - `services/api` no importa `diagram`, `play` ni `ui`.
-- `diagram` y `ui` no importan `game-engine`: el tablero recibe el estado por props y emite eventos. `play` es la única capa de UI que traduce esos eventos en comandos del motor ([ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)).
+- `diagram` y `ui` no importan `game-engine`: el tablero recibe el estado por props y emite eventos. `play` es la única capa de UI que traduce esos eventos en comandos del motor ([ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)), y `diagram` y `ui` tampoco importan `play`.
 - Nada alcanzable desde `apps/web` importa `@codemirror/*` ni `elkjs`: son dependencias exclusivas del Studio. Además de la regla de dependency-cruiser, el build de `apps/web` falla si alguno de esos módulos entra al bundle.
 - `ai-generator` define la interfaz `LlmProvider`; solo `providers/*` importan SDKs de IA.
 - Nada fuera de `apps/studio/server` puede escribir en `content/`, con una excepción: `pnpm content:gen` (`tools/content`) regenera los archivos **derivados** de cada escenario (`diagram.mmd` y `README.md`), nunca un `scenario.yaml` ni los archivos compartidos. Los dos usan el mismo generador de `content-lint`.

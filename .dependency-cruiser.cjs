@@ -34,9 +34,18 @@ module.exports = {
       severity: "error",
       comment:
         "packages/diagram draws the board: slot states come in by props and it only emits events " +
-        "(ADR-0008). It must not import game-engine; the app translates its events into commands.",
+        "(ADR-0008). It must not import game-engine; packages/play translates its events into commands.",
       from: { path: "^packages/diagram/" },
       to: { path: "(^|/)(@blueprint/game-engine|packages/game-engine)(/|$)" },
+    },
+    {
+      name: "ui-and-diagram-not-to-play",
+      severity: "error",
+      comment:
+        "packages/play is the game screen and the only UI package that may import game-engine " +
+        "(ADR-0025): ui and diagram sit below it and must not import it.",
+      from: { path: "^packages/(ui|diagram)/" },
+      to: { path: "(^|/)(@blueprint/play|packages/play)(/|$)" },
     },
     {
       name: "pure-packages-no-node-builtins",

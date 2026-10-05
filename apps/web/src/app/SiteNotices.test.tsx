@@ -2,11 +2,7 @@
 import { cleanup, fireEvent, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import "../i18n";
-import {
-  BETA_NOTICE_DISMISSED_KEY,
-  NARROW_NOTICE_DISMISSED_KEY,
-} from "../features/play/ui-preferences";
-import { SiteNotices } from "./SiteNotices";
+import { BETA_NOTICE_DISMISSED_KEY, NARROW_NOTICE_DISMISSED_KEY, SiteNotices } from "./SiteNotices";
 
 const BETA = "Aviso de versión beta";
 const NARROW = "Aviso de pantalla angosta";

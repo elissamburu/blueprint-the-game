@@ -5,6 +5,7 @@
 // services dragged above the board (placeService): the wiring the game screen will use.
 import { Diagram, type ServiceDragData, type ServiceLookup } from "@blueprint/diagram";
 import { commands, slotNodes, type Command } from "@blueprint/game-engine";
+import { createServiceLookup, createSessionStore, slotViews } from "@blueprint/play";
 import type { GameRules, Scenario } from "@blueprint/scenario-schema";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
 import { cn } from "@blueprint/ui/lib/utils";
@@ -21,8 +22,7 @@ import { PageHeading, PageShell } from "../app/page";
 import { useContentStore } from "../content/content-store";
 import type { ContentBundle } from "../content/load-bundle";
 import { Loading, RequireContent } from "../content/RequireContent";
-import { createServiceLookup, slotViews } from "../features/play/board";
-import { createSessionStore } from "../features/play/session-store";
+import { serviceIconSrc } from "../service-icons";
 
 /** Sample states: optimal, acceptable (selected, one hint used), incorrect, and a used hint. */
 export const sampleCommands = (scenario: Scenario): Command[] => {
@@ -74,7 +74,10 @@ function Scenarios({ bundle }: { bundle: ContentBundle }) {
       active = false;
     };
   }, [bundle, loadScenario]);
-  const services = useMemo(() => createServiceLookup(bundle.catalog.services), [bundle]);
+  const services = useMemo(
+    () => createServiceLookup(bundle.catalog.services, serviceIconSrc),
+    [bundle],
+  );
 
   if (scenarios === null) return <Loading label="Cargando escenarios…" />;
   return (
