@@ -12,6 +12,9 @@ export const E2E_PORT = 4321;
 export const REPO_ROOT = fileURLToPath(new URL("../../../..", import.meta.url));
 export const E2E_ROOT = path.join(os.tmpdir(), "blueprint-studio-e2e");
 export const E2E_CONTENT = path.join(E2E_ROOT, "content");
+/** HOME of the e2e server: its .gitconfig gives the author of new scenarios (RF-STU-01). */
+export const E2E_HOME = path.join(E2E_ROOT, "home");
+export const E2E_AUTHOR = "e2e-autora";
 
 export const scenarioFile = (id: string, name = "scenario.yaml") =>
   path.join(E2E_CONTENT, "scenarios", id, name);
