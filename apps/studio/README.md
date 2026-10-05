@@ -2,7 +2,7 @@
 
 Editor local de escenarios ([ADR-0013](../../docs/adr/0013-scenario-studio-local-con-ia.md), [ADR-0025](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). Corre en tu máquina, escucha solo en `127.0.0.1` y lee y escribe `content/scenarios/` de tu copia del repo. **Nunca se despliega** (RF-STU-18): no entra en `pnpm build:beta` ni en `pnpm deploy:beta` (lo verifica `tools/deploy-beta/src/studio-excluded.test.ts`).
 
-Qué hace hoy (F2, PR 2): listar los escenarios, abrir uno, editar su `scenario.yaml` con validación en vivo (schema + lint, los mismos mensajes que `pnpm content:validate`) y guardarlo regenerando `diagram.mmd` y `README.md`. El formulario, el editor visual, el preview y la vista de respuestas llegan en los PR siguientes del [roadmap](../../docs/05-roadmap.md).
+Qué hace hoy (F2, PR 3): listar los escenarios, abrir uno, editar su `scenario.yaml` con validación en vivo (schema + lint, los mismos mensajes que `pnpm content:validate`), jugar el borrador y ver todas sus respuestas, y guardarlo regenerando `diagram.mmd` y `README.md`. El formulario y el editor visual llegan en los PR siguientes del [roadmap](../../docs/05-roadmap.md).
 
 ## Uso
 
@@ -34,9 +34,15 @@ Remove-Item Env:STUDIO_CONTENT_DIR
 - Si el archivo cambió en disco desde que lo abriste (otro editor, un `git pull`), el Studio **no lo pisa**: avisa y ofrece recargar.
 - Con cambios sin guardar, el navegador y el Studio preguntan antes de salir.
 
+### Jugar y Respuestas
+- A la izquierda del editor, dos pestañas sobre el **borrador** (el último texto que pasa el schema, no el archivo en disco). Si el YAML no parsea o no pasa el schema, muestran la última versión válida con un aviso que lleva a la línea del error.
+- **Jugar** (RF-STU-08) es la pantalla de juego de `@blueprint/play`, la misma de la web, con la paleta y las reglas del nivel. No guarda progreso ni ofrece reportar un problema ni la versión imprimible. Al finalizar, el resultado (puntaje y grado por casillero) queda en el mismo panel con «Reiniciar». Si el escenario cambia en medio de una partida, la partida sigue y un aviso ofrece reiniciar con la versión nueva.
+- **Respuestas** (RF-STU-09) muestra el diagrama con el óptimo de cada casillero y, por casillero, los óptimos, aceptables e incorrectos con su grado, los objetivos, el porqué y la documentación: la misma lista que las hojas de solución de la versión imprimible.
+
 ### Teclado
 - `Tab` indenta dentro del editor. Para salir del editor con el teclado: `Esc` y después `Tab` (o `Mayús+Tab`). La ayuda está visible arriba del editor.
 - `Ctrl+S` guarda; `Ctrl+F` busca.
+- Las pestañas Jugar y Respuestas se cambian con las flechas; el foco queda en la pestaña. Ir a Respuestas no corta la partida en curso.
 
 ### Desarrollo
 

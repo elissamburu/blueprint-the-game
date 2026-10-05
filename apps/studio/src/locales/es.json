@@ -80,5 +80,34 @@
     "line": "Línea {{line}}",
     "goToLine": "Ir a la línea {{line}}: {{message}}",
     "sharedFailed": "No se pudo validar: faltan los archivos compartidos ({{message}})."
+  },
+  "draft": {
+    "tabs": "Vista del borrador",
+    "play": "Jugar",
+    "answers": "Respuestas",
+    "invalid": "El YAML tiene un error en la línea {{line}}: se muestra la última versión válida.",
+    "invalidNoDraft": "El YAML tiene un error en la línea {{line}} y todavía no hay una versión válida para mostrar.",
+    "goToLine": "Ir a la línea {{line}}"
+  },
+  "preview": {
+    "lead": "Jugá el borrador del editor con el mismo juego, la paleta del nivel y sus reglas. La partida no guarda progreso.",
+    "start": "Empezar partida",
+    "noDraft": "Todavía no hay una versión válida del escenario.",
+    "loading": "Cargando el juego…",
+    "exit": "Salir de la partida",
+    "changed": "El escenario cambió: reiniciá para jugar la versión nueva.",
+    "restart": "Reiniciar",
+    "summary": {
+      "title": "Partida terminada",
+      "score": "Puntaje: {{score}} de {{max}}",
+      "notSaved": "Es una partida del preview: no se guarda.",
+      "slots": "Grado por casillero"
+    }
+  },
+  "answers": {
+    "title": "Respuestas del borrador",
+    "lead": "Todos los casilleros revelados con su óptimo y, debajo, cada respuesta con su grado, los objetivos y el porqué.",
+    "diagramLabel": "Diagrama de «{{title}}» con las respuestas óptimas",
+    "slotTitle": "Casillero {{number}}: {{role}}"
   }
 }
