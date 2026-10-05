@@ -191,3 +191,102 @@ test("con teclado: agregar, mover, quitar, elegir un servicio y deshacer", async
   await expect(service).toHaveText(original);
   expect(await readFile(scenarioFile(VPC.id), "utf8")).toBe(before);
 });
+
+const INSURANCE = {
+  id: "insurance-docs-assistant",
+  title: "Asistente de pólizas para los clientes de una aseguradora",
+} as const;
+
+/** Chooses an option of a select of the form (Radix) with the keyboard. */
+const chooseWithKeyboard = async (page: Page, option: string) => {
+  await page.keyboard.press("Enter");
+  const listbox = page.getByRole("listbox");
+  await expect(listbox).toBeVisible();
+  const target = listbox.getByRole("option", { name: option, exact: true });
+  for (let presses = 0; presses < 40; presses++) {
+    if ((await target.getAttribute("data-highlighted")) !== null) break;
+    await page.keyboard.press("ArrowDown");
+  }
+  await page.keyboard.press("Enter");
+  await expect(listbox).toBeHidden();
+};
+
+test("grupos, nodos y aristas: crear, conectar, mover de paso, saltar al error y quitar", async ({
+  page,
+}) => {
+  const before = await readFile(scenarioFile(INSURANCE.id), "utf8");
+  await openScenario(page, INSURANCE.title);
+  const form = formPanel(page);
+  const okSummary = await validationSummary(page).innerText();
+
+  await test.step("un actor nuevo, conectado con una arista", async () => {
+    await openSection(page, "Nodos");
+    const nodes = await form.getByRole("group", { name: /^Nodo \d+:/ }).count();
+    await form.getByRole("button", { name: "Agregar actor" }).click();
+    const node = nodes + 1;
+    await expect(form.getByRole("textbox", { name: `Id del nodo ${node}` })).toBeFocused();
+    await expect(editorContent(page)).toContainText("position: { x: 40, y: 40 }");
+
+    await openSection(page, "Aristas");
+    const edges = await form.getByRole("group", { name: /^Arista \d+:/ }).count();
+    const edge = edges + 1;
+    await form.getByRole("button", { name: "Agregar arista" }).click();
+    const from = form.getByRole("combobox", { name: `Desde de la arista ${edge}` });
+    await expect(from).toBeFocused();
+    await chooseWithKeyboard(page, "nuevo-actor");
+    await expect(from).toContainText("nuevo-actor");
+    await expect(editorContent(page)).toContainText("from: nuevo-actor");
+
+    await form.getByRole("button", { name: `Subir paso de la arista ${edge}` }).click();
+    await expect(formStatus(page)).toHaveText(
+      /^la arista \d+: ahora es el paso \d+, en paralelo con /,
+    );
+
+    await test.step("quitar el nodo quita su arista", async () => {
+      await form.getByRole("button", { name: `Quitar el nodo ${node}` }).click();
+      const dialog = page.getByRole("alertdialog", { name: `¿Quitar el nodo ${node}?` });
+      await expect(dialog).toContainText("junto con la arista que llega o sale de él");
+      await dialog.getByRole("button", { name: "Quitar" }).click();
+      await expect(formStatus(page)).toHaveText(`Se quitó el nodo ${node} y su arista.`);
+      await expect(form.getByRole("group", { name: /^Arista \d+:/ })).toHaveCount(edges);
+    });
+  });
+
+  await test.step("un grupo nuevo dentro de otro, y quitarlo", async () => {
+    await openSection(page, "Grupos");
+    const groups = await form.getByRole("group", { name: /^Grupo \d+:/ }).count();
+    const group = groups + 1;
+    await form.getByRole("button", { name: "Agregar grupo" }).click();
+    await expect(form.getByRole("textbox", { name: `Id del grupo ${group}` })).toBeFocused();
+    const parent = form.getByRole("combobox", { name: `Padre del grupo ${group}` });
+    await expect(parent).toContainText("Sin padre (null)");
+    await parent.focus();
+    await chooseWithKeyboard(page, "cloud");
+    await expect(editorContent(page)).toContainText("parent: cloud");
+    await form.getByRole("button", { name: `Quitar el grupo ${group}` }).click();
+    await page.getByRole("alertdialog").getByRole("button", { name: "Quitar" }).click();
+    await expect(form.getByRole("group", { name: /^Grupo \d+:/ })).toHaveCount(groups);
+  });
+
+  await test.step("un error de L007 lleva al nodo, y Ctrl+Z lo deshace", async () => {
+    const x = form.getByRole("textbox", { name: "X del nodo 2" });
+    const original = await x.inputValue();
+    await x.fill("5000");
+    const issue = page
+      .getByRole("region", { name: "Validación" })
+      .getByRole("button", { name: /L007/ })
+      .first();
+    await expect(issue).toBeVisible();
+    await form.getByRole("button", { name: "Contraer todo" }).click();
+    await issue.click();
+    const focused = await page.evaluate(() => document.activeElement?.id ?? "");
+    expect(focused).toMatch(/^form-diagram-nodes-1/);
+    await page.keyboard.press("Control+z");
+    await expect(form.getByRole("textbox", { name: "X del nodo 2" })).toHaveValue(original);
+  });
+
+  // Every edit was undone or removed: the text is the file again.
+  await expect(validationSummary(page)).toHaveText(okSummary);
+  await expect(saveState(page)).toHaveText("Guardado");
+  expect(await readFile(scenarioFile(INSURANCE.id), "utf8")).toBe(before);
+});
