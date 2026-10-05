@@ -117,3 +117,26 @@ test("formulario completo de los 8 escenarios, también con errores", async ({ p
   await expect(form.getByText(/el formulario muestra la última versión válida/)).toBeVisible();
   await expectNoViolations(page, "formulario de solo lectura");
 });
+
+test("pestaña «Diagrama»: sin selección, con un nodo, una arista y «Conectar con…»", async ({
+  page,
+}) => {
+  await openScenario(page, SCENARIOS.pdf.title);
+  await page.getByRole("tab", { name: "Diagrama" }).click();
+  const canvas = page.getByRole("application", { name: "Diagrama del escenario" });
+  await expect(canvas).toBeVisible();
+  await expectNoViolations(page, "Diagrama, sin selección");
+
+  await canvas.locator('[data-diagram-element="node:api-entry"]').click();
+  await expect(page.getByRole("heading", { name: /^Casillero 1 · api-entry$/ })).toBeVisible();
+  await expectNoViolations(page, "Diagrama, con un nodo");
+
+  await page.keyboard.press("c");
+  await expect(page.getByRole("dialog", { name: /^Conectar/ })).toBeVisible();
+  await expectNoViolations(page, "Diagrama, «Conectar con…»");
+  await page.keyboard.press("Escape");
+
+  await canvas.locator('[data-diagram-element^="edge:"]').first().click();
+  await expect(page.getByRole("heading", { name: /^Arista · / })).toBeVisible();
+  await expectNoViolations(page, "Diagrama, con una arista");
+});

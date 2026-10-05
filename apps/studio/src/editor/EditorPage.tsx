@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Editor of a scenario (RF-STU-02, 03, 06, 07, 08, 09, 14): top bar with the scenario, the save
-// state in words and "Guardar"; on the left the form, the draft played and its answers (tabs
-// "Formulario", "Jugar" and "Respuestas"), on the right the YAML editor over the validation panel.
-// The form edits the text through the YAML editor, so both share one undo history. An issue of the
+// state in words and "Guardar"; on the left the form, the visual editor of the diagram, the draft
+// played and its answers (tabs "Formulario", "Diagrama", "Jugar" and "Respuestas"), on the right
+// the YAML editor over the validation panel. The form and the diagram edit the text through the
+// YAML editor, so all of them share one undo history. An issue of the
 // panel goes to its field while the form is visible, and to its line of the YAML otherwise. The text is the source of
 // truth and is saved as it is (ADR-0025 §2). A 409 means the file changed on disk: it is explained
 // and nothing is overwritten (S8).
@@ -27,8 +28,9 @@ import { usePageTitle } from "../app/page-title";
 import { ValidationPanel } from "../validation/ValidationPanel";
 import { useValidation } from "../validation/use-validation";
 import { DraftTabs, type DraftTab } from "../preview/DraftTabs";
-import { EditError } from "../form/document-edit";
+import { EditError, type EditCommand } from "../form/document-edit";
 import { ScenarioForm, type ScenarioFormHandle } from "../form/ScenarioForm";
+import { DiagramTab } from "../diagram/DiagramTab";
 import { useSharedContent } from "./use-shared-content";
 import { YamlEditor, type YamlEditorHandle } from "./YamlEditor";
 
@@ -135,6 +137,10 @@ export function EditorPage() {
     editor.current?.focusLine(finding.line, finding.column);
   };
   const title = validation.result?.scenario?.title ?? id;
+  const editText = (commands: readonly EditCommand[], isolate: boolean) => {
+    if (editor.current === null) throw new EditError("El editor no está listo");
+    editor.current.edit(commands, isolate);
+  };
 
   const stateText = (() => {
     switch (save.kind) {
@@ -248,14 +254,30 @@ export function EditorPage() {
                   text={text}
                   findings={validation.result?.findings ?? []}
                   shared={shared}
-                  onEdit={(commands, isolate) => {
-                    if (editor.current === null) throw new EditError("El editor no está listo");
-                    editor.current.edit(commands, isolate);
-                  }}
+                  onEdit={editText}
                   onUndo={() => editor.current?.undo()}
                   onRedo={() => editor.current?.redo()}
                   onSave={onSave}
                   onJumpToLine={(line) => editor.current?.focusLine(line)}
+                />
+              )
+            }
+            diagram={
+              shared !== undefined && (
+                <DiagramTab
+                  key={`${id}:${opened.generation}`}
+                  text={text}
+                  findings={validation.result?.findings ?? []}
+                  shared={shared}
+                  onEdit={editText}
+                  onUndo={() => editor.current?.undo()}
+                  onRedo={() => editor.current?.redo()}
+                  onSave={onSave}
+                  onJumpToLine={(line) => editor.current?.focusLine(line)}
+                  onOpenInForm={(path) => {
+                    setTab("form");
+                    form.current?.focusPath(path);
+                  }}
                 />
               )
             }
