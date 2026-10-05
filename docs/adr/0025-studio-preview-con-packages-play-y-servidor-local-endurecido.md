@@ -37,7 +37,7 @@ Además, el servidor del Studio escribe en el repo. Aunque escuche solo en `127.
 
 ### 2. Modelo de edición del Studio
 - **Fuente de verdad**: el texto YAML y su `Document` (librería `yaml`), en memoria. Formulario, diagrama, vista de respuestas y preview se derivan de él. Las ediciones del formulario y del diagrama son comandos sobre el `Document` con el path más fino posible (`setIn` de un escalar, nunca reemplazar un subárbol) y regeneran el texto, así que hay una sola pila de deshacer.
-- **YAML inválido a medio escribir**: si no parsea, el formulario, el diagrama, el preview y las respuestas muestran el último estado válido en solo lectura, con un aviso que indica la línea del error. Si parsea pero no pasa el schema, el formulario sigue editable (trabaja por path); el diagrama y el preview usan el último escenario válido.
+- **YAML inválido a medio escribir**: si no parsea, el formulario, el diagrama, el preview y las respuestas muestran el último estado válido en solo lectura, con un aviso que indica la línea del error. Si parsea pero no pasa el schema, el formulario sigue editable (trabaja por path); el diagrama y el preview usan el último escenario válido. (Precisado para el editor visual en [Enmiendas, 2026-10-05](#enmiendas).)
 - **Comentarios**: se conservan los de los nodos que no se editan; borrar un nodo borra sus comentarios. Guardar escribe el texto tal cual; el Studio nunca reformatea el archivo entero. Un archivo abierto y guardado sin cambios queda idéntico byte a byte.
 - **Validación en vivo** (RF-STU-07): `scenario-schema` y `content-lint` corren en el navegador (son puros). El servidor repite la validación al guardar. Cada issue lleva su `path`, que se resuelve a una línea del YAML y al campo del formulario. L014 (control de `version` contra `main`) **no** corre en el Studio: queda en `pnpm content:validate --base origin/main` y en el CI.
 - **Archivos generados**: el generador de `diagram.mmd` y `README.md` (puro) pasa de `tools/content` a `@blueprint/content-lint`, junto a la comparación de L012. El CLI y el servidor del Studio lo importan de ahí. Guardar regenera los dos archivos.
@@ -82,6 +82,18 @@ CodeMirror 6 (`@codemirror/*`, editor YAML con diagnósticos) y `elkjs` (auto-la
 - `packages/play` es el único paquete de UI que puede importar `game-engine`.
 - El servidor del Studio tiene reglas de seguridad numeradas y probadas; cambiarlas requiere un ADR nuevo.
 - Las dependencias pesadas del Studio no afectan el bundle del juego (RNF-03), y eso queda verificado en CI.
+
+## Enmiendas
+
+### 2026-10-05 · El editor visual dibuja un borrador de la geometría (§2, "YAML inválido a medio escribir")
+**Motivo.** Crear un elemento rompe el schema en el acto: un casillero nuevo nace con `role: ""` y `answers: []`, y un actor o una arista con `label: ""`, igual que en el formulario. Si el editor visual (RF-STU-04) dibujara solo el último escenario válido, el elemento recién creado no aparecería en el canvas, o el canvas quedaría en solo lectura hasta completar las respuestas.
+
+**Precisión.**
+- El editor visual dibuja un **borrador de la geometría** del bloque `diagram`, validado con un schema Zod **permisivo** en `@blueprint/scenario-schema`: ids, `type`, `position`, `group`, `rect`, `parent`, `from`/`to`/`step`, con los textos opcionales. Ese schema no reemplaza a `DiagramSchema` ni lo usa nadie más que el editor.
+- Los elementos incompletos (los que no pasan el schema completo) se dibujan igual y se marcan con ⚠ (ícono y texto, no solo color). Un elemento que ni siquiera tiene la geometría válida no se dibuja, y el editor dice cuántos quedaron afuera.
+- El **preview** y la vista de **respuestas** siguen usando el último escenario válido, sin cambios.
+- Si el YAML **no parsea**, el canvas queda en solo lectura con el último borrador válido y el aviso de la línea del error, como el resto de las vistas.
+- Las ediciones del canvas siguen siendo comandos sobre el `Document` por el path más fino (una sola pila de deshacer); el borrador solo cambia qué se dibuja, no cómo se edita.
 
 ## Referencias
 - Hono — [Node.js (`@hono/node-server`)](https://hono.dev/docs/getting-started/nodejs), [Body Limit](https://hono.dev/docs/middleware/builtin/body-limit), [CSRF Protection](https://hono.dev/docs/middleware/builtin/csrf)
