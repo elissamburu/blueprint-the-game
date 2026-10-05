@@ -76,6 +76,19 @@ module.exports = {
       },
     },
     {
+      name: "diagram-entry-not-to-layout",
+      severity: "error",
+      comment:
+        "ADR-0025 §2: the auto-layout (elkjs) lives in the @blueprint/diagram/layout subpath, which " +
+        "the Studio loads on demand. Nothing reachable from the main entry of diagram (the board " +
+        "the game loads) may get to it or to elkjs, whatever app imports it.",
+      from: { path: "^packages/diagram/src/index\\.ts$" },
+      to: {
+        path: "(^|/)(packages|@blueprint)/diagram/src/layout\\.ts$|(^|/)elkjs(/|$)",
+        reachable: true,
+      },
+    },
+    {
       name: "pure-packages-no-node-builtins",
       severity: "error",
       comment:

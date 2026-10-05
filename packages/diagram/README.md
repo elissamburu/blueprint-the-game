@@ -66,3 +66,17 @@ No decide grados ni importa `game-engine` (regla `diagram-not-to-game-logic` de 
 - `remove` es un pedido: la app confirma.
 - **Teclado**: el canvas es una sola parada de `Tab`; adentro, `Tab` recorre los elementos en orden de lectura (`readingOrder`) y `Esc` seguido de `Tab` sale. Los atajos de una tecla solo actúan con el foco en el canvas o en un elemento (WCAG 2.1.4). La ayuda (`EDITOR_HELP`) está visible debajo del canvas y es su descripción accesible.
 - Los grupos se mueven desde su etiqueta, así el fondo de un grupo sigue desplazando el canvas.
+
+## Auto-layout (Studio)
+
+`@blueprint/diagram/layout` exporta `autoLayout`, el «Ordenar» del Studio (RF-STU-05), con [elkjs](https://github.com/kieler/elkjs) ([ADR-0005](../../docs/adr/0005-modelo-de-diagrama.md), [ADR-0025 §2](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). No usa React ni el DOM, así que corre también en Node (el pipeline de IA de F5). La entrada principal del paquete nunca lo alcanza (regla `diagram-entry-not-to-layout` de dependency-cruiser) y el Studio lo carga de forma diferida.
+
+```ts
+const { positions, rects, canvas } = await autoLayout(diagram); // Diagram o DiagramDraft
+```
+
+- Algoritmo *layered* de izquierda a derecha (`RIGHT`) con los grupos como nodos compuestos (`INCLUDE_CHILDREN`), el tamaño de cada nodo de `NODE_SIZE` y, arriba de cada grupo, lugar para su etiqueta. El orden del modelo es el de los pasos (`considerModelOrder`), así el flujo se lee en orden.
+- Coordenadas absolutas, en la grilla de 10, con un margen de 40 alrededor del contenido; el canvas termina en ese margen. Los espacios entre elementos son de al menos 20, así redondear a la grilla nunca saca un nodo de su grupo ni lo superpone con otro (L007).
+- Solo calcula geometría: no cambia ids, textos, pertenencia, aristas ni pasos. Un grupo vacío conserva su tamaño. Es determinista: ordenar lo ordenado no cambia nada.
+- Tolera un borrador: un grupo o padre inexistente, o un ciclo de padres, deja el elemento en el nivel superior; las aristas a nodos que no existen y los lazos se ignoran.
+- `overlappingSiblingGroups` lista los grupos hermanos que hoy se superponen (al ordenar quedan separados; el Studio pregunta antes).
