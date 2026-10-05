@@ -143,6 +143,28 @@
       "title": "¿Eliminar {{item}}?",
       "action": "Eliminar"
     },
+    "layout": {
+      "action": "Ordenar",
+      "busy": "Ordenando…",
+      "done": "Se reubicaron {{nodes}} y {{groups}}.",
+      "nodes_one": "1 nodo",
+      "nodes_other": "{{count}} nodos",
+      "groups_one": "1 grupo",
+      "groups_other": "{{count}} grupos",
+      "canvasOnly": "Se ajustó el tamaño del canvas.",
+      "already": "Ya está ordenado.",
+      "undo": "Deshacer",
+      "undoLabel": "Deshacer el orden",
+      "undone": "Se deshizo el orden.",
+      "stale": "El diagrama cambió mientras se ordenaba: no se aplicó. Probá de nuevo.",
+      "failed": "No se pudo ordenar: {{message}}",
+      "overlap": {
+        "title": "Hay grupos superpuestos",
+        "body": "Se superponen {{pairs}}. Al ordenar quedan separados: si la superposición es intencional (por ejemplo, un grupo transversal), vas a tener que rehacerla a mano. Se puede deshacer con Ctrl + Z.",
+        "pair": "el grupo «{{first}}» con «{{second}}»",
+        "action": "Ordenar igual"
+      }
+    },
     "inspector": {
       "title": "Inspector",
       "empty": "Elegí un elemento en el diagrama, o recorrelos con Tab, para editarlo acá.",

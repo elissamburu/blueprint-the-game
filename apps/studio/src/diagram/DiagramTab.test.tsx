@@ -12,7 +12,7 @@ import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
 import { parseDocument } from "yaml";
 import type { StudioFinding } from "../../shared/validation";
 import { moveStep } from "../form/diagram-edit";
-import { planEdits, type EditPath } from "../form/document-edit";
+import { planEdits, type EditCommand, type EditPath } from "../form/document-edit";
 import { pdfYaml, shared } from "../testing/content-fixture";
 import { DiagramTab, elementIssues } from "./DiagramTab";
 
@@ -29,12 +29,15 @@ function Harness({
   findings = [],
   onOpenInForm = vi.fn(),
   onUndo = vi.fn(),
+  onEdit = vi.fn(),
   ref,
 }: {
   initial?: string;
   findings?: StudioFinding[];
   onOpenInForm?: (path: EditPath) => void;
   onUndo?: () => void;
+  /** Sees every edit, as the editor gets it. */
+  onEdit?: (commands: readonly EditCommand[], isolate: boolean) => void;
   ref?: Ref<HarnessHandle>;
 }) {
   const [text, setText] = useState(initial);
@@ -45,7 +48,10 @@ function Harness({
         text={text}
         findings={findings}
         shared={shared}
-        onEdit={(commands) => setText((current) => planEdits(current, commands).text)}
+        onEdit={(commands, isolate) => {
+          onEdit(commands, isolate);
+          setText((current) => planEdits(current, commands).text);
+        }}
         onUndo={onUndo}
         onRedo={vi.fn()}
         onSave={vi.fn()}
@@ -233,6 +239,93 @@ describe("DiagramTab", () => {
     expect(element("node:api-entry").getAttribute("aria-label")).toMatch(/Con errores$/);
     act(() => element("node:api-entry").focus());
     expect(within(inspector()).getByText("Se superpone con otro nodo")).toBeTruthy();
+  });
+});
+
+describe("Ordenar", () => {
+  const arrangeButton = () => screen.getByRole("button", { name: /^(Ordenar|Ordenando…)$/ });
+
+  it("lays the diagram out in one isolated edit, says what moved and offers to undo it", async () => {
+    const onEdit = vi.fn();
+    const onUndo = vi.fn();
+    const { user, data, text } = setup({ onEdit, onUndo });
+    await user.click(arrangeButton());
+    await waitFor(() => expect(statusLine()).toMatch(/^Se reubicaron \d+ nodos y 1 grupo\.$/));
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(onEdit.mock.calls[0]?.[1]).toBe(true);
+    for (const command of onEdit.mock.calls[0]?.[0] as EditCommand[]) {
+      expect(command.op).toBe("set");
+      expect(command.path[0]).toBe("diagram");
+      expect(command.path).toEqual(
+        expect.arrayContaining([expect.stringMatching(/^(position|rect|canvas)$/)]),
+      );
+    }
+    expect(arrangeButton().getAttribute("aria-busy")).toBeNull();
+    expect(data().diagram.groups[0]?.rect).not.toEqual({ x: 200, y: 60, w: 1160, h: 700 });
+    const laidOut = text();
+
+    // Ordering again changes nothing.
+    await user.click(arrangeButton());
+    await waitFor(() => expect(statusLine()).toBe("Ya está ordenado."));
+    expect(onEdit).toHaveBeenCalledTimes(1);
+    expect(text()).toBe(laidOut);
+    // "Deshacer" stays while the layout is the last edit.
+    const undo = screen.getByRole("button", { name: "Deshacer el orden" });
+    await user.click(undo);
+    expect(onUndo).toHaveBeenCalledTimes(1);
+    expect(statusLine()).toBe("Se deshizo el orden.");
+    expect(screen.queryByRole("button", { name: "Deshacer el orden" })).toBeNull();
+    expect(document.activeElement).toBe(arrangeButton());
+  });
+
+  it("stops offering to undo once another edit comes after it", async () => {
+    const { user } = setup();
+    await user.click(arrangeButton());
+    await screen.findByRole("button", { name: "Deshacer el orden" });
+    element("node:api-entry").focus();
+    await user.keyboard("{ArrowRight}");
+    expect(screen.queryByRole("button", { name: "Deshacer el orden" })).toBeNull();
+  });
+
+  it("asks first when sibling groups overlap, naming them", async () => {
+    const overlapping = planEdits(pdfYaml, [
+      {
+        op: "append",
+        path: ["diagram", "groups"],
+        value: {
+          id: "shared",
+          kind: "generic",
+          label: "Servicios compartidos",
+          rect: { x: 1000, y: 600, w: 600, h: 300 },
+          parent: null,
+        },
+      },
+      { op: "set", path: ["diagram", "canvas", "width"], value: 1700 },
+      { op: "set", path: ["diagram", "canvas", "height"], value: 1000 },
+    ]).text;
+    const onEdit = vi.fn();
+    const { user } = setup({ initial: overlapping, onEdit });
+
+    await user.click(arrangeButton());
+    const dialog = await screen.findByRole("alertdialog", { name: "Hay grupos superpuestos" });
+    expect(dialog.textContent).toContain(
+      "Se superponen el grupo «Nube» con «Servicios compartidos».",
+    );
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    expect(onEdit).not.toHaveBeenCalled();
+    await waitFor(() => expect(document.activeElement).toBe(arrangeButton()));
+
+    await user.click(arrangeButton());
+    const again = await screen.findByRole("alertdialog", { name: "Hay grupos superpuestos" });
+    await user.click(within(again).getByRole("button", { name: "Ordenar igual" }));
+    await waitFor(() => expect(onEdit).toHaveBeenCalledTimes(1));
+    await waitFor(() => expect(statusLine()).toMatch(/^Se reubicaron \d+ nodos y 2 grupos\.$/));
+  });
+
+  it("cannot order while the text does not parse", () => {
+    const { setText } = setup();
+    setText(`${pdfYaml}\nbroken: [`);
+    expect(arrangeButton()).toHaveProperty("disabled", true);
   });
 });
 

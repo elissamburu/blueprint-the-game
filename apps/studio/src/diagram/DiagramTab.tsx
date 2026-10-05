@@ -5,6 +5,11 @@
 // into the same document edits as the form (diagram-commands.ts), so the YAML stays the source of
 // truth with one undo history. Removing always asks first. While the text does not parse, the
 // canvas and the inspector are read-only, with the line of the error.
+//
+// "Ordenar" (RF-STU-05) loads the auto-layout of @blueprint/diagram/layout (and elkjs) on demand,
+// lays the draft out and applies the result as one isolated transaction (one Ctrl+Z undoes it all);
+// the status line says what moved, with "Deshacer" while that edit is the last one. Sibling groups
+// that overlap now (maybe on purpose) end up apart, so it asks first, naming them.
 import {
   DiagramEditor,
   groupTitle,
@@ -18,7 +23,7 @@ import {
 import { createServiceLookup } from "@blueprint/play";
 import { parseDiagramDraft, type DiagramDraft } from "@blueprint/scenario-schema";
 import { Button } from "@blueprint/ui/components/button";
-import { TriangleAlertIcon } from "lucide-react";
+import { NetworkIcon, TriangleAlertIcon } from "lucide-react";
 import {
   useCallback,
   useEffect,
@@ -37,7 +42,7 @@ import { FormProvider, useForm } from "../form/form-context";
 import { recordOf, textOf, useFormDocument } from "../form/form-data";
 import { findingsByAnchor, isSlotOf } from "../form/form-paths";
 import { studioIconSrc } from "../preview/studio-game-host";
-import { indexOf, itemsOf, LISTS, translate } from "./diagram-commands";
+import { indexOf, itemsOf, layoutCommands, LISTS, translate } from "./diagram-commands";
 import { DiagramInspector, firstFieldOf } from "./DiagramInspector";
 
 export interface DiagramTabProps {
@@ -138,11 +143,22 @@ const capitalize = (text: string) => text.charAt(0).toLocaleUpperCase("es") + te
 /** How long the keyboard moves wait before they are said (one announcement per burst). */
 const MOVE_ANNOUNCE_MS = 450;
 
+/** The auto-layout and elkjs, out of the first load of the Studio. */
+const loadLayout = () => import("@blueprint/diagram/layout");
+
+/** The last "Ordenar": the text before it and, once applied, the text it left. */
+interface LaidOut {
+  before: string;
+  after?: string;
+}
+
 function DiagramWorkspace({
+  text,
   raw,
   readOnly,
   findings,
   shared,
+  onEdit,
   onUndo,
   onRedo,
   onSave,
@@ -192,6 +208,21 @@ function DiagramWorkspace({
     }, MOVE_ANNOUNCE_MS);
   }, []);
   useEffect(() => () => window.clearTimeout(pendingStatus.current), []);
+
+  // "Ordenar": busy while the layout loads and runs; "Deshacer" while its edit is the last one.
+  const [laying, setLaying] = useState(false);
+  const [laidOut, setLaidOut] = useState<LaidOut | null>(null);
+  if (laidOut !== null && laidOut.after === undefined && text !== laidOut.before) {
+    setLaidOut({ ...laidOut, after: text });
+  }
+  const canUndoLayout = laidOut?.after !== undefined && text === laidOut.after;
+  const layoutButton = useRef<HTMLButtonElement>(null);
+  const layoutButtonId = useId();
+  /** The text of the latest render: a layout computed over an older one is not applied. */
+  const latestText = useRef(text);
+  useEffect(() => {
+    latestText.current = text;
+  }, [text]);
 
   /** "el casillero 2 «Guarda los archivos»", "el grupo «VPC»", "la arista de A a B". */
   const nameOf = useCallback(
@@ -335,6 +366,88 @@ function DiagramWorkspace({
     }
   };
 
+  const applyLayout = async (layout: Awaited<ReturnType<typeof loadLayout>>) => {
+    const start = text;
+    setLaying(true);
+    try {
+      const result = await layout.autoLayout(draft);
+      if (latestText.current !== start) {
+        say(t("diagram.layout.stale"));
+        return;
+      }
+      const { commands, nodes, groups } = layoutCommands(raw, result);
+      if (commands.length === 0) {
+        say(t("diagram.layout.already"));
+        return;
+      }
+      // Straight to the editor, not through the form's `edit`: a failed edit must not leave
+      // "Deshacer" waiting for the next change.
+      onEdit(commands, true);
+      setLaidOut({ before: start });
+      say(
+        nodes + groups === 0
+          ? t("diagram.layout.canvasOnly")
+          : t("diagram.layout.done", {
+              nodes: t("diagram.layout.nodes", { count: nodes }),
+              groups: t("diagram.layout.groups", { count: groups }),
+            }),
+      );
+    } catch (error) {
+      const message = error instanceof Error ? error.message : String(error);
+      say(
+        error instanceof EditError
+          ? t("form.editFailed", { message })
+          : t("diagram.layout.failed", { message }),
+      );
+    } finally {
+      setLaying(false);
+    }
+  };
+
+  const arrange = async () => {
+    if (readOnly || laying) return;
+    setLaying(true);
+    let layout;
+    try {
+      layout = await loadLayout();
+    } catch (error) {
+      setLaying(false);
+      say(
+        t("diagram.layout.failed", {
+          message: error instanceof Error ? error.message : String(error),
+        }),
+      );
+      return;
+    }
+    const overlaps = layout.overlappingSiblingGroups(draft);
+    if (overlaps.length === 0) {
+      await applyLayout(layout);
+      return;
+    }
+    setLaying(false);
+    const title = (id: string) => groupName(id) ?? id;
+    const pairs = new Intl.ListFormat("es", { type: "conjunction" }).format(
+      overlaps.map(({ first, second }) =>
+        t("diagram.layout.overlap.pair", { first: title(first), second: title(second) }),
+      ),
+    );
+    confirm({
+      title: t("diagram.layout.overlap.title"),
+      description: t("diagram.layout.overlap.body", { pairs }),
+      action: t("diagram.layout.overlap.action"),
+      onConfirm: () => void applyLayout(layout),
+      returnFocus: layoutButtonId,
+    });
+  };
+
+  const undoLayout = () => {
+    onUndo();
+    setLaidOut(null);
+    say(t("diagram.layout.undone"));
+    // The button goes away with the edit: the focus goes back to "Ordenar".
+    layoutButton.current?.focus();
+  };
+
   const activate = (target: DiagramSelection) => {
     const index = indexOf(raw, target);
     const item = itemsOf(raw, LISTS[target.kind])[index];
@@ -376,6 +489,22 @@ function DiagramWorkspace({
           onSave={onSave}
           label={t("diagram.canvas")}
           className="min-h-[30rem]"
+          actions={
+            <Button
+              ref={layoutButton}
+              id={layoutButtonId}
+              type="button"
+              variant="outline"
+              size="sm"
+              disabled={readOnly || draft.nodes.length === 0}
+              aria-busy={laying || undefined}
+              aria-disabled={laying || undefined}
+              onClick={() => void arrange()}
+            >
+              <NetworkIcon aria-hidden />
+              {laying ? t("diagram.layout.busy") : t("diagram.layout.action")}
+            </Button>
+          }
         />
         <div onKeyDown={onKeyDown} className="min-h-0 overflow-y-auto xl:pr-1">
           <DiagramInspector
@@ -394,15 +523,26 @@ function DiagramWorkspace({
           />
         </div>
       </div>
-      <p
-        role="status"
-        aria-live="polite"
-        aria-atomic="true"
-        data-slot="diagram-status"
-        className="min-h-6 border-t pt-2 text-sm"
-      >
-        {status}
-      </p>
+      <div className="flex min-h-6 flex-wrap items-center gap-x-2 border-t pt-2 text-sm">
+        <p role="status" aria-live="polite" aria-atomic="true" data-slot="diagram-status">
+          {status}
+        </p>
+        {canUndoLayout && (
+          <>
+            <span aria-hidden>·</span>
+            <Button
+              type="button"
+              variant="link"
+              size="sm"
+              className="h-auto px-0"
+              aria-label={t("diagram.layout.undoLabel")}
+              onClick={undoLayout}
+            >
+              {t("diagram.layout.undo")}
+            </Button>
+          </>
+        )}
+      </div>
     </>
   );
 }

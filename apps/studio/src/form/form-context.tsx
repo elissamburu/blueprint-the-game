@@ -41,6 +41,11 @@ export interface ConfirmRequest {
   description: string;
   action: string;
   onConfirm: () => void;
+  /**
+   * Id of the element that gets the focus when the dialog closes, unless the edit says otherwise:
+   * for a dialog opened after an await, whose trigger the dialog may not restore.
+   */
+  returnFocus?: string;
 }
 
 export interface FormContextValue {
@@ -133,7 +138,7 @@ export function FormProvider({
       edit,
       findingsAt: (path) => findings.get(pathKey(path)) ?? NO_FINDINGS,
       confirm: (next) => {
-        focusOnClose.current = undefined;
+        focusOnClose.current = next.returnFocus;
         setRequest(next);
       },
       focusLater,

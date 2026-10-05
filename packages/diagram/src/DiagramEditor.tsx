@@ -43,6 +43,7 @@ import {
   type DragEvent,
   type KeyboardEvent,
   type PointerEvent as ReactPointerEvent,
+  type ReactNode,
   type Ref,
 } from "react";
 import { ConnectDialog } from "./ConnectDialog";
@@ -122,6 +123,8 @@ export interface DiagramEditorProps {
   onSave?: (() => void) | undefined;
   /** Accessible name of the canvas. */
   label?: string | undefined;
+  /** Actions of the app, first in the toolbar of the editor (the Studio's "Ordenar"). */
+  actions?: ReactNode;
   /** Id of the canvas, so the app can give it the focus back. */
   id?: string | undefined;
   className?: string | undefined;
@@ -203,6 +206,7 @@ function EditorCanvas({
   onRedo,
   onSave,
   label = "Editor del diagrama",
+  actions,
   id,
   className,
   ref,
@@ -626,6 +630,7 @@ function EditorCanvas({
           aria-label="Acciones del diagrama"
           className="flex flex-wrap items-center gap-2 sm:col-span-2"
         >
+          {actions}
           <Button
             type="button"
             variant="outline"
