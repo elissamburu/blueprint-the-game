@@ -3,6 +3,7 @@
 // parsed with the schemas of shared/api.ts (S10).
 import type * as z from "zod";
 import {
+  CreateResponseSchema,
   ErrorResponseSchema,
   SaveResponseSchema,
   ScenarioFileResponseSchema,
@@ -10,6 +11,7 @@ import {
   SharedResponseSchema,
   TOKEN_HEADER,
   TOKEN_META,
+  type CreateRequest,
   type ErrorCode,
   type SaveRequest,
 } from "../../shared/api";
@@ -87,6 +89,11 @@ export const api = {
   saveScenario: (id: string, body: SaveRequest) =>
     request(SaveResponseSchema, `/api/scenarios/${encodeURIComponent(id)}`, {
       method: "PUT",
+      body: JSON.stringify(body),
+    }),
+  createScenario: (body: CreateRequest) =>
+    request(CreateResponseSchema, "/api/scenarios", {
+      method: "POST",
       body: JSON.stringify(body),
     }),
   getShared: () => request(SharedResponseSchema, "/api/shared"),

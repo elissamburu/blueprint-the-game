@@ -10,6 +10,7 @@ import { Link } from "react-router";
 import type { ScenarioSummary } from "../../shared/api";
 import { api, ApiError } from "../api/client";
 import { usePageTitle } from "../app/page-title";
+import { NewScenarioDialog } from "./NewScenarioDialog";
 
 type State =
   | { kind: "loading" }
@@ -39,7 +40,10 @@ export function ScenarioListPage() {
 
   return (
     <div className="mx-auto w-full max-w-5xl overflow-y-auto px-4 py-8 md:px-6">
-      <h1 className="text-3xl font-semibold">{t("list.title")}</h1>
+      <div className="flex flex-wrap items-center justify-between gap-4">
+        <h1 className="text-3xl font-semibold">{t("list.title")}</h1>
+        <NewScenarioDialog scenarios={state.kind === "ready" ? state.scenarios : []} />
+      </div>
       <p className="mt-2 max-w-prose text-muted-foreground">{t("list.description")}</p>
       <div className="mt-6">
         {state.kind === "loading" && <p role="status">{t("list.loading")}</p>}

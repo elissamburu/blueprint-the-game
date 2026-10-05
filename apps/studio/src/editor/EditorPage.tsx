@@ -6,7 +6,9 @@
 // YAML editor, so all of them share one undo history. An issue of the
 // panel goes to its field while the form is visible, and to its line of the YAML otherwise. The text is the source of
 // truth and is saved as it is (ADR-0025 §2). A 409 means the file changed on disk: it is explained
-// and nothing is overwritten (S8).
+// and nothing is overwritten (S8). "Descargar .zip" (RF-STU-14) packs the current text, notes.md and
+// the generated files in the browser; right after creating a scenario (RF-STU-01) a notice says
+// where it is and, without an author from git, asks for one.
 import {
   AlertDialog,
   AlertDialogAction,
@@ -18,10 +20,11 @@ import {
   AlertDialogTitle,
 } from "@blueprint/ui/components/alert-dialog";
 import { Button } from "@blueprint/ui/components/button";
-import { ArrowLeftIcon, TriangleAlertIcon } from "lucide-react";
+import { ArrowLeftIcon, CircleCheckIcon, DownloadIcon, TriangleAlertIcon } from "lucide-react";
 import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
-import { Link, useBlocker, useParams } from "react-router";
+import { Link, useBlocker, useLocation, useParams } from "react-router";
+import { CreateResponseSchema, type CreateResponse } from "../../shared/api";
 import type { StudioFinding } from "../../shared/validation";
 import { api, ApiError } from "../api/client";
 import { usePageTitle } from "../app/page-title";
@@ -31,6 +34,7 @@ import { DraftTabs, type DraftTab } from "../preview/DraftTabs";
 import { EditError, type EditCommand } from "../../shared/document-edit";
 import { ScenarioForm, type ScenarioFormHandle } from "../form/ScenarioForm";
 import { DiagramTab } from "../diagram/DiagramTab";
+import { buildScenarioZip, downloadZip, type ScenarioZip } from "./scenario-zip";
 import { useSharedContent } from "./use-shared-content";
 import { YamlEditor, type YamlEditorHandle } from "./YamlEditor";
 
@@ -50,15 +54,31 @@ type SaveState =
 
 type Load = { kind: "loading" } | { kind: "failed"; message: string } | { kind: "ready" };
 
+/** The result of creating this scenario, when the list just did it (router state, checked). */
+const createdOf = (state: unknown, id: string): CreateResponse | undefined => {
+  const created = CreateResponseSchema.safeParse(
+    typeof state === "object" && state !== null && "created" in state ? state.created : undefined,
+  );
+  return created.success && created.data.id === id ? created.data : undefined;
+};
+
 export function EditorPage() {
   const { id = "" } = useParams();
   const { t } = useTranslation();
+  const location = useLocation();
+  const [created, setCreated] = useState(() => createdOf(location.state, id));
   usePageTitle(id);
   const [load, setLoad] = useState<Load>({ kind: "loading" });
   const [opened, setOpened] = useState<Opened>({ yaml: "", hash: "", generation: 0 });
   const [text, setText] = useState("");
   /** Text that matches the file on disk, and its hash (the base of the next save, S8). */
   const [saved, setSaved] = useState({ text: "", hash: "" });
+  /** notes.md of the folder, for the .zip. */
+  const [notes, setNotes] = useState<string | null>(null);
+  /** A .zip waiting for the author to confirm (unsaved changes, or no generated files). */
+  const [pendingZip, setPendingZip] = useState<ScenarioZip>();
+  const [downloaded, setDownloaded] = useState<string>();
+  const downloadButton = useRef<HTMLButtonElement>(null);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   const editor = useRef<YamlEditorHandle>(null);
   const form = useRef<ScenarioFormHandle>(null);
@@ -67,7 +87,7 @@ export function EditorPage() {
   // Only once the file is there: never a result for the empty text before it loads.
   const validation = useValidation(text, id, load.kind === "ready" ? shared : undefined);
   const dirty = load.kind === "ready" && text !== saved.text;
-  const ids = { yaml: useId(), help: useId(), validation: useId() };
+  const ids = { yaml: useId(), help: useId(), validation: useId(), created: useId() };
 
   /** Reads the file; the state starts as loading, and `reload` sets it before calling this. */
   const fetchFile = useCallback(() => {
@@ -80,6 +100,7 @@ export function EditorPage() {
         }));
         setText(file.yaml);
         setSaved({ text: file.yaml, hash: file.hash });
+        setNotes(file.notes);
         setSave({ kind: "idle" });
         setLoad({ kind: "ready" });
       },
@@ -132,6 +153,25 @@ export function EditorPage() {
       dirty && currentLocation.pathname !== nextLocation.pathname,
   );
 
+  const download = (zip: ScenarioZip) => {
+    downloadZip(zip);
+    setDownloaded(t("editor.download.done", { file: zip.fileName }));
+  };
+  const onDownload = () => {
+    if (shared === undefined) return;
+    const zip = buildScenarioZip({ id, yaml: text, notes, catalog: shared.catalog });
+    setDownloaded(undefined);
+    // The author confirms when the .zip is not what is on disk, or misses the generated files.
+    if (dirty || zip.missingGenerated) setPendingZip(zip);
+    else download(zip);
+  };
+
+  const addAuthor = () => {
+    setTab("form");
+    // Once the form tab is visible.
+    requestAnimationFrame(() => form.current?.focusPath(["authors"]));
+  };
+
   const jump = (finding: StudioFinding) => {
     if (tab === "form" && finding.path.length > 0 && form.current?.focusPath(finding.path)) return;
     editor.current?.focusLine(finding.line, finding.column);
@@ -177,6 +217,18 @@ export function EditorPage() {
             <p role="status" className="text-sm" data-save-state={dirty ? "dirty" : save.kind}>
               {stateText}
             </p>
+            <p role="status" className="sr-only">
+              {downloaded}
+            </p>
+            <Button
+              ref={downloadButton}
+              variant="outline"
+              onClick={onDownload}
+              disabled={shared === undefined}
+            >
+              <DownloadIcon aria-hidden />
+              {t("editor.download.button")}
+            </Button>
             <Button onClick={onSave} disabled={save.kind === "saving"}>
               {save.kind === "saving" ? t("editor.saving") : t("editor.save")}
             </Button>
@@ -193,6 +245,36 @@ export function EditorPage() {
         <p role="alert" className="p-6">
           {t("editor.loadFailed", { message: load.message })}
         </p>
+      )}
+
+      {load.kind === "ready" && created !== undefined && (
+        <section
+          aria-labelledby={ids.created}
+          className="mx-4 mt-4 flex flex-col gap-2 rounded-md border border-l-4 border-l-success bg-card p-4 md:mx-6"
+          data-created-notice
+        >
+          <h2 id={ids.created} className="flex items-center gap-2 font-semibold">
+            <CircleCheckIcon aria-hidden className="size-5 shrink-0 text-success" />
+            {t("editor.created.title")}
+          </h2>
+          <p>{t("editor.created.body", { id })}</p>
+          {created.author === null && (
+            <p className="flex items-center gap-2">
+              <TriangleAlertIcon aria-hidden className="size-4 shrink-0 text-warning" />
+              {t("editor.created.noAuthor")}
+            </p>
+          )}
+          <div className="flex flex-wrap gap-2">
+            {created.author === null && (
+              <Button variant="outline" size="sm" onClick={addAuthor}>
+                {t("editor.created.addAuthor")}
+              </Button>
+            )}
+            <Button variant="ghost" size="sm" onClick={() => setCreated(undefined)}>
+              {t("editor.created.dismiss")}
+            </Button>
+          </div>
+        </section>
       )}
 
       {save.kind === "conflict" && (
@@ -315,6 +397,43 @@ export function EditorPage() {
           </div>
         </div>
       )}
+
+      <AlertDialog
+        open={pendingZip !== undefined}
+        onOpenChange={(isOpen) => {
+          if (!isOpen) setPendingZip(undefined);
+        }}
+      >
+        <AlertDialogContent
+          onCloseAutoFocus={(event) => {
+            // Back to "Descargar .zip": the dialog was not opened by a trigger.
+            event.preventDefault();
+            downloadButton.current?.focus();
+          }}
+        >
+          <AlertDialogHeader>
+            <AlertDialogTitle>{t("editor.download.title")}</AlertDialogTitle>
+            <AlertDialogDescription asChild>
+              <div className="flex flex-col gap-2">
+                {dirty && <p>{t("editor.download.dirty")}</p>}
+                {pendingZip?.missingGenerated === true && (
+                  <p>{t("editor.download.missingGenerated")}</p>
+                )}
+              </div>
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>{t("editor.download.cancel")}</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => {
+                if (pendingZip !== undefined) download(pendingZip);
+              }}
+            >
+              {t("editor.download.confirm")}
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
 
       <AlertDialog
         open={blocker.state === "blocked"}
