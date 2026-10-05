@@ -17,6 +17,9 @@
   },
   "dependencies": {
     "@blueprint/content-lint": "workspace:*",
+    "@blueprint/diagram": "workspace:*",
+    "@blueprint/game-engine": "workspace:*",
+    "@blueprint/play": "workspace:*",
     "@blueprint/scenario-schema": "workspace:*",
     "@blueprint/ui": "workspace:*",
     "@codemirror/commands": "^6.11.1",

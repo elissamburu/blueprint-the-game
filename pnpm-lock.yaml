@@ -292,6 +292,15 @@ importers:
       '@blueprint/content-lint':
         specifier: workspace:*
         version: link:../../packages/content-lint
+      '@blueprint/diagram':
+        specifier: workspace:*
+        version: link:../../packages/diagram
+      '@blueprint/game-engine':
+        specifier: workspace:*
+        version: link:../../packages/game-engine
+      '@blueprint/play':
+        specifier: workspace:*
+        version: link:../../packages/play
       '@blueprint/scenario-schema':
         specifier: workspace:*
         version: link:../../packages/scenario-schema

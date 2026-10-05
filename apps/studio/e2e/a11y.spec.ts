@@ -34,3 +34,32 @@ test("editor, sin errores y con errores", async ({ page }) => {
   await expectNoViolations(page, "editor con errores");
   await page.keyboard.press("Control+z");
 });
+
+test("pestañas «Jugar» y «Respuestas», también en partida y con el resumen", async ({ page }) => {
+  await openScenario(page, SCENARIOS.pdf.title);
+  await expectNoViolations(page, "Jugar, sin partida");
+
+  await page.getByRole("button", { name: "Empezar partida" }).click();
+  const brief = page.getByRole("dialog", { name: SCENARIOS.pdf.title });
+  await expect(brief).toBeVisible();
+  await expectNoViolations(page, "Jugar, brief");
+  await brief.getByRole("button", { name: "Empezar a diseñar" }).click();
+  await expect(brief).toBeHidden();
+  await expectNoViolations(page, "Jugar, en partida");
+
+  await page.getByRole("button", { name: "Más acciones" }).click();
+  await page.getByRole("menuitem", { name: "Ver solución completa" }).click();
+  await page
+    .getByRole("alertdialog")
+    .getByRole("button", { name: /Ver solución/ })
+    .click();
+  await page.getByRole("button", { name: "Finalizar" }).click();
+  await expect(page.getByRole("heading", { level: 2, name: "Partida terminada" })).toBeVisible();
+  await expectNoViolations(page, "Jugar, resumen");
+
+  await page.getByRole("tab", { name: "Respuestas" }).click();
+  await expect(
+    page.getByRole("heading", { level: 2, name: "Respuestas del borrador" }),
+  ).toBeVisible();
+  await expectNoViolations(page, "Respuestas");
+});

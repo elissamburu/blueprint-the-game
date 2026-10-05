@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Editor of a scenario (RF-STU-02, 06, 07, 14): top bar with the scenario, the save state in words
-// and "Guardar"; the YAML editor and the validation panel side by side. The text is the source of
+// Editor of a scenario (RF-STU-02, 06, 07, 08, 09, 14): top bar with the scenario, the save state in
+// words and "Guardar"; on the left the draft played and its answers (tabs "Jugar" and
+// "Respuestas"), on the right the YAML editor over the validation panel. The text is the source of
 // truth and is saved as it is (ADR-0025 §2). A 409 means the file changed on disk: it is explained
 // and nothing is overwritten (S8).
 import {
@@ -23,6 +24,7 @@ import { api, ApiError } from "../api/client";
 import { usePageTitle } from "../app/page-title";
 import { ValidationPanel } from "../validation/ValidationPanel";
 import { useValidation } from "../validation/use-validation";
+import { DraftTabs } from "../preview/DraftTabs";
 import { useSharedContent } from "./use-shared-content";
 import { YamlEditor, type YamlEditorHandle } from "./YamlEditor";
 
@@ -218,36 +220,46 @@ export function EditorPage() {
       )}
 
       {load.kind === "ready" && (
-        <div className="grid min-h-0 flex-1 grid-rows-[minmax(20rem,1fr)_auto] gap-4 p-4 md:px-6 lg:grid-cols-[minmax(0,3fr)_minmax(18rem,2fr)] lg:grid-rows-1">
-          <section aria-labelledby={ids.yaml} className="flex min-h-0 flex-col gap-2">
-            <h2 id={ids.yaml} className="font-mono text-lg font-semibold">
-              {t("editor.yamlTitle")}
-            </h2>
-            <p id={ids.help} className="text-sm text-muted-foreground">
-              {t("editor.keyboardHelp")}
-            </p>
-            <div className="min-h-0 flex-1">
-              <YamlEditor
-                ref={editor}
-                documentKey={`${id}:${opened.generation}`}
-                initialText={opened.yaml}
-                label={t("editor.yamlLabel", { id })}
-                describedBy={ids.help}
-                findings={validation.result?.findings ?? []}
-                onChange={setText}
-                onSave={onSave}
-              />
-            </div>
-          </section>
-          <ValidationPanel
-            headingId={ids.validation}
-            findings={validation.result?.findings}
-            pending={validation.pending}
-            {...(sharedError === undefined
-              ? {}
-              : { problem: t("validation.sharedFailed", { message: sharedError }) })}
+        <div className="grid min-h-0 flex-1 gap-4 overflow-y-auto p-4 md:px-6 lg:grid-cols-[minmax(0,3fr)_minmax(24rem,2fr)] lg:grid-rows-1 lg:overflow-hidden">
+          <DraftTabs
+            // A new scenario starts with no draft.
+            key={id}
+            result={validation.result}
+            shared={shared}
+            sharedError={sharedError}
             onJump={jump}
           />
+          <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(20rem,3fr)_minmax(12rem,2fr)] gap-4">
+            <section aria-labelledby={ids.yaml} className="flex min-h-0 flex-col gap-2">
+              <h2 id={ids.yaml} className="font-mono text-lg font-semibold">
+                {t("editor.yamlTitle")}
+              </h2>
+              <p id={ids.help} className="text-sm text-muted-foreground">
+                {t("editor.keyboardHelp")}
+              </p>
+              <div className="min-h-0 flex-1">
+                <YamlEditor
+                  ref={editor}
+                  documentKey={`${id}:${opened.generation}`}
+                  initialText={opened.yaml}
+                  label={t("editor.yamlLabel", { id })}
+                  describedBy={ids.help}
+                  findings={validation.result?.findings ?? []}
+                  onChange={setText}
+                  onSave={onSave}
+                />
+              </div>
+            </section>
+            <ValidationPanel
+              headingId={ids.validation}
+              findings={validation.result?.findings}
+              pending={validation.pending}
+              {...(sharedError === undefined
+                ? {}
+                : { problem: t("validation.sharedFailed", { message: sharedError }) })}
+              onJump={jump}
+            />
+          </div>
         </div>
       )}
 

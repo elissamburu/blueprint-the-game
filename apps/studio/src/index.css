@@ -3,3 +3,5 @@
 
 /* Tailwind no escanea node_modules: los componentes compartidos se agregan a mano. */
 @source "../../../packages/ui/src";
+@source "../../../packages/diagram/src";
+@source "../../../packages/play/src";
