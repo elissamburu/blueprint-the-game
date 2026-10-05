@@ -10,6 +10,7 @@ import {
   contentValidate,
   E2E_CONTENT,
   expectNoViolations,
+  expectSolidDialog,
   openScenario,
   saveState,
   scenarioFile,
@@ -105,7 +106,7 @@ test.describe("con grupos hermanos superpuestos", () => {
 
     await arrange(page).click();
     const dialog = page.getByRole("alertdialog", { name: "Hay grupos superpuestos" });
-    await expect(dialog).toBeVisible();
+    await expectSolidDialog(dialog);
     await expect(dialog).toContainText(
       "Se superponen el grupo «Nube» con «Servicios compartidos».",
     );

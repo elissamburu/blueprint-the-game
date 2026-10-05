@@ -27,11 +27,14 @@ Remove-Item Env:STUDIO_CONTENT_DIR
 ```
 
 ### Crear
-- **Nuevo escenario** (RF-STU-01), arriba de la lista, abre un diálogo con el **id** (el nombre de la carpeta), el **título** y el **origen**:
+- **Nuevo escenario** (RF-STU-01), arriba de la lista, abre un diálogo con el **título**, el **id** (el nombre de la carpeta) y el **origen**:
   - **Vacío**: todas las claves que edita el formulario, sin contenido.
   - **Plantilla**: una de `content/scenarios/_templates/`, con sus comentarios. La lista de plantillas es cerrada (`TEMPLATE_NAMES` en `shared/api.ts`; hoy, `scenario.template.yaml`).
   - **Duplicar** un escenario existente: copia su `scenario.yaml` tal cual (comentarios incluidos) sin tocar el original. `notes.md` no se copia: son las notas del original.
-- El id se valida mientras lo escribís, con el mismo patrón del schema (kebab-case, de 3 a 64 caracteres) y contra los ids que ya existen; los que empiezan con `_` (como `_templates`) nunca son válidos. Cada error queda asociado a su campo, el foco empieza en el id y vuelve a «Nuevo escenario» al cerrar.
+- El id sale del título: minúsculas, sin tildes ni otros diacríticos (la ñ queda n), cada tramo de espacios o signos es un guion, sin guiones dobles ni en los extremos, y hasta 64 caracteres sin cortar una palabra si se puede. Se muestra como la carpeta que se va a crear (`content/scenarios/<id>/`); si ya existe un escenario con ese id, se agrega `-2`, `-3`… Si el título no da un id válido (por ejemplo, solo signos), «Crear y abrir» queda deshabilitado y dice por qué.
+- **Cambiar id** deja escribirlo a mano: se valida mientras lo escribís, con el mismo patrón del schema (kebab-case, de 3 a 64 caracteres) y contra los ids que ya existen; los que empiezan con `_` (como `_templates`) nunca son válidos. Desde ahí ya no sigue al título. El servidor lo vuelve a validar igual.
+- Al duplicar, el título sugerido es «<título del original> (copia)»; un título que escribiste no se reemplaza.
+- Cada error queda asociado a su campo, el foco empieza en el título y vuelve a «Nuevo escenario» al cerrar.
 - El escenario nace con `status: draft`, `version: 1`, el id y el título nuevos, y como único autor tu **usuario de GitHub** según la configuración de git: `github.user` si existe, o `user.name` si parece un usuario de GitHub (un nombre completo con espacios no lo es). Se lee `~/.gitconfig` (o `$HOME/.gitconfig`) y después el `.git/config` del repo que contiene la carpeta de contenido; los `include` no se siguen. Si no lo encuentra, `authors` queda vacío y el editor lo pide con «Ir a «Autores»». Para fijarlo: `git config --global github.user tu-usuario`.
 - Crear escribe `scenario.yaml` y, si el escenario ya pasa el schema (una plantilla o un duplicado con autor), `diagram.mmd` y `README.md`. Un escenario vacío no pasa el schema hasta completarlo, así que **no se puede guardar** hasta entonces (el archivo creado queda en disco); los generados aparecen al guardar.
 - Si ya existe una carpeta (o un archivo) con ese id, no se crea nada (409).
@@ -163,5 +166,5 @@ En `pnpm dev` y `pnpm dev:studio` el HTML y los módulos los sirve Vite con reca
 3. Corregirlo, guardar y ver "Guardado". `git diff` muestra solo tu cambio y, si cambió algo visible, `README.md`/`diagram.mmd` regenerados. `pnpm content:validate` pasa.
 4. Con un cambio sin guardar, editar el mismo `scenario.yaml` en otro editor y guardar en el Studio: aparece "El archivo cambió en disco" y el archivo no se pisa.
 5. Solo con teclado: `Tab` hasta el editor, `Esc` + `Tab` para salir, `Tab` hasta un problema del panel y `Enter`.
-6. «Nuevo escenario» con un id inválido (`Mi Escenario`): el error aparece mientras escribís. Con uno válido, origen «Duplicar» y un escenario: se abre el editor del nuevo, `git status` muestra solo la carpeta nueva y el original no cambió. Con `Esc`, el foco vuelve a «Nuevo escenario».
+6. «Nuevo escenario» con un título con tildes y signos: el id que muestra no los tiene. «Cambiar id» con un id inválido (`Mi Escenario`): el error aparece mientras escribís. Con uno válido, origen «Duplicar» y el escenario de título más largo (se corta con «…» dentro del campo y el diálogo no se desborda): se abre el editor del nuevo, `git status` muestra solo la carpeta nueva y el original no cambió. Con `Esc`, el foco vuelve a «Nuevo escenario».
 7. «Descargar .zip» sin cambios: el `.zip` tiene los archivos del disco. Con un cambio sin guardar: avisa antes y el `.zip` lleva el borrador.

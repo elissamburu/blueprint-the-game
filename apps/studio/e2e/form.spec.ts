@@ -9,6 +9,7 @@ import { tabTo } from "./support/game";
 import {
   contentValidate,
   editorContent,
+  expectSolidDialog,
   openScenario,
   saveState,
   scenarioFile,
@@ -159,7 +160,7 @@ test("con teclado: agregar, mover, quitar, elegir un servicio y deshacer", async
   await tabTo(page, remove, "«Quitar»");
   await page.keyboard.press("Enter");
   const dialog = page.getByRole("alertdialog", { name: `¿Quitar el objetivo ${count}?` });
-  await expect(dialog).toBeVisible();
+  await expectSolidDialog(dialog);
   await tabTo(page, dialog.getByRole("button", { name: "Quitar" }), "«Quitar» del diálogo");
   await page.keyboard.press("Enter");
   await expect(dialog).toBeHidden();

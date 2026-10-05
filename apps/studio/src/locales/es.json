@@ -30,6 +30,9 @@
     "id": {
       "label": "Id",
       "hint": "Es el nombre de la carpeta: minúsculas, números y guiones, de 3 a 64 caracteres (por ejemplo, colas-de-pedidos). No se cambia una vez publicado.",
+      "preview": "Se va a crear como",
+      "change": "Cambiar id",
+      "noId": "El título no da un id válido: necesita al menos 3 letras o números. Cambiá el título o usá «Cambiar id».",
       "errors": {
         "required": "Escribí un id.",
         "pattern": "Usá solo minúsculas sin tildes, números y guiones, sin un guion al principio, al final ni dos seguidos.",
