@@ -10,7 +10,7 @@
   services: [alb, nlb, apigateway, cloudfront, global-accelerator]
   note: "Puertas de entrada del tráfico: balanceo L7/L4, API administrada, CDN y red global."
 - id: compute-models
-  services: [lambda, fargate, ec2, app-runner, elastic-beanstalk, batch]
+  services: [lambda, fargate, ec2, elastic-beanstalk, batch]
   note: "Funciones vs contenedores vs máquinas virtuales vs plataformas administradas vs lotes."
 - id: container-orchestration
   services: [ecs, eks, fargate]

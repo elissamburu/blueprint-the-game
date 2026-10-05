@@ -67,7 +67,9 @@
   docs: https://docs.aws.amazon.com/apprunner/
   ssmNamespaces: [apprunner]
   icon: Arch_AWS-App-Runner_48
-  status: active
+  # Cerrado a clientes nuevos; los existentes lo siguen usando y AWS no planea agregar funciones:
+  # https://docs.aws.amazon.com/apprunner/latest/dg/apprunner-availability-change.html
+  status: deprecated
 - id: batch
   name: AWS Batch
   category: compute

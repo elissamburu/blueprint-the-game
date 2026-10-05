@@ -121,7 +121,7 @@ diagram:
           rationale: "Pone la capacidad donde corren los pods, pero no es un orquestador: no expone la API de Kubernetes ni agenda nada por sí solo. Va en otro lugar del diagrama."
         - service: app-runner
           violates: [keep-kubernetes]
-          rationale: "Corre una aplicación web a partir de una imagen o del código, con su propia configuración; no acepta manifiestos de Kubernetes ni charts de Helm."
+          rationale: "Corre una aplicación web a partir de una imagen o del código, con su propia configuración; no acepta manifiestos de Kubernetes ni charts de Helm. Además, ya no está abierto a clientes nuevos y AWS no planea sumarle funciones."
       hints:
         - "Buscá un servicio que hable la misma API que el clúster de hoy."
         - "Es la opción de Kubernetes administrado de AWS, no el orquestador propio de AWS."
