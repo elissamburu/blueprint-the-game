@@ -219,13 +219,7 @@
       "slots": "Casilleros",
       "slot": "Casillero {{number}}",
       "solutionsTitle": "Soluciones",
-      "slotTitle": "Casillero {{number}}: {{role}}",
-      "optimal": "Óptimo",
-      "acceptable": "Aceptables",
-      "incorrect": "Incorrectos típicos",
-      "why": "Por qué:",
-      "objectives": "Objetivos",
-      "docs": "Documentación oficial"
+      "slotTitle": "Casillero {{number}}: {{role}}"
     }
   },
   "profile": {

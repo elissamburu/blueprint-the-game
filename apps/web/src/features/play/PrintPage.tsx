@@ -3,24 +3,24 @@
 // from the browser, with no server and no new dependencies. Sheet 1: the case and its objectives.
 // Sheet 2: the diagram with its slots empty and numbered, the steps of the flow and the list of
 // slots (its text alternative). With "Incluir soluciones", one sheet per slot with its optimal,
-// acceptable and typical incorrect answers, why, and the official documentation as visible URLs.
+// acceptable and typical incorrect answers, why, and the official documentation as visible URLs
+// (SlotAnswers of @blueprint/play, the same list as the answers view of the Studio).
 // It sits behind the same gate as the game (ScenarioGate) and sends no command to game-engine:
 // opening or printing it changes neither a session, nor the progress, nor the score. Solutions
 // do not go through revealSolution: the page is for studying, not part of a game.
 // The page controls, the header and the notices of the site are not printed (print:hidden).
-import {
-  evaluatePlacement,
-  objectiveStatuses,
-  slotNodes,
-  slotNumbers,
-} from "@blueprint/game-engine";
 import { Diagram, flowSteps, nodeName, printLayout, type SlotView } from "@blueprint/diagram";
-import { CaseContext, CaseObjectives, createServiceLookup, InlineMarkdown } from "@blueprint/play";
-import type { Scenario, Service, SlotNode } from "@blueprint/scenario-schema";
+import {
+  CaseContext,
+  CaseObjectives,
+  createServiceLookup,
+  numberedSlots,
+  SlotAnswers,
+  type NumberedSlot,
+} from "@blueprint/play";
+import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { Button } from "@blueprint/ui/components/button";
-import { GradeBadge } from "@blueprint/ui/components/grade-badge";
 import { LevelBadge } from "@blueprint/ui/components/level-badge";
-import { ObjectiveTag } from "@blueprint/ui/components/objective-tag";
 import { cn } from "@blueprint/ui/lib/utils";
 import { ArrowLeftIcon, ClockIcon, PrinterIcon } from "lucide-react";
 import { useId, useMemo, useState, type ReactNode } from "react";
@@ -44,11 +44,6 @@ export default function PrintPage() {
 const SHEET =
   "print-sheet break-before-page rounded-xl border bg-card p-6 text-card-foreground md:p-10 print:rounded-none print:border-0 print:p-0";
 
-interface PrintSlot {
-  node: SlotNode;
-  number: number;
-}
-
 export function PrintView({ scenario, bundle }: { scenario: Scenario; bundle: ContentBundle }) {
   const { t } = useTranslation();
   const [solutions, setSolutions] = useState(false);
@@ -57,12 +52,7 @@ export function PrintView({ scenario, bundle }: { scenario: Scenario; bundle: Co
     () => new Map<string, Service>(bundle.catalog.services.map((s) => [s.id, s])),
     [bundle],
   );
-  const slots = useMemo((): PrintSlot[] => {
-    const numbers = slotNumbers(scenario);
-    return slotNodes(scenario)
-      .map((node) => ({ node, number: numbers.get(node.id) ?? 0 }))
-      .sort((a, b) => a.number - b.number);
-  }, [scenario]);
+  const slots = useMemo(() => numberedSlots(scenario), [scenario]);
   const areaNames = scenario.areas.map(
     (areaId) => bundle.index.areas.find((a) => a.id === areaId)?.name ?? areaId,
   );
@@ -160,7 +150,7 @@ function DiagramSheet({
 }: {
   scenario: Scenario;
   bundle: ContentBundle;
-  slots: readonly PrintSlot[];
+  slots: readonly NumberedSlot[];
 }) {
   const { t } = useTranslation(["translation", "play"]);
   const titleId = useId();
@@ -282,7 +272,7 @@ function SolutionSheets({
   services,
 }: {
   scenario: Scenario;
-  slots: readonly PrintSlot[];
+  slots: readonly NumberedSlot[];
   services: ReadonlyMap<string, Service>;
 }) {
   const { t } = useTranslation();
@@ -316,24 +306,13 @@ function SlotSolution({
   services,
   sheet,
 }: {
-  slot: PrintSlot;
+  slot: NumberedSlot;
   scenario: Scenario;
   services: ReadonlyMap<string, Service>;
   sheet: boolean;
 }) {
   const { t } = useTranslation();
   const titleId = useId();
-  const optimal = node.answers.filter((a) => a.grade === "optimal");
-  const acceptable = node.answers.filter((a) => a.grade === "acceptable");
-  const answer = (serviceId: string) => (
-    <Answer
-      key={serviceId}
-      node={node}
-      serviceId={serviceId}
-      scenario={scenario}
-      services={services}
-    />
-  );
   return (
     <article
       data-print-sheet={sheet ? "slot" : undefined}
@@ -344,96 +323,7 @@ function SlotSolution({
       <h3 id={titleId} className="break-after-avoid text-xl font-bold">
         {t("play.print.slotTitle", { number, role: node.role.trim().replace(/\.+$/, "") })}
       </h3>
-      <AnswerGroup title={t("play.print.optimal")}>
-        {optimal.map((a) => answer(a.service))}
-      </AnswerGroup>
-      <AnswerGroup title={t("play.print.acceptable")}>
-        {acceptable.map((a) => answer(a.service))}
-      </AnswerGroup>
-      <AnswerGroup title={t("play.print.incorrect")}>
-        {node.incorrect.map((i) => answer(i.service))}
-      </AnswerGroup>
+      <SlotAnswers node={node} scenario={scenario} services={services} />
     </article>
-  );
-}
-
-/** Not a region: every slot repeats these titles, and the h4 already structures them. */
-function AnswerGroup({ title, children }: { title: string; children: ReactNode[] }) {
-  const titleId = useId();
-  if (children.length === 0) return null;
-  return (
-    <div className="mt-5">
-      <h4 id={titleId} className="break-after-avoid text-base font-bold">
-        {title}
-      </h4>
-      <ul aria-labelledby={titleId} className="mt-2 flex flex-col gap-3">
-        {children}
-      </ul>
-    </div>
-  );
-}
-
-/** One answer of a slot: its grade and objective statuses come from game-engine (evaluatePlacement). */
-function Answer({
-  node,
-  serviceId,
-  scenario,
-  services,
-}: {
-  node: SlotNode;
-  serviceId: string;
-  scenario: Scenario;
-  services: ReadonlyMap<string, Service>;
-}) {
-  const { t } = useTranslation();
-  const evaluation = evaluatePlacement(node, serviceId);
-  if (evaluation.source === "undeclared") return null;
-  const objectives = objectiveStatuses(evaluation, scenario.objectives);
-  const references = evaluation.source === "answer" ? evaluation.references : [];
-  return (
-    <li
-      data-grade={evaluation.grade}
-      className="break-inside-avoid rounded-md border p-4 print:rounded-none print:border-x-0 print:border-t-0 print:px-0"
-    >
-      <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
-        <GradeBadge grade={evaluation.grade} />
-        <strong className="text-base">{services.get(serviceId)?.name ?? serviceId}</strong>
-      </p>
-      {objectives.length > 0 && (
-        <ul aria-label={t("play.print.objectives")} className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
-          {objectives.map(({ objective, status }) => (
-            <li key={objective.id}>
-              <ObjectiveTag status={status} className="text-sm">
-                {objective.text}
-              </ObjectiveTag>
-            </li>
-          ))}
-        </ul>
-      )}
-      <p className="mt-2 text-base">
-        <strong>{t("play.print.why")}</strong> <InlineMarkdown text={evaluation.rationale} />
-      </p>
-      {references.length > 0 && (
-        <div className="mt-2 text-sm">
-          <p className="font-semibold">{t("play.print.docs")}</p>
-          <ul className="mt-1 flex flex-col gap-1">
-            {references.map((url) => (
-              <li key={url}>
-                {/* The URL is the text: on paper a link is only what it says. */}
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="break-all text-primary underline underline-offset-4 print:no-underline"
-                >
-                  {url}
-                  <span className="sr-only"> {t("about.external")}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-    </li>
   );
 }

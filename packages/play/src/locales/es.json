@@ -127,5 +127,13 @@
     "beta": "Beta"
   },
   "areas": "Áreas",
+  "answers": {
+    "optimal": "Óptimo",
+    "acceptable": "Aceptables",
+    "incorrect": "Incorrectos típicos",
+    "why": "Por qué:",
+    "objectives": "Objetivos",
+    "docs": "Documentación oficial"
+  },
   "external": "(se abre en otra pestaña)"
 }

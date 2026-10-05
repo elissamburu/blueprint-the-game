@@ -2,7 +2,7 @@
 // The printable version (RF-PLAY-16) through the real routes: its sheets, the solutions only on
 // demand, the same gate as the game, and nothing of the game nor of the progress changes.
 import { slotNodes } from "@blueprint/game-engine";
-import { useSessionStore } from "@blueprint/play";
+import { numberedSlots, SlotAnswers, useSessionStore } from "@blueprint/play";
 import { cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe from "axe-core";
@@ -16,7 +16,7 @@ import { PROGRESS_STORAGE_KEY } from "../../progress/local-storage-progress-repo
 import { useProgressStore } from "../../progress/progress-store";
 import { newProgress, storeProgress } from "../../testing/progress-fixture";
 import { mockReactFlowLayout } from "../../testing/react-flow-mocks";
-import { bundle, pdfScenario } from "./testing/game-fixture";
+import { bundle, pdfScenario, services } from "./testing/game-fixture";
 
 beforeEach(() => {
   useContentStore.setState(useContentStore.getInitialState(), true);
@@ -129,6 +129,24 @@ describe("printable version", () => {
 
     await user.click(checkbox);
     expect(screen.queryByRole("heading", { level: 2, name: "Soluciones" })).toBeNull();
+  });
+
+  it("prints the answers of each slot with SlotAnswers, the same list as the Studio", async () => {
+    const user = userEvent.setup();
+    await openPdf();
+    await user.click(screen.getByRole("checkbox", { name: "Incluir soluciones" }));
+    /** Markup without the ids of useId, which differ between two renders. */
+    const markup = (element: Element) =>
+      element.innerHTML.replace(/ (id|aria-labelledby)="[^"]*"/g, "");
+    for (const { node, number } of numberedSlots(pdfScenario)) {
+      const article = document.querySelector(`article[data-slot-number="${number}"]`);
+      if (article === null) throw new Error(`no sheet for slot ${number}`);
+      const answers = article.cloneNode(true) as Element;
+      answers.querySelector("h3")?.remove();
+      const alone = render(<SlotAnswers node={node} scenario={pdfScenario} services={services} />);
+      expect(markup(answers)).toBe(markup(alone.container));
+      alone.unmount();
+    }
   });
 
   it("shows a locked scenario as the game does, without its content", async () => {
