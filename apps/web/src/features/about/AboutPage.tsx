@@ -1,6 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// "Acerca de": licenses (ADR-0016), source code and the non-affiliation notice with AWS
-// (ADR-0012, ADR-0019, TRADEMARKS.md). Does not need the content bundle.
+// "Acerca de": licenses (ADR-0016), source code, the non-affiliation notice with AWS (ADR-0012,
+// ADR-0019, TRADEMARKS.md) and the credits: React Flow asks for its attribution, which the printed
+// diagram and the Studio editor hide (https://reactflow.dev/api-reference/types/pro-options).
+// Does not need the content bundle.
 import { ExternalLinkIcon } from "lucide-react";
 import type { ReactNode } from "react";
 import { Trans, useTranslation } from "react-i18next";
@@ -45,6 +47,14 @@ export default function AboutPage() {
             <Trans
               i18nKey="about.trademarks.icons"
               components={{ 1: <ExternalLink href={LINKS.architectureIcons} /> }}
+            />
+          </p>
+        </AboutSection>
+        <AboutSection id="credits" title={t("about.credits.title")}>
+          <p>
+            <Trans
+              i18nKey="about.credits.reactFlow"
+              components={{ 1: <ExternalLink href={LINKS.reactFlow} /> }}
             />
           </p>
         </AboutSection>

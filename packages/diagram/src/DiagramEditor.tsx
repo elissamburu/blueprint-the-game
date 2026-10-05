@@ -733,8 +733,10 @@ function EditorCanvas({
               zoomOnScroll={false}
               zoomOnPinch
               preventScrolling
-              // A link inside the canvas would be a Tab stop between Esc and the way out. The
-              // Studio is a local tool, never deployed (ADR-0013).
+              // A link inside the canvas would be a Tab stop between Esc and the way out. React
+              // Flow asks for a visible attribution or a Pro subscription
+              // (https://reactflow.dev/api-reference/types/pro-options): the credit is
+              // given in "Acerca de" of the game and in apps/studio/README.md.
               proOptions={{ hideAttribution: true }}
             >
               <Background

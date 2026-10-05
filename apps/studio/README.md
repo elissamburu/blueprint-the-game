@@ -52,6 +52,8 @@ Remove-Item Env:STUDIO_CONTENT_DIR
 - El **inspector** tiene los mismos campos del formulario para el elemento seleccionado y los avisos que ningún campo muestra. Las respuestas de un casillero se editan en el formulario («Editar respuestas en el formulario»). Sin selección, muestra el flujo: las aristas por paso, cada una lleva a su arista.
 - Eliminar siempre pide confirmación y dice qué más se va: las aristas de un nodo; los nodos de un grupo quedan sin grupo.
 
+- Diagramas hechos con [React Flow (xyflow)](https://reactflow.dev/). El editor oculta la atribución de React Flow dentro del canvas (sería una parada de `Tab` entre `Esc` y la salida); el crédito queda acá y en la página «Acerca de» del juego, como pide su [política de atribución](https://reactflow.dev/api-reference/types/pro-options).
+
 ### Jugar y Respuestas
 - A la izquierda del editor, dos pestañas más sobre el **borrador** (el último texto que pasa el schema, no el archivo en disco). Si el YAML no parsea o no pasa el schema, muestran la última versión válida con un aviso que lleva a la línea del error.
 - **Jugar** (RF-STU-08) es la pantalla de juego de `@blueprint/play`, la misma de la web, con la paleta y las reglas del nivel. No guarda progreso ni ofrece reportar un problema ni la versión imprimible. Al finalizar, el resultado (puntaje y grado por casillero) queda en el mismo panel con «Reiniciar». Si el escenario cambia en medio de una partida, la partida sigue y un aviso ofrece reiniciar con la versión nueva.

@@ -279,6 +279,10 @@
       "marks": "\"Amazon Web Services\", \"AWS\", los nombres de sus servicios y sus logotipos son marcas de Amazon.com, Inc. o sus afiliadas. Se mencionan solo para identificar los servicios sobre los que trata el contenido educativo.",
       "icons": "Los íconos de servicios provienen del paquete oficial <1>AWS Architecture Icons</1> y se usan sin modificar, solo para representar servicios en los diagramas."
     },
+    "credits": {
+      "title": "Créditos",
+      "reactFlow": "Diagramas hechos con <1>React Flow (xyflow)</1>."
+    },
     "external": "(se abre en otra pestaña)"
   },
   "notFound": {

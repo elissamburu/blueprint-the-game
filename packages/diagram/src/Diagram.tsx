@@ -271,7 +271,10 @@ function DiagramPreview({
             maxZoom={1}
             panOnDrag={false}
             panOnScroll={false}
-            // On paper the attribution would read as part of the diagram.
+            // On paper the attribution would read as part of the diagram. React Flow asks for a
+            // visible attribution or a Pro subscription
+            // (https://reactflow.dev/api-reference/types/pro-options): the board keeps it, and
+            // the credit is given in "Acerca de" of the game and in apps/studio/README.md.
             proOptions={{ hideAttribution: print }}
             zoomOnScroll={false}
             zoomOnPinch={false}
