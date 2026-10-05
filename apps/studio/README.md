@@ -2,7 +2,7 @@
 
 Editor local de escenarios ([ADR-0013](../../docs/adr/0013-scenario-studio-local-con-ia.md), [ADR-0025](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). Corre en tu máquina, escucha solo en `127.0.0.1` y lee y escribe `content/scenarios/` de tu copia del repo. **Nunca se despliega** (RF-STU-18): no entra en `pnpm build:beta` ni en `pnpm deploy:beta` (lo verifica `tools/deploy-beta/src/studio-excluded.test.ts`).
 
-Qué hace hoy (F2, PR 4a): listar los escenarios, abrir uno, editar su `scenario.yaml` con un formulario (metadatos, contexto, objetivos y casilleros) o en el YAML, con validación en vivo (schema + lint, los mismos mensajes que `pnpm content:validate`), jugar el borrador y ver todas sus respuestas, y guardarlo regenerando `diagram.mmd` y `README.md`. Los grupos, nodos y aristas en el formulario (PR 4b) y el editor visual llegan en los PR siguientes del [roadmap](../../docs/05-roadmap.md).
+Qué hace hoy (F2, PR 4): listar los escenarios, abrir uno, editar su `scenario.yaml` con un formulario (metadatos, contexto, objetivos, casilleros, grupos, nodos y aristas) o en el YAML, con validación en vivo (schema + lint, los mismos mensajes que `pnpm content:validate`), jugar el borrador y ver todas sus respuestas, y guardarlo regenerando `diagram.mmd` y `README.md`. El editor visual del diagrama llega en el PR siguiente del [roadmap](../../docs/05-roadmap.md).
 
 ## Uso
 
@@ -35,12 +35,13 @@ Remove-Item Env:STUDIO_CONTENT_DIR
 - Con cambios sin guardar, el navegador y el Studio preguntan antes de salir.
 
 ### Formulario
-- Primera pestaña del panel izquierdo (RF-STU-03), en secciones que se expanden y contraen: **Metadatos** (el `id` es de solo lectura), **Contexto**, **Objetivos** (agregar, quitar y reordenar) y **Casilleros** (rol, pistas, respuestas con servicio, grado, objetivos vinculados, rationale y referencias, e incorrectos con servicio, rationale y objetivos que viola).
+- Primera pestaña del panel izquierdo (RF-STU-03), en secciones que se expanden y contraen: **Metadatos** (el `id` es de solo lectura), **Contexto**, **Objetivos** (agregar, quitar y reordenar) y **Casilleros** (rol, pistas, respuestas con servicio, grado, objetivos vinculados, rationale y referencias, e incorrectos con servicio, rationale y objetivos que viola), **Grupos**, **Nodos** y **Aristas**.
+- Grupos, nodos y aristas son la alternativa por teclado al editor visual: crear y borrar, tipo, etiqueta, padre o grupo, la caja en números (`x`, `y`, `w`, `h`), y aristas con «Desde», «Hacia» y «Paso». «Subir paso» y «Bajar paso» mueven una arista un lugar en el flujo (sola en su paso, se suma en paralelo al vecino; compartiendo el paso, queda sola antes o después) y renumeran los pasos sin huecos. Quitar un nodo quita sus aristas; quitar un grupo deja a sus nodos sin grupo y a sus grupos hijos bajo su padre, en un solo cambio.
 - El YAML sigue siendo la fuente de verdad ([ADR-0025 §2](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md#2-modelo-de-edición-del-studio)): cada cambio del formulario es un comando sobre el documento por su path (un escalar, o agregar, quitar o mover un ítem de una lista) y cambia solo las líneas de ese nodo; los comentarios y el formato del resto quedan como estaban. Si un cambio no puede quedar acotado, se amplía al nodo padre: nunca se escribe un resultado distinto del pedido.
 - Formulario y YAML comparten **una sola pila de deshacer**: `Ctrl+Z` (y `Ctrl+Y` o `Ctrl+Mayús+Z`) en cualquiera de los dos deshace el último cambio, venga de donde venga.
 - El servicio se elige del catálogo con un buscador (nunca texto libre). Quitar algo pide confirmación; mover y quitar se anuncian para lectores de pantalla.
 - Si el YAML no parsea, el formulario muestra la última versión válida en solo lectura, con la línea del error. Si parsea pero no pasa el schema, sigue editable.
-- Con el formulario visible, cada problema del panel de validación lleva a su campo (abre las secciones y lo enfoca); el campo muestra el mensaje. Lo que el formulario todavía no edita (paleta, referencias generales, nodos que no son casilleros) lleva a la línea del YAML.
+- Con el formulario visible, cada problema del panel de validación lleva a su campo (abre las secciones y lo enfoca); el campo muestra el mensaje. Lo que el formulario no edita (paleta, referencias generales, el canvas) lleva a la línea del YAML.
 
 ### Jugar y Respuestas
 - A la izquierda del editor, dos pestañas más sobre el **borrador** (el último texto que pasa el schema, no el archivo en disco). Si el YAML no parsea o no pasa el schema, muestran la última versión válida con un aviso que lleva a la línea del error.
