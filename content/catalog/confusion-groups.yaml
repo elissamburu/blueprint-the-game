@@ -69,3 +69,6 @@
 - id: identity-access
   services: [iam, iam-identity-center, cognito, organizations]
   note: "Permisos de la cuenta vs acceso de la fuerza laboral vs usuarios finales de la app vs gobierno multicuenta."
+- id: multi-account-governance
+  services: [organizations, control-tower, ram]
+  note: "Organizar cuentas y aplicar políticas a nivel organización vs landing zone gobernada con controles y cuentas estandarizadas vs compartir recursos entre cuentas sin duplicarlos."
