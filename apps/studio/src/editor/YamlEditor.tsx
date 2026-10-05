@@ -2,8 +2,17 @@
 // YAML editor (RF-STU-06, only YAML in this PR) with CodeMirror 6. Tab indents; Esc and then Tab
 // leaves the editor (CodeMirror's tab focus mode, https://codemirror.net/examples/tab/). The
 // findings of the validation are shown as diagnostics, and `focusLine` moves the cursor to a line
-// and focuses the editor (the validation panel uses it).
-import { defaultKeymap, history, historyKeymap, indentWithTab } from "@codemirror/commands";
+// and focuses the editor (the validation panel uses it). The form edits the text through `edit`:
+// its commands become one transaction of the editor, so form and YAML share the undo history
+// (ADR-0025 §2), and `undo`/`redo` let the form walk it.
+import {
+  defaultKeymap,
+  history,
+  historyKeymap,
+  indentWithTab,
+  redo,
+  undo,
+} from "@codemirror/commands";
 import { yaml } from "@codemirror/lang-yaml";
 import { defaultHighlightStyle, indentOnInput, syntaxHighlighting } from "@codemirror/language";
 import { lintGutter, setDiagnostics, type Diagnostic } from "@codemirror/lint";
@@ -18,10 +27,26 @@ import {
 } from "@codemirror/view";
 import { useEffect, useImperativeHandle, useRef, type Ref } from "react";
 import type { StudioFinding } from "../../shared/validation";
-import { createEditorState, cursorAt, editorText, offsetOf } from "./editor-state";
+import { EditError, planEdits, type EditCommand } from "../form/document-edit";
+import {
+  createEditorState,
+  cursorAt,
+  editorText,
+  externalEdit,
+  lfText,
+  offsetOf,
+} from "./editor-state";
 
 export interface YamlEditorHandle {
   focusLine: (line: number, column?: number) => void;
+  /**
+   * Applies commands of the form as one transaction, and scrolls the YAML to the change without
+   * taking the focus. `isolate`: a structural edit, its own undo step. Throws EditError when the
+   * text does not parse or a path does not fit.
+   */
+  edit: (commands: readonly EditCommand[], isolate?: boolean) => void;
+  undo: () => boolean;
+  redo: () => boolean;
 }
 
 export interface YamlEditorProps {
@@ -94,6 +119,21 @@ export function YamlEditor({
       current.dispatch({ selection: cursorAt(current.state, line, column), scrollIntoView: true });
       current.focus();
     },
+    edit: (commands, isolate = false) => {
+      const current = view.current;
+      if (current === null) throw new EditError("El editor no está listo");
+      const { changes } = planEdits(lfText(current.state), commands);
+      const spec = externalEdit(current.state, changes, isolate);
+      const last = changes.at(-1);
+      if (spec === undefined || last === undefined) return;
+      current.dispatch({
+        ...spec,
+        // The last splice is already in the offsets of the final text.
+        effects: EditorView.scrollIntoView(last.from, { y: "nearest" }),
+      });
+    },
+    undo: () => (view.current === null ? false : undo(view.current)),
+    redo: () => (view.current === null ? false : redo(view.current)),
   }));
 
   useEffect(() => {

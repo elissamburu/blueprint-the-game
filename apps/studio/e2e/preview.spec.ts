@@ -53,6 +53,9 @@ test("jugar el borrador con teclado hasta el resumen, editar, reiniciar y ver la
   const slots = await expectedSlots(id);
   await openScenario(page, title);
   const play = page.getByRole("tab", { name: "Jugar" });
+  // "Formulario" is the first tab: the arrow goes to "Jugar" and activates it.
+  await page.getByRole("tab", { name: "Formulario" }).focus();
+  await page.keyboard.press("ArrowRight");
   await expect(play).toHaveAttribute("aria-selected", "true");
 
   await test.step("con teclado: «Empezar partida», el brief y cada casillero con su óptimo", async () => {

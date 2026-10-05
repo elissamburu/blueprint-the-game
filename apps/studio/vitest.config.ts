@@ -13,8 +13,10 @@ export default defineConfig({
           name: "server",
           include: ["server/**/*.test.ts", "shared/**/*.test.ts"],
           environment: "node",
-          // Every test copies content/ to a temporary folder.
+          // Every test copies content/ to a temporary folder, most of them in a hook: on the
+          // Windows runner of CI that copy can take more than the default 10 s of a hook.
           testTimeout: 30_000,
+          hookTimeout: 30_000,
         },
       },
       {

@@ -12,6 +12,7 @@ const finding = (overrides: Partial<StudioFinding>): StudioFinding => ({
   severity: "error",
   message: "El título nombra un servicio oculto.",
   where: "title",
+  path: ["title"],
   line: 9,
   column: 1,
   ...overrides,

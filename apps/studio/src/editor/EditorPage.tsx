@@ -1,7 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Editor of a scenario (RF-STU-02, 06, 07, 08, 09, 14): top bar with the scenario, the save state in
-// words and "Guardar"; on the left the draft played and its answers (tabs "Jugar" and
-// "Respuestas"), on the right the YAML editor over the validation panel. The text is the source of
+// Editor of a scenario (RF-STU-02, 03, 06, 07, 08, 09, 14): top bar with the scenario, the save
+// state in words and "Guardar"; on the left the form, the draft played and its answers (tabs
+// "Formulario", "Jugar" and "Respuestas"), on the right the YAML editor over the validation panel.
+// The form edits the text through the YAML editor, so both share one undo history. An issue of the
+// panel goes to its field while the form is visible, and to its line of the YAML otherwise. The text is the source of
 // truth and is saved as it is (ADR-0025 §2). A 409 means the file changed on disk: it is explained
 // and nothing is overwritten (S8).
 import {
@@ -24,7 +26,9 @@ import { api, ApiError } from "../api/client";
 import { usePageTitle } from "../app/page-title";
 import { ValidationPanel } from "../validation/ValidationPanel";
 import { useValidation } from "../validation/use-validation";
-import { DraftTabs } from "../preview/DraftTabs";
+import { DraftTabs, type DraftTab } from "../preview/DraftTabs";
+import { EditError } from "../form/document-edit";
+import { ScenarioForm, type ScenarioFormHandle } from "../form/ScenarioForm";
 import { useSharedContent } from "./use-shared-content";
 import { YamlEditor, type YamlEditorHandle } from "./YamlEditor";
 
@@ -55,6 +59,8 @@ export function EditorPage() {
   const [saved, setSaved] = useState({ text: "", hash: "" });
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
   const editor = useRef<YamlEditorHandle>(null);
+  const form = useRef<ScenarioFormHandle>(null);
+  const [tab, setTab] = useState<DraftTab>("form");
   const { shared, error: sharedError } = useSharedContent();
   // Only once the file is there: never a result for the empty text before it loads.
   const validation = useValidation(text, id, load.kind === "ready" ? shared : undefined);
@@ -124,7 +130,10 @@ export function EditorPage() {
       dirty && currentLocation.pathname !== nextLocation.pathname,
   );
 
-  const jump = (finding: StudioFinding) => editor.current?.focusLine(finding.line, finding.column);
+  const jump = (finding: StudioFinding) => {
+    if (tab === "form" && finding.path.length > 0 && form.current?.focusPath(finding.path)) return;
+    editor.current?.focusLine(finding.line, finding.column);
+  };
   const title = validation.result?.scenario?.title ?? id;
 
   const stateText = (() => {
@@ -228,6 +237,28 @@ export function EditorPage() {
             shared={shared}
             sharedError={sharedError}
             onJump={jump}
+            tab={tab}
+            onTabChange={setTab}
+            form={
+              shared !== undefined && (
+                <ScenarioForm
+                  ref={form}
+                  // The open sections start over for another file.
+                  key={`${id}:${opened.generation}`}
+                  text={text}
+                  findings={validation.result?.findings ?? []}
+                  shared={shared}
+                  onEdit={(commands, isolate) => {
+                    if (editor.current === null) throw new EditError("El editor no está listo");
+                    editor.current.edit(commands, isolate);
+                  }}
+                  onUndo={() => editor.current?.undo()}
+                  onRedo={() => editor.current?.redo()}
+                  onSave={onSave}
+                  onJumpToLine={(line) => editor.current?.focusLine(line)}
+                />
+              )
+            }
           />
           <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(20rem,3fr)_minmax(12rem,2fr)] gap-4">
             <section aria-labelledby={ids.yaml} className="flex min-h-0 flex-col gap-2">
