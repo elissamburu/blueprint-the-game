@@ -26,6 +26,7 @@ import {
 import { createContext, useContext, type PointerEvent as ReactPointerEvent } from "react";
 import { drawnKind, MIN_GROUP_SIZE, selectionKey, type DiagramSelection } from "./editor-model";
 import type { EditorFlowEdge, EditorGroupNode, EditorLeafNode, ElementStatus } from "./editor-flow";
+import { Z } from "./flow-model";
 import { ACTOR_ICONS, GROUP_STYLES, NO_PAN } from "./nodes";
 
 export interface EditorContextValue {
@@ -237,7 +238,11 @@ export function EditorEdge({ id, data }: EdgeProps<EditorFlowEdge>) {
         <div
           {...elementProps(selection, name, onElementFocus)}
           data-status={status.level ?? undefined}
-          style={{ transform: `translate(-50%, -50%) translate(${label.x}px, ${label.y}px)` }}
+          // Over the edges (and their wide pointer target), under the nodes, as the step markers.
+          style={{
+            transform: `translate(-50%, -50%) translate(${label.x}px, ${label.y}px)`,
+            zIndex: Z.step,
+          }}
           className={cn(
             "pointer-events-auto absolute top-0 left-0 grid size-[20px] cursor-pointer place-items-center rounded-full border bg-card text-[10px] leading-none font-[850] text-foreground focus:outline-none",
             NO_PAN,

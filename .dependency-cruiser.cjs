@@ -64,6 +64,18 @@ module.exports = {
       to: { path: STUDIO_ONLY_DEPS, reachable: true },
     },
     {
+      name: "web-not-to-diagram-editor",
+      severity: "error",
+      comment:
+        "The visual editor of the diagram is for the Studio only (RF-STU-04): it lives in the " +
+        "@blueprint/diagram/editor subpath, and nothing reachable from apps/web/src may get to it.",
+      from: { path: "^apps/web/src/" },
+      to: {
+        path: "(^|/)(packages|@blueprint)/diagram/src/(editor[.-]|DiagramEditor|ConnectDialog)",
+        reachable: true,
+      },
+    },
+    {
       name: "pure-packages-no-node-builtins",
       severity: "error",
       comment:

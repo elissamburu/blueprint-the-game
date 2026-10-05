@@ -38,3 +38,31 @@ No decide grados ni importa `game-engine` (regla `diagram-not-to-game-logic` de 
 - Con `onViewportChange`, la app se entera de cada cambio de zoom o posición (el juego lo usa para ubicar la tarjeta de feedback).
 - Con `insetLeft` (px), la app avisa que tapa una franja a la izquierda con un panel propio ("Ver caso"): los controles flotantes se corren a su derecha y un casillero al que se llega con Tab se centra en la parte libre (`revealViewport` en `viewport.ts`, que además muestra entero un casillero que creció).
 - Los textos de los nodos van en `px`: dentro del tablero escalan con el zoom del tablero, no con el tamaño de letra del navegador, así los nodos (de tamaño fijo en el canvas) no se superponen con letra grande (docs/design, problema 28).
+
+## Editor visual (Studio)
+
+`@blueprint/diagram/editor` exporta `DiagramEditor`, el editor del diagrama del Studio (RF-STU-04). Es un subpath aparte para que el juego no lo cargue (regla `web-not-to-diagram-editor` de dependency-cruiser).
+
+- Dibuja un **borrador** del bloque `diagram` (`parseDiagramDraft` de `scenario-schema`): solo exige la geometría, así que un elemento recién creado se ve aunque no pase el schema (⚠ «Incompleto»).
+- **No conoce el YAML**: emite comandos por id (`editor-model.ts`) y la app los traduce a ediciones del documento.
+
+```tsx
+<DiagramEditor
+  draft={parseDiagramDraft(raw.diagram)}
+  services={lookup}
+  selection={selection} // { kind: "group" | "node" | "edge", id }
+  onSelectionChange={setSelection}
+  onCommand={(command) => apply(command)} // place, addNode, addGroup, connect, remove, moveStep
+  issues={issues} // Map<"node:<id>", "error" | "warning">
+  readOnly={!parses}
+  onActivate={(selection) => focusInspector(selection)}
+  onUndo={undo}
+  onRedo={redo}
+  ref={editorRef} // focus(selection), reveal(selection), openConnect()
+/>
+```
+
+- `place` lleva las posiciones finales (absolutas, como en el YAML) y el grupo o padre de cada elemento movido: la pertenencia se recalcula al mover (`containerOf`): se conserva mientras el elemento siga entero dentro de su grupo; si no, pasa al grupo más interno que lo contiene entero. Mover un grupo mueve sus descendientes. `input: "pointer"` es un paso de deshacer; `"keyboard"`, una pulsación que se puede sumar a las siguientes.
+- `remove` es un pedido: la app confirma.
+- **Teclado**: el canvas es una sola parada de `Tab`; adentro, `Tab` recorre los elementos en orden de lectura (`readingOrder`) y `Esc` seguido de `Tab` sale. Los atajos de una tecla solo actúan con el foco en el canvas o en un elemento (WCAG 2.1.4). La ayuda (`EDITOR_HELP`) está visible debajo del canvas y es su descripción accesible.
+- Los grupos se mueven desde su etiqueta, así el fondo de un grupo sigue desplazando el canvas.

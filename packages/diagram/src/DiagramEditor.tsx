@@ -122,6 +122,8 @@ export interface DiagramEditorProps {
   onSave?: (() => void) | undefined;
   /** Accessible name of the canvas. */
   label?: string | undefined;
+  /** Id of the canvas, so the app can give it the focus back. */
+  id?: string | undefined;
   className?: string | undefined;
   ref?: Ref<DiagramEditorHandle> | undefined;
 }
@@ -201,6 +203,7 @@ function EditorCanvas({
   onRedo,
   onSave,
   label = "Editor del diagrama",
+  id,
   className,
   ref,
 }: DiagramEditorProps) {
@@ -313,10 +316,24 @@ function EditorCanvas({
     reveal(target);
   });
 
-  // A selection whose element is gone (removed, renamed in the YAML) is dropped.
+  // A selection whose element is gone (removed, undone, renamed in the YAML) is dropped.
   useEffect(() => {
     if (selection !== null && !hasElement(draft, selection)) onSelectionChange(null);
   }, [draft, selection, onSelectionChange]);
+
+  // If the element with the focus is gone, the focus goes back to the canvas instead of getting
+  // lost (WCAG 2.4.3). React Flow takes it out of the page after this effect, so it is still there.
+  useEffect(() => {
+    const active = document.activeElement;
+    const key = active?.getAttribute(ELEMENT_ATTRIBUTE);
+    const canvas = canvasRef.current;
+    if (key == null || canvas === null || !canvas.contains(active)) return;
+    const separator = key.indexOf(":");
+    const kind = key.slice(0, separator);
+    const id = key.slice(separator + 1);
+    if (kind !== "group" && kind !== "node" && kind !== "edge") return;
+    if (!hasElement(draft, { kind, id })) canvas.focus();
+  }, [draft]);
 
   const connectSource =
     selection?.kind === "node" && draft.nodes.some((node) => node.id === selection.id)
@@ -643,6 +660,7 @@ function EditorCanvas({
         <div className="relative min-h-[20rem]">
           <div
             ref={canvasRef}
+            id={id}
             role="application"
             aria-roledescription="editor de diagrama"
             aria-label={label}

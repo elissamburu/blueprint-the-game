@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { parseDiagramDraft, type DiagramDraft } from "@blueprint/scenario-schema";
-import { cleanup, render, screen, within } from "@testing-library/react";
+import { act, cleanup, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useState } from "react";
 import { afterEach, beforeAll, describe, expect, it, vi } from "vitest";
@@ -200,6 +200,24 @@ describe("DiagramEditor: keyboard", () => {
   });
 });
 
+describe("DiagramEditor: focus", () => {
+  it("goes back to the canvas when the focused element is gone (an undo, a removal)", async () => {
+    const onSelectionChange = vi.fn();
+    const props = {
+      services: fakeServices,
+      selection: { kind: "node", id: "user" } as const,
+      onSelectionChange,
+      onCommand: () => {},
+    };
+    const { rerender } = render(<DiagramEditor draft={draft} {...props} />);
+    act(() => element("node:user").focus());
+    const without = { ...draft, nodes: draft.nodes.filter((node) => node.id !== "user") };
+    rerender(<DiagramEditor draft={without} {...props} />);
+    await waitFor(() => expect(document.activeElement).toBe(canvas()));
+    expect(onSelectionChange).toHaveBeenCalledWith(null);
+  });
+});
+
 describe("DiagramEditor: single-key shortcuts (WCAG 2.1.4)", () => {
   it("never act while a text field has the focus", async () => {
     const onUndo = vi.fn();
@@ -251,7 +269,9 @@ describe("DiagramEditor: palette and toolbar", () => {
 
   it("offers Conectar con… only with a node selected", async () => {
     const { user } = setup({ initial: { kind: "edge", id: "e1" } });
-    expect(screen.getByRole("button", { name: /Conectar con…/ }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: /Conectar con…/ }).hasAttribute("disabled")).toBe(
+      true,
+    );
     element("edge:e1").focus();
     await user.keyboard("c");
     expect(screen.queryByRole("dialog")).toBeNull();
@@ -259,7 +279,9 @@ describe("DiagramEditor: palette and toolbar", () => {
 
   it("changes nothing while read-only", async () => {
     const { user, onCommand } = setup({ initial: { kind: "node", id: "api" }, readOnly: true });
-    expect(screen.getByRole("button", { name: "Agregar Actor" }).hasAttribute("disabled")).toBe(true);
+    expect(screen.getByRole("button", { name: "Agregar Actor" }).hasAttribute("disabled")).toBe(
+      true,
+    );
     expect(screen.getByRole("button", { name: /Eliminar…/ }).hasAttribute("disabled")).toBe(true);
     element("node:api").focus();
     await user.keyboard("{ArrowRight}{Delete}c");
