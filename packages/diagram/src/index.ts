@@ -38,3 +38,24 @@ export {
 } from "./print";
 // Lives in @blueprint/ui; still exported here so the public API of the board does not change.
 export { useReducedMotion } from "@blueprint/ui/lib/use-reduced-motion";
+export {
+  DiagramEditor,
+  EDITOR_HELP,
+  PALETTE_DRAG_TYPE,
+  type DiagramEditorHandle,
+  type DiagramEditorProps,
+} from "./DiagramEditor";
+export {
+  GRID,
+  GROUP_KIND_NAMES,
+  NODE_TYPE_NAMES,
+  NUDGE,
+  sameSelection,
+  selectionKey,
+  type DiagramCommand,
+  type DiagramSelection,
+  type ElementKind,
+  type Placement,
+  type StepDirection,
+} from "./editor-model";
+export { groupTitle, nodeNames, type ElementIssues, type IssueLevel } from "./editor-flow";

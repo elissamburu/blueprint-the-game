@@ -31,7 +31,7 @@ import {
   type SlotFlowNode,
 } from "./flow-model";
 
-const GROUP_STYLES: Record<GroupKind, string> = {
+export const GROUP_STYLES: Record<GroupKind, string> = {
   "aws-cloud":
     "border-2 border-solid border-primary bg-[color-mix(in_oklab,var(--blueprint-soft)_58%,transparent)]",
   region:
@@ -94,7 +94,7 @@ export function GroupNode({ data }: NodeProps<GroupFlowNode>) {
   );
 }
 
-const ACTOR_ICONS: Record<ActorSchemaNode["icon"], LucideIcon> = {
+export const ACTOR_ICONS: Record<ActorSchemaNode["icon"], LucideIcon> = {
   user: UserIcon,
   users: UsersIcon,
   mobile: SmartphoneIcon,

@@ -77,7 +77,7 @@ import { contentBox, initialView, revealViewport, steppedZoom } from "./viewport
 export const MIN_ZOOM = 0.2;
 /** At least 300 % for people with low vision (docs/design, problem 27). */
 export const MAX_ZOOM = 3;
-const FIT_PADDING = 0.04;
+export const FIT_PADDING = 0.04;
 /** Screen pixels an arrow key pans the focused board. */
 export const ARROW_PAN = 64;
 
@@ -163,7 +163,7 @@ export function Diagram(props: DiagramProps) {
   );
 }
 
-function ArrowMarkers({ markers }: { markers: DiagramContextValue["markers"] }) {
+export function ArrowMarkers({ markers }: { markers: DiagramContextValue["markers"] }) {
   return (
     <svg aria-hidden="true" width="0" height="0" className="absolute">
       <defs>
@@ -174,7 +174,7 @@ function ArrowMarkers({ markers }: { markers: DiagramContextValue["markers"] }) 
   );
 }
 
-const useMarkers = () => {
+export const useMarkers = () => {
   const markerId = useId();
   return useMemo(() => ({ idle: `${markerId}-idle`, active: `${markerId}-active` }), [markerId]);
 };
@@ -633,10 +633,10 @@ function DropMonitor({
 const percent = new Intl.NumberFormat("es-AR", { style: "percent", maximumFractionDigits: 0 });
 
 /** Floating card over the board, as .board-zoom in the prototype. */
-const FLOATING =
+export const FLOATING =
   "rounded-md border bg-card shadow-[0_8px_24px_color-mix(in_oklab,var(--foreground)_10%,transparent)]";
 
-function ZoomControls({
+export function ZoomControls({
   onReset,
   duration,
   className,
