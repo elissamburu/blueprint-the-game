@@ -5,6 +5,7 @@
 // document of the moment, so an element renamed or removed in the YAML meanwhile is never edited
 // by a stale index.
 import type { DiagramCommand, DiagramSelection, Placement } from "@blueprint/diagram/editor";
+import type { LayoutResult } from "@blueprint/diagram/layout";
 import { EditError, type EditCommand, type EditPath } from "../form/document-edit";
 import {
   newEdge,
@@ -139,4 +140,55 @@ export const translate = (raw: unknown, command: DiagramCommand): Translation =>
       return commands.length === 0 ? NOTHING : { commands, isolate: true, step };
     }
   }
+};
+
+export interface LayoutTranslation {
+  commands: EditCommand[];
+  /** How many nodes and groups move (or change size); the canvas is not counted. */
+  nodes: number;
+  groups: number;
+}
+
+/**
+ * The edit commands of "Ordenar" (RF-STU-05): `setIn` of each coordinate of `position`, `rect` and
+ * `canvas` that changes, and nothing else (ids, texts, membership, edges and steps stay as they
+ * are). Only the first element of each id is moved, the one the editor draws. A type-only import
+ * of the layout: the module (and elkjs) is loaded on demand by the tab.
+ */
+export const layoutCommands = (raw: unknown, result: LayoutResult): LayoutTranslation => {
+  const commands: EditCommand[] = [];
+  const moveAll = (
+    list: "nodes" | "groups",
+    field: "position" | "rect",
+    target: (id: string) => Record<string, number> | undefined,
+  ) => {
+    const seen = new Set<string>();
+    let moved = 0;
+    itemsOf(raw, list).forEach((item, index) => {
+      const id = textOf(item.id);
+      const values = seen.has(id) ? undefined : target(id);
+      seen.add(id);
+      if (values === undefined) return;
+      const current = recordOf(item[field]);
+      const changes = Object.entries(values).flatMap(([key, value]) =>
+        setIfChanged(["diagram", list, index, field, key], current[key], value),
+      );
+      if (changes.length > 0) moved += 1;
+      commands.push(...changes);
+    });
+    return moved;
+  };
+  const nodes = moveAll("nodes", "position", (id) => {
+    const point = result.positions.get(id);
+    return point === undefined ? undefined : { x: point.x, y: point.y };
+  });
+  const groups = moveAll("groups", "rect", (id) => {
+    const rect = result.rects.get(id);
+    return rect === undefined ? undefined : { x: rect.x, y: rect.y, w: rect.w, h: rect.h };
+  });
+  const canvas = recordOf(recordOf(recordOf(raw).diagram).canvas);
+  for (const key of ["width", "height"] as const) {
+    commands.push(...setIfChanged(["diagram", "canvas", key], canvas[key], result.canvas[key]));
+  }
+  return { commands, nodes, groups };
 };

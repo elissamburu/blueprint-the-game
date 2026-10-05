@@ -5,6 +5,7 @@ import { execSync } from "node:child_process";
 import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
+import { AxeBuilder } from "@axe-core/playwright";
 import { expect, type Locator, type Page } from "@playwright/test";
 
 export const E2E_PORT = 4321;
@@ -61,3 +62,15 @@ export const openScenario = async (page: Page, title: RegExp | string) => {
 /** Number of the line where the cursor is (CodeMirror's active line gutter). */
 export const cursorLine = async (page: Page): Promise<number> =>
   Number(await page.locator(".cm-activeLineGutter").first().innerText());
+
+/** axe on the page as it is now; the violations are soft failures, named by `screen`. */
+export const expectNoViolations = async (page: Page, screen: string) => {
+  const { violations } = await new AxeBuilder({ page }).analyze();
+  const found = violations.flatMap((violation) =>
+    violation.nodes.map(
+      (node) =>
+        `${violation.id} (${violation.impact ?? "?"}) en ${node.target.join(" ")}: ${node.failureSummary ?? violation.help}`,
+    ),
+  );
+  expect.soft(found, `axe en «${screen}»`).toEqual([]);
+};

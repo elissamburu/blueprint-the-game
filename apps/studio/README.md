@@ -2,7 +2,7 @@
 
 Editor local de escenarios ([ADR-0013](../../docs/adr/0013-scenario-studio-local-con-ia.md), [ADR-0025](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). Corre en tu máquina, escucha solo en `127.0.0.1` y lee y escribe `content/scenarios/` de tu copia del repo. **Nunca se despliega** (RF-STU-18): no entra en `pnpm build:beta` ni en `pnpm deploy:beta` (lo verifica `tools/deploy-beta/src/studio-excluded.test.ts`).
 
-Qué hace hoy (F2, PR 4): listar los escenarios, abrir uno, editar su `scenario.yaml` con un formulario (metadatos, contexto, objetivos, casilleros, grupos, nodos y aristas) o en el YAML, con validación en vivo (schema + lint, los mismos mensajes que `pnpm content:validate`), jugar el borrador y ver todas sus respuestas, y guardarlo regenerando `diagram.mmd` y `README.md`. El editor visual del diagrama llega en el PR siguiente del [roadmap](../../docs/05-roadmap.md).
+Qué hace hoy (F2, PR 5): listar los escenarios, abrir uno, editar su `scenario.yaml` con un formulario (metadatos, contexto, objetivos, casilleros, grupos, nodos y aristas), con el editor visual del diagrama (con «Ordenar») o en el YAML, con validación en vivo (schema + lint, los mismos mensajes que `pnpm content:validate`), jugar el borrador y ver todas sus respuestas, y guardarlo regenerando `diagram.mmd` y `README.md`. Lo que falta de F2 sigue el [roadmap](../../docs/05-roadmap.md).
 
 ## Uso
 
@@ -51,6 +51,7 @@ Remove-Item Env:STUDIO_CONTENT_DIR
 - **Conectar sin arrastrar**: con un nodo seleccionado, «Conectar con…» (o `C`) abre la lista de los otros nodos, con buscador. La arista nueva va al final del flujo y el foco pasa a su etiqueta en el inspector.
 - El **inspector** tiene los mismos campos del formulario para el elemento seleccionado y los avisos que ningún campo muestra. Las respuestas de un casillero se editan en el formulario («Editar respuestas en el formulario»). Sin selección, muestra el flujo: las aristas por paso, cada una lleva a su arista.
 - Eliminar siempre pide confirmación y dice qué más se va: las aristas de un nodo; los nodos de un grupo quedan sin grupo.
+- **Ordenar** (RF-STU-05) acomoda el diagrama solo, de izquierda a derecha en el orden de los pasos, con los grupos alrededor de sus nodos. Cambia únicamente posiciones, rects y el tamaño del canvas (nunca ids, textos, grupos, aristas ni pasos), en una sola edición: un `Ctrl+Z` la deshace entera. Después dice cuántos nodos y grupos se reubicaron, con «Deshacer» mientras sea la última edición, o «Ya está ordenado». Si hay grupos hermanos superpuestos (quizás a propósito), pregunta antes nombrándolos, porque al ordenar quedan separados. El auto-layout ([elkjs](https://github.com/kieler/elkjs), ver [Licencias de terceros](#licencias-de-terceros)) se carga recién al usarlo.
 
 - Diagramas hechos con [React Flow (xyflow)](https://reactflow.dev/). El editor oculta la atribución de React Flow dentro del canvas (sería una parada de `Tab` entre `Esc` y la salida); el crédito queda acá y en la página «Acerca de» del juego, como pide su [política de atribución](https://reactflow.dev/api-reference/types/pro-options).
 
@@ -76,6 +77,18 @@ pnpm e2e:studio    # Playwright contra pnpm studio sobre una copia temporal de c
 ```
 
 Los tests nunca usan el `content/` real para escribir: copian el contenido a una carpeta temporal.
+
+## Licencias de terceros
+
+El código del proyecto es PolyForm Noncommercial 1.0.0 ([ADR-0016](../../docs/adr/0016-licenciamiento.md)). Las dependencias de npm conservan su propia licencia. Esta es la que tiene una licencia distinta al resto:
+
+| Dependencia | Licencia | Cómo se usa |
+|---|---|---|
+| [elkjs](https://github.com/kieler/elkjs) `0.12.0` | EPL-2.0 OR GPL-3.0-or-later (según el registro de npm) | Sin modificar, como dependencia de npm: no se copia (*vendorea*) código al repo. La importa solo el subpath `@blueprint/diagram/layout` («Ordenar», RF-STU-05), y la usa solo el Studio local, que la carga de forma diferida y nunca se despliega. |
+
+elkjs **nunca llega al bundle del juego** ([ADR-0025 §3](../../docs/adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md)). Lo garantizan tres chequeos:
+- Las reglas de dependency-cruiser `web-not-to-studio-only-deps` (nada alcanzable desde `apps/web/src` llega a elkjs) y `diagram-entry-not-to-layout` (la entrada principal de `@blueprint/diagram` no alcanza `./layout` ni elkjs), en `pnpm deps:check`.
+- El build de `apps/web`, que falla si algún módulo del bundle sale de `node_modules/elkjs/` (`apps/web/vite.config.ts`).
 
 ## Seguridad: lista de verificación S1–S12
 
