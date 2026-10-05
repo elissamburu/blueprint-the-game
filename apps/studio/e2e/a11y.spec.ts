@@ -1,9 +1,19 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // axe on the two pages of the Studio (docs/accesibilidad.md §7): the list and the editor, also
-// with findings in the validation panel. It does not replace the manual tests of that protocol.
+// with findings in the validation panel, and the whole form of the 8 scenarios. It does not
+// replace the manual tests of that protocol.
+import { readdir, readFile } from "node:fs/promises";
+import path from "node:path";
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { editorContent, openScenario, SCENARIOS, validationSummary } from "./support/studio";
+import {
+  E2E_CONTENT,
+  editorContent,
+  openScenario,
+  scenarioFile,
+  SCENARIOS,
+  validationSummary,
+} from "./support/studio";
 
 const expectNoViolations = async (page: Page, screen: string) => {
   const { violations } = await new AxeBuilder({ page }).analyze();
@@ -37,6 +47,7 @@ test("editor, sin errores y con errores", async ({ page }) => {
 
 test("pestañas «Jugar» y «Respuestas», también en partida y con el resumen", async ({ page }) => {
   await openScenario(page, SCENARIOS.pdf.title);
+  await page.getByRole("tab", { name: "Jugar" }).click();
   await expectNoViolations(page, "Jugar, sin partida");
 
   await page.getByRole("button", { name: "Empezar partida" }).click();
@@ -62,4 +73,47 @@ test("pestañas «Jugar» y «Respuestas», también en partida y con el resumen
     page.getByRole("heading", { level: 2, name: "Respuestas del borrador" }),
   ).toBeVisible();
   await expectNoViolations(page, "Respuestas");
+});
+
+/** The 8 scenarios of the copy, with their titles as they are now (other specs edit some). */
+const scenarios = async (): Promise<{ id: string; title: string }[]> => {
+  const ids = (await readdir(path.join(E2E_CONTENT, "scenarios"))).filter(
+    (id) => !id.startsWith("_"),
+  );
+  return Promise.all(
+    ids.map(async (id) => {
+      const text = await readFile(scenarioFile(id), "utf8");
+      return { id, title: /^title: "(.*)"$/m.exec(text)?.[1] ?? id };
+    }),
+  );
+};
+
+test("formulario completo de los 8 escenarios, también con errores", async ({ page }) => {
+  test.setTimeout(180_000);
+  const all = await scenarios();
+  expect(all).toHaveLength(8);
+  for (const { id, title } of all) {
+    await openScenario(page, title);
+    const form = page.getByRole("tabpanel", { name: "Formulario" });
+    await form.getByRole("button", { name: "Expandir todo" }).click();
+    await expect(form.getByRole("button", { name: /^Casillero 1:/ })).toHaveAttribute(
+      "aria-expanded",
+      "true",
+    );
+    await expectNoViolations(page, `formulario de ${id}`);
+  }
+
+  // With issues on the fields (aria-invalid and their messages), and read-only.
+  const form = page.getByRole("tabpanel", { name: "Formulario" });
+  await form.getByRole("textbox", { name: "Título" }).fill("");
+  await expect(form.getByRole("textbox", { name: "Título" })).toHaveAttribute(
+    "aria-invalid",
+    "true",
+  );
+  await expectNoViolations(page, "formulario con errores");
+  await editorContent(page).click();
+  await page.keyboard.press("Control+End");
+  await page.keyboard.type("\nroto: [");
+  await expect(form.getByText(/el formulario muestra la última versión válida/)).toBeVisible();
+  await expectNoViolations(page, "formulario de solo lectura");
 });
