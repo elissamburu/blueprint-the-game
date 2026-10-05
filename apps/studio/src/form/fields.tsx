@@ -20,7 +20,7 @@ import { cn } from "@blueprint/ui/lib/utils";
 import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, Trash2Icon } from "lucide-react";
 import { useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
-import type { EditPath } from "./document-edit";
+import type { EditCommand, EditPath } from "./document-edit";
 import { errorId, fieldId } from "./form-paths";
 import { listOf, textOf, valueAt } from "./form-data";
 import { useForm } from "./form-context";
@@ -109,14 +109,22 @@ export function TextField({
   className,
   multiline = false,
   locked = false,
+  optional = false,
   type = "text",
-}: FieldProps & { multiline?: boolean; locked?: boolean; type?: "text" | "url" }) {
+}: FieldProps & {
+  multiline?: boolean;
+  locked?: boolean;
+  /** Emptying the field removes the key, instead of writing "". */
+  optional?: boolean;
+  type?: "text" | "url";
+}) {
   const { raw, readOnly, edit } = useForm();
   const hintId = useId();
   const issues = useIssues(path, hint === undefined ? undefined : hintId);
   const id = fieldId(path);
   const value = textOf(valueAt(raw, path));
-  const onChange = (next: string) => edit([{ op: "set", path, value: next }]);
+  const onChange = (next: string) =>
+    edit([{ op: "set", path, value: optional && next === "" ? undefined : next }]);
   const common = {
     id,
     value,
@@ -182,6 +190,9 @@ export function NumberField({ path, label, context, hint, className }: FieldProp
   );
 }
 
+/** The option "none" of a select: Radix takes no empty value, and ids never have "_". */
+const NONE = "__none__";
+
 export interface Option {
   value: string;
   label: string;
@@ -195,18 +206,26 @@ export function SelectField({
   className,
   options,
   numeric = false,
-}: FieldProps & { options: readonly Option[]; numeric?: boolean }) {
+  none,
+}: FieldProps & {
+  options: readonly Option[];
+  numeric?: boolean;
+  /** An option for no value: `null` writes `null`, `undefined` removes the key. */
+  none?: { label: string; value: null | undefined };
+}) {
   const { t } = useTranslation();
   const { raw, readOnly, edit } = useForm();
   const hintId = useId();
   const issues = useIssues(path, hint === undefined ? undefined : hintId);
   const id = fieldId(path);
-  const value = textOf(valueAt(raw, path));
+  const current = textOf(valueAt(raw, path));
+  const value = none !== undefined && current === "" ? NONE : current;
   // A value of the YAML that is not an option is shown as it is, to be replaced.
+  const listed = none === undefined ? options : [{ value: NONE, label: none.label }, ...options];
   const all =
-    value === "" || options.some((option) => option.value === value)
-      ? options
-      : [...options, { value, label: t("form.invalidValue", { value }) }];
+    value === "" || listed.some((option) => option.value === value)
+      ? listed
+      : [...listed, { value, label: t("form.invalidValue", { value }) }];
   return (
     <div className={cn("flex flex-col gap-1.5", className)}>
       <FieldLabel htmlFor={id} label={label} {...(context === undefined ? {} : { context })} />
@@ -214,7 +233,16 @@ export function SelectField({
         value={value}
         disabled={readOnly}
         onValueChange={(next) =>
-          edit([{ op: "set", path, value: numeric ? Number(next) : next }], { isolate: true })
+          edit(
+            [
+              {
+                op: "set",
+                path,
+                value: next === NONE ? none?.value : numeric ? Number(next) : next,
+              },
+            ],
+            { isolate: true },
+          )
         }
       >
         <SelectTrigger id={id} className="w-full" {...ariaOf(issues)}>
@@ -332,6 +360,8 @@ export function ItemActions({
   count,
   name,
   canMove = true,
+  remove,
+  children,
 }: {
   listPath: EditPath;
   index: number;
@@ -339,6 +369,16 @@ export function ItemActions({
   /** The item, in words: "el objetivo 2". */
   name: string;
   canMove?: boolean;
+  /** A removal of more than the item (a node with its edges), and how to tell it. */
+  remove?: {
+    commands: readonly EditCommand[];
+    description: string;
+    announce: string;
+    /** Id of the element that gets the focus, when the list has more than one "Agregar". */
+    focus?: string;
+  };
+  /** More actions of the item, before "Quitar". */
+  children?: ReactNode;
 }) {
   const { t } = useTranslation();
   const { readOnly, edit, confirm } = useForm();
@@ -386,6 +426,7 @@ export function ItemActions({
           </Button>
         </>
       )}
+      {children}
       <Button
         id={`${base}-remove`}
         type="button"
@@ -395,13 +436,13 @@ export function ItemActions({
         onClick={() =>
           confirm({
             title: t("form.remove.title", { item: name }),
-            description: t("form.remove.body"),
+            description: remove?.description ?? t("form.remove.body"),
             action: t("form.remove.action"),
             onConfirm: () =>
-              edit([{ op: "remove", path: itemPath }], {
+              edit(remove?.commands ?? [{ op: "remove", path: itemPath }], {
                 isolate: true,
-                announce: t("form.removed", { item: name }),
-                focus: `${fieldId(listPath)}-add`,
+                announce: remove?.announce ?? t("form.removed", { item: name }),
+                focus: remove?.focus ?? `${fieldId(listPath)}-add`,
               }),
           })
         }
@@ -421,7 +462,10 @@ export function AddButton({
   announce,
   focus,
   disabled = false,
+  id,
 }: {
+  /** When the list has more than one "Agregar" button. */
+  id?: string;
   listPath: EditPath;
   value: unknown;
   label: ReactNode;
@@ -432,7 +476,7 @@ export function AddButton({
   const { readOnly, edit } = useForm();
   return (
     <Button
-      id={`${fieldId(listPath)}-add`}
+      id={id ?? `${fieldId(listPath)}-add`}
       type="button"
       variant="outline"
       size="sm"

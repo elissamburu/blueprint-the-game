@@ -26,16 +26,16 @@ describe("form paths", () => {
       ["diagram", "nodes", 2, "role"],
       ["slots", "slot-2"],
     ],
-    [
-      ["diagram", "nodes", 2],
-      ["diagram", "nodes", 2],
-      ["slots", "slot-2"],
-    ],
-    [
-      ["diagram", "nodes", 2, "position", "x"],
-      ["diagram", "nodes", 2],
-      ["slots", "slot-2"],
-    ],
+    [["diagram", "nodes", 2], ["diagram", "nodes", 2], ["nodes"]],
+    [["diagram", "nodes", 2, "position", "x"], ["diagram", "nodes", 2, "position", "x"], ["nodes"]],
+    [["diagram", "nodes", 2, "position"], ["diagram", "nodes", 2], ["nodes"]],
+    [["diagram", "nodes", 1, "label"], ["diagram", "nodes", 1, "label"], ["nodes"]],
+    [["diagram", "nodes", 1, "other"], ["diagram", "nodes", 1], ["nodes"]],
+    [["diagram", "nodes"], ["diagram", "nodes"], ["nodes"]],
+    [["diagram", "groups", 0, "rect", "w"], ["diagram", "groups", 0, "rect", "w"], ["groups"]],
+    [["diagram", "groups", 0, "parent"], ["diagram", "groups", 0, "parent"], ["groups"]],
+    [["diagram", "edges", 3, "step"], ["diagram", "edges", 3, "step"], ["edges"]],
+    [["diagram", "edges", 3], ["diagram", "edges", 3], ["edges"]],
     [
       ["diagram", "nodes", 4, "hints", 1],
       ["diagram", "nodes", 4, "hints", 1],
@@ -70,13 +70,10 @@ describe("form paths", () => {
     expect(anchorOf(path, isSlot)).toEqual({ path: anchor, sections });
   });
 
-  it.each([
-    [[]],
-    [["palette", "mode"]],
-    [["references", 0]],
-    [["diagram", "nodes", 1, "label"]],
-    [["diagram", "edges", 0]],
-  ])("%j has no field in the form", (path) => {
-    expect(anchorOf(path, isSlot)).toBeUndefined();
-  });
+  it.each([[[]], [["palette", "mode"]], [["references", 0]], [["diagram", "canvas", "width"]]])(
+    "%j has no field in the form",
+    (path) => {
+      expect(anchorOf(path, isSlot)).toBeUndefined();
+    },
+  );
 });

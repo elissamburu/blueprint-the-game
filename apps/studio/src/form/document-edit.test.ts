@@ -208,6 +208,19 @@ describe("document edit", () => {
     );
   });
 
+  it("writes the geometry of a new node inline, as the scenarios do", () => {
+    const text = "nodes:\n  - id: a\n    position: { x: 1, y: 2 }\n";
+    expect(
+      edit(text, {
+        op: "append",
+        path: ["nodes"],
+        value: { id: "b", type: "actor", label: "Cliente", position: { x: 40, y: 80 } },
+      }),
+    ).toBe(
+      `${text}  - id: b\n    type: actor\n    label: "Cliente"\n    position: { x: 40, y: 80 }\n`,
+    );
+  });
+
   it("removes the comments above a removed item, and keeps the separation of the list", () => {
     const text = "nodes:\n  - id: a\n\n  # el segundo\n  - id: b\n\n  - id: c\n";
     expect(edit(text, { op: "remove", path: ["nodes", 1] })).toBe(

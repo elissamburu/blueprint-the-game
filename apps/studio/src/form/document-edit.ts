@@ -59,6 +59,8 @@ const TEXT_KEYS = new Set([
 ]);
 /** Keys whose lists of scalars are written inline (`[a, b]`), as the scenarios do. */
 const FLOW_KEYS = new Set(["areas", "objectives", "violates", "extra"]);
+/** Keys whose maps are written inline (`{ x: 40, y: 40 }`), as the scenarios do. */
+const FLOW_MAP_KEYS = new Set(["position", "rect", "canvas"]);
 
 const OPTIONS: ToStringOptions = { lineWidth: 0 };
 /** Folded scalars (`>`) are folded again at a width close to the one of the scenarios. */
@@ -149,7 +151,7 @@ const itemBlock = (text: string, collection: YAMLSeq | YAMLMap, index: number) =
 
 // --- Building new nodes -------------------------------------------------------------------------
 
-/** A new node with the style of the scenarios: text in double quotes, lists of ids inline. */
+/** A new node with the style of the scenarios: text in double quotes, ids and geometry inline. */
 const createNode = (document: Document, value: unknown, key?: string | number): Node => {
   const node = document.createNode(value) as Node;
   const style = (current: unknown, parentKey: string | number | undefined) => {
@@ -162,7 +164,7 @@ const createNode = (document: Document, value: unknown, key?: string | number): 
         FLOW_KEYS.has(String(parentKey)) && current.items.every((item) => isScalar(item));
       for (const item of current.items) style(item, parentKey);
     } else if (isMap(current)) {
-      current.flow = false;
+      current.flow = FLOW_MAP_KEYS.has(String(parentKey));
       for (const pair of current.items) style(pair.value, keyOf(pair));
     }
   };

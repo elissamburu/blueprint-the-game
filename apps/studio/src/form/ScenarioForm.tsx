@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Form of the scenario (RF-STU-03): metadata, context, objectives and slots, in collapsible
-// sections. It reads the editor's text and edits it with commands by path (ADR-0025 §2), so the
+// Form of the scenario (RF-STU-03): metadata, context, objectives, slots, and the groups, nodes and
+// edges of the diagram, in collapsible sections. It reads the editor's text and edits it with commands by path (ADR-0025 §2), so the
 // YAML stays the source of truth: every change is a transaction of the YAML editor, with its
 // single undo history (Ctrl+Z and Ctrl+Y work here too). While the text does not parse, the form
 // shows the last version that did, read-only, with the line of the error. The validation panel
@@ -44,6 +44,7 @@ import {
 import { FormProvider, useForm } from "./form-context";
 import { isRecord, listOf, recordOf, textOf, uniqueId, useFormDocument } from "./form-data";
 import { anchorOf, fieldId, pathKey, type SectionKey } from "./form-paths";
+import { EdgesFields, GroupsFields, NodesFields } from "./DiagramFields";
 import { ServicePicker } from "./ServicePicker";
 
 export interface ScenarioFormHandle {
@@ -108,6 +109,9 @@ export function ScenarioForm({
     "objectives",
     "slots",
     ...slots.map((index): SectionKey => `slot-${index}`),
+    "groups",
+    "nodes",
+    "edges",
   ];
 
   const setSection = useCallback((key: SectionKey, isOpen: boolean) => {
@@ -250,6 +254,33 @@ export function ScenarioForm({
                   onOpenChange={(isOpen) => setSection(`slot-${index}`, isOpen)}
                 />
               ))}
+            </Disclosure>
+            <Disclosure
+              id="form-section-groups"
+              level={3}
+              title={t("form.groups.title")}
+              open={open.has("groups")}
+              onOpenChange={(isOpen) => setSection("groups", isOpen)}
+            >
+              <GroupsFields />
+            </Disclosure>
+            <Disclosure
+              id="form-section-nodes"
+              level={3}
+              title={t("form.nodes.title")}
+              open={open.has("nodes")}
+              onOpenChange={(isOpen) => setSection("nodes", isOpen)}
+            >
+              <NodesFields services={shared.catalog} />
+            </Disclosure>
+            <Disclosure
+              id="form-section-edges"
+              level={3}
+              title={t("form.edges.title")}
+              open={open.has("edges")}
+              onOpenChange={(isOpen) => setSection("edges", isOpen)}
+            >
+              <EdgesFields />
             </Disclosure>
           </>
         )}
@@ -479,7 +510,8 @@ function SlotFields({
 
   return (
     <Disclosure
-      id={fieldId(slotPath)}
+      // The node itself is in "Nodos": its id is the one of the node group there.
+      id={`${fieldId(slotPath)}-slot`}
       level={4}
       title={
         role === ""

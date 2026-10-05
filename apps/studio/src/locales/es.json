@@ -227,6 +227,77 @@
       "list": "Servicios del catálogo",
       "deprecated": "(obsoleto)",
       "noResults": "Ningún servicio coincide con la búsqueda."
+    },
+    "diagram": {
+      "id": "Id",
+      "label": "Etiqueta",
+      "x": "X",
+      "y": "Y",
+      "w": "Ancho",
+      "h": "Alto"
+    },
+    "groups": {
+      "title": "Grupos",
+      "list": "Grupos del diagrama",
+      "none": "El diagrama no tiene grupos.",
+      "item": "Grupo {{number}}: {{id}}",
+      "name": "el grupo {{number}}",
+      "context": "del grupo {{number}}",
+      "kind": "Tipo",
+      "parent": "Padre",
+      "noParent": "Sin padre (null)",
+      "add": "Agregar grupo",
+      "removeBody_one": "Se borra del YAML con sus comentarios. El nodo que lo usa queda sin grupo y sus grupos hijos pasan a su padre. Podés deshacerlo con Ctrl + Z.",
+      "removeBody_other": "Se borra del YAML con sus comentarios. Los {{count}} nodos que lo usan quedan sin grupo y sus grupos hijos pasan a su padre. Podés deshacerlo con Ctrl + Z."
+    },
+    "nodes": {
+      "title": "Nodos",
+      "list": "Nodos del diagrama",
+      "item": "Nodo {{number}}: {{id}} ({{type}})",
+      "name": "el nodo {{number}}",
+      "context": "del nodo {{number}}",
+      "type": "Tipo",
+      "typeHint": "El tipo no se cambia: agregá un nodo nuevo del tipo que necesites.",
+      "icon": "Ícono",
+      "service": "Servicio",
+      "group": "Grupo",
+      "noGroup": "Sin grupo",
+      "slotHint": "El rol, las pistas y las respuestas de este casillero se editan en «Casilleros».",
+      "removeBody_one": "Se borra del YAML con sus comentarios, junto con la arista que llega o sale de él. Podés deshacerlo con Ctrl + Z.",
+      "removeBody_other": "Se borra del YAML con sus comentarios, junto con las {{count}} aristas que llegan o salen de él. Podés deshacerlo con Ctrl + Z.",
+      "removed_one": "Se quitó {{item}} y su arista.",
+      "removed_other": "Se quitó {{item}} y sus {{count}} aristas.",
+      "add": {
+        "actor": "Agregar actor",
+        "external": "Agregar externo",
+        "fixed": "Agregar servicio fijo",
+        "slot": "Agregar casillero"
+      }
+    },
+    "edges": {
+      "title": "Aristas",
+      "list": "Aristas del diagrama",
+      "lead": "El paso ordena el reproductor de flujo: aristas con el mismo paso van en paralelo. «Subir paso» y «Bajar paso» las mueven y renumeran los pasos sin huecos.",
+      "item": "Arista {{number}}: {{from}} → {{to}}, paso {{step}}",
+      "name": "la arista {{number}}",
+      "context": "de la arista {{number}}",
+      "from": "Desde",
+      "to": "Hacia",
+      "step": "Paso",
+      "style": "Estilo",
+      "styles": {
+        "sync": "sync (sincrónica)",
+        "async": "async (asincrónica)",
+        "data": "data (datos)",
+        "control": "control"
+      },
+      "description": "Descripción",
+      "descriptionHint": "Opcional: se muestra al reproducir el paso. Si la vaciás, se quita del YAML.",
+      "stepUp": "Subir paso",
+      "stepDown": "Bajar paso",
+      "stepMoved": "{{item}}: ahora es el paso {{step}}.",
+      "stepMovedParallel": "{{item}}: ahora es el paso {{step}}, en paralelo con {{edges}}.",
+      "add": "Agregar arista"
     }
   }
 }
