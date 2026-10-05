@@ -50,8 +50,34 @@ const contentBundle = (): Plugin => {
   };
 };
 
+/**
+ * ADR-0025 §3: CodeMirror and elkjs are Studio-only (over 50 KB gzip each). The build fails if a
+ * module of the game's bundle comes from node_modules/@codemirror/ or node_modules/elkjs/; the
+ * dependency-cruiser rule `web-not-to-studio-only-deps` checks the imports before building.
+ */
+const STUDIO_ONLY_MODULE = /[\\/]node_modules[\\/](?:@codemirror[\\/]|elkjs[\\/])/;
+
+const forbidStudioOnlyDeps = (): Plugin => ({
+  name: "blueprint-forbid-studio-only-deps",
+  apply: "build",
+  generateBundle(_options, bundle) {
+    const found = Object.values(bundle).flatMap((output) =>
+      output.type === "chunk"
+        ? output.moduleIds
+            .filter((id) => STUDIO_ONLY_MODULE.test(id))
+            .map((id) => `${output.fileName}: ${id}`)
+        : [],
+    );
+    if (found.length > 0) {
+      this.error(
+        `El bundle del juego incluye dependencias exclusivas del Studio (@codemirror/*, elkjs; ADR-0025 §3):\n${found.join("\n")}`,
+      );
+    }
+  },
+});
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), contentBundle()],
+  plugins: [react(), tailwindcss(), contentBundle(), forbidStudioOnlyDeps()],
   // The manifest lets scripts/check-bundle-size.js measure the initial JS (RNF-03).
   build: { manifest: true },
   resolve: {
