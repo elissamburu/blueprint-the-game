@@ -195,10 +195,12 @@ Reglas (enforced con `eslint-plugin-boundaries` o `dependency-cruiser`):
 | Script | Qué hace |
 |---|---|
 | `pnpm dev` | Juego en modo invitado + Studio, sin AWS. Antes corre `content:dev`. |
-| `pnpm dev:web` / `pnpm studio` | Solo juego (con `content:dev`) / solo Studio. |
+| `pnpm dev:web` / `pnpm dev:studio` | Solo juego (con `content:dev`) / solo Studio, con recarga en caliente. |
+| `pnpm studio` | Compila la UI del Studio y levanta su servidor en `127.0.0.1` ([apps/studio/README.md](../apps/studio/README.md)). Nunca se despliega. |
 | `pnpm build` | Build de todo (Turborepo, con caché). |
 | `pnpm test` | Unit tests (Vitest). |
 | `pnpm e2e` | Playwright contra `apps/web`. |
+| `pnpm e2e:studio` | Playwright contra `pnpm studio` sobre una copia temporal de `content/`. |
 | `pnpm lint` / `pnpm typecheck` | ESLint + `tsc --noEmit`. |
 | `pnpm content:validate` | Schema + lint de todos los escenarios (o `-- <id>`). |
 | `pnpm content:gen [--check]` | Genera `diagram.mmd` y `README.md`. |
