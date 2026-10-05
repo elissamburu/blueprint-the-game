@@ -19,6 +19,9 @@ import {
   edgesOfNode,
   moveStep,
   removeGroupCommands,
+  newEdge,
+  newGroup,
+  newNode,
   removeNodeCommands,
   stepCommands,
   type StepDirection,
@@ -35,16 +38,13 @@ import {
   type Option,
 } from "./fields";
 import { useForm } from "./form-context";
-import { listOf, recordOf, textOf, uniqueId, type RawRecord } from "./form-data";
+import { listOf, recordOf, textOf, type RawRecord } from "./form-data";
 import { fieldId } from "./form-paths";
 import { ServicePicker } from "./ServicePicker";
 
 const diagramOf = (raw: unknown) => recordOf(recordOf(raw).diagram);
 const itemsOf = (raw: unknown, list: "groups" | "nodes" | "edges"): RawRecord[] =>
   listOf(diagramOf(raw)[list]).map(recordOf);
-
-/** Where new nodes and groups go: the top left corner of the canvas (the author moves them). */
-const ORIGIN = { x: 40, y: 40 } as const;
 
 function Box({
   path,
@@ -139,13 +139,7 @@ export function GroupsFields() {
       })}
       <AddButton
         listPath={listPath}
-        value={{
-          id: uniqueId("nuevo-grupo", ids),
-          kind: "generic",
-          label: "",
-          rect: { ...ORIGIN, w: 400, h: 300 },
-          parent: null,
-        }}
+        value={newGroup(raw)}
         label={
           <>
             <PlusIcon aria-hidden />
@@ -159,18 +153,10 @@ export function GroupsFields() {
   );
 }
 
-const NEW_NODE: Record<(typeof NODE_TYPES)[number], Record<string, unknown>> = {
-  actor: { type: "actor", label: "", icon: "user" },
-  external: { type: "external", label: "", icon: "third-party" },
-  fixed: { type: "fixed", service: "" },
-  slot: { type: "slot", role: "", answers: [] },
-};
-
 export function NodesFields({ services }: { services: readonly Service[] }) {
   const { t } = useTranslation();
   const { raw } = useForm();
   const nodes = itemsOf(raw, "nodes");
-  const ids = nodes.map((node) => textOf(node.id));
   const groups: Option[] = itemsOf(raw, "groups")
     .map((group) => textOf(group.id))
     .filter((id) => id !== "")
@@ -259,11 +245,7 @@ export function NodesFields({ services }: { services: readonly Service[] }) {
             key={type}
             id={`${fieldId(listPath)}-add-${type}`}
             listPath={listPath}
-            value={{
-              id: uniqueId(`nuevo-${type}`, ids),
-              ...NEW_NODE[type],
-              position: { ...ORIGIN },
-            }}
+            value={newNode(raw, type)}
             label={
               <>
                 <PlusIcon aria-hidden />
@@ -342,12 +324,10 @@ export function EdgesFields() {
   const { t } = useTranslation();
   const { raw } = useForm();
   const edges = itemsOf(raw, "edges");
-  const ids = edges.map((edge) => textOf(edge.id));
   const nodes: Option[] = itemsOf(raw, "nodes")
     .map((node) => textOf(node.id))
     .filter((id) => id !== "")
     .map((id) => ({ value: id, label: id }));
-  const lastStep = Math.max(0, ...edges.map((edge) => Number(edge.step) || 0));
   const listPath: EditPath = ["diagram", "edges"];
   return (
     <ListSection path={listPath} title={t("form.edges.list")} level={4}>
@@ -426,14 +406,7 @@ export function EdgesFields() {
       })}
       <AddButton
         listPath={listPath}
-        value={{
-          id: uniqueId("nueva-arista", ids),
-          from: nodes[0]?.value ?? "",
-          to: nodes[1]?.value ?? nodes[0]?.value ?? "",
-          step: lastStep + 1,
-          label: "",
-          style: "sync",
-        }}
+        value={newEdge(raw, nodes[0]?.value ?? "", nodes[1]?.value ?? nodes[0]?.value ?? "")}
         label={
           <>
             <PlusIcon aria-hidden />

@@ -6,12 +6,17 @@
 // has no anchor and the panel takes the cursor to the YAML, as before. The fields of a slot that
 // make it a slot (role, hints, answers) are in "Casilleros"; its id, place and group, as the ones
 // of every node, in "Nodos".
+import type { StudioFinding } from "../../shared/validation";
 import type { EditPath } from "./document-edit";
+import { listOf, recordOf } from "./form-data";
 
-/** Id of the field (or group of fields) of a path: `form-diagram-nodes-3-answers-0-rationale`. */
-export const fieldId = (path: EditPath): string => `form-${path.join("-")}`;
+/**
+ * Id of the field (or group of fields) of a path: `form-diagram-nodes-3-answers-0-rationale`. The
+ * scope tells apart the same field in the form and in the inspector of the diagram.
+ */
+export const fieldId = (path: EditPath, scope = "form"): string => `${scope}-${path.join("-")}`;
 /** Id of the message of the issues of a field, for aria-describedby. */
-export const errorId = (path: EditPath): string => `${fieldId(path)}-error`;
+export const errorId = (path: EditPath, scope = "form"): string => `${fieldId(path, scope)}-error`;
 
 export type SectionKey =
   "metadata" | "context" | "objectives" | "slots" | `slot-${number}` | "groups" | "nodes" | "edges";
@@ -114,3 +119,24 @@ const diagramAnchor = (
 };
 
 export const pathKey = (path: EditPath): string => path.join("\u0000");
+
+/** Whether the node at an index of the raw document is a slot. */
+export const isSlotOf =
+  (raw: unknown): IsSlot =>
+  (index) =>
+    recordOf(listOf(recordOf(recordOf(raw).diagram).nodes)[index]).type === "slot";
+
+/** The findings by the key of the path of their field (or group), for the fields to show them. */
+export const findingsByAnchor = (
+  findings: readonly StudioFinding[],
+  isSlot: IsSlot,
+): Map<string, StudioFinding[]> => {
+  const map = new Map<string, StudioFinding[]>();
+  for (const finding of findings) {
+    const anchor = anchorOf(finding.path, isSlot);
+    if (anchor === undefined) continue;
+    const key = pathKey(anchor.path);
+    map.set(key, [...(map.get(key) ?? []), finding]);
+  }
+  return map;
+};

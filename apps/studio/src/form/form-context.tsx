@@ -25,7 +25,7 @@ import {
 import { useTranslation } from "react-i18next";
 import type { StudioFinding } from "../../shared/validation";
 import { EditError, type EditCommand, type EditPath } from "./document-edit";
-import { pathKey } from "./form-paths";
+import { errorId, fieldId, pathKey } from "./form-paths";
 
 export interface EditOptions {
   /** A structural edit (add, remove, move): an undo step of its own. */
@@ -51,6 +51,9 @@ export interface FormContextValue {
   findingsAt: (path: EditPath) => readonly StudioFinding[];
   confirm: (request: ConfirmRequest) => void;
   focusLater: (id: string) => void;
+  /** Ids of the fields of this provider (fieldId and errorId in its scope). */
+  fieldId: (path: EditPath) => string;
+  errorId: (path: EditPath) => string;
 }
 
 const FormContext = createContext<FormContextValue | undefined>(undefined);
@@ -67,12 +70,21 @@ export interface FormProviderProps {
   /** Findings by the key of the path of their anchor (form-paths). */
   findings: ReadonlyMap<string, readonly StudioFinding[]>;
   onEdit: (commands: readonly EditCommand[], isolate: boolean) => void;
+  /** Prefix of the ids of the fields: "form" (default), or "diagram" for the inspector. */
+  idScope?: string;
   children: ReactNode;
 }
 
 const NO_FINDINGS: readonly StudioFinding[] = [];
 
-export function FormProvider({ readOnly, raw, findings, onEdit, children }: FormProviderProps) {
+export function FormProvider({
+  readOnly,
+  raw,
+  findings,
+  onEdit,
+  idScope = "form",
+  children,
+}: FormProviderProps) {
   const { t } = useTranslation();
   const [message, setMessage] = useState("");
   const [request, setRequest] = useState<ConfirmRequest | undefined>();
@@ -125,8 +137,10 @@ export function FormProvider({ readOnly, raw, findings, onEdit, children }: Form
         setRequest(next);
       },
       focusLater,
+      fieldId: (path) => fieldId(path, idScope),
+      errorId: (path) => errorId(path, idScope),
     }),
-    [readOnly, raw, edit, findings, focusLater],
+    [readOnly, raw, edit, findings, focusLater, idScope],
   );
 
   return (
