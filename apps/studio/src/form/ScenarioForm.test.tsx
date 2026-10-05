@@ -7,6 +7,7 @@ import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { useImperativeHandle, useRef, useState, type Ref } from "react";
 import { afterEach, describe, expect, it, vi } from "vitest";
+import { parseDocument } from "yaml";
 import type { StudioFinding } from "../../shared/validation";
 import { pdfYaml, shared } from "../testing/content-fixture";
 import { planEdits } from "./document-edit";
@@ -219,6 +220,78 @@ describe("ScenarioForm", () => {
     expect(screen.queryByRole("textbox", { name: "Título" })).toBeNull();
     await user.click(screen.getByRole("button", { name: /Ir a la línea/ }));
     expect(onJumpToLine).toHaveBeenCalledWith(expect.any(Number));
+  });
+});
+
+describe("ScenarioForm: groups, nodes and edges", () => {
+  const nodeNumber = (id: string) =>
+    (
+      parseDocument(pdfYaml).toJS() as { diagram: { nodes: { id: string }[] } }
+    ).diagram.nodes.findIndex((node) => node.id === id) + 1;
+
+  it("moves an edge one step up, renumbers and announces it, changing only its line", async () => {
+    const user = userEvent.setup();
+    const { text } = setup({ initial: pdfYaml });
+    await user.click(screen.getByRole("button", { name: "Aristas" }));
+    expect(
+      screen.getByRole("button", { name: "Subir paso de la arista 1" }).hasAttribute("disabled"),
+    ).toBe(true);
+    await user.click(screen.getByRole("button", { name: "Subir paso de la arista 10" }));
+    expect(screen.getByRole("status").textContent).toBe(
+      "la arista 10: ahora es el paso 8, en paralelo con e8.",
+    );
+    const changed = text()
+      .split("\n")
+      .filter((line, index) => line !== pdfYaml.split("\n")[index]);
+    expect(changed).toEqual([
+      expect.stringContaining("id: e10, from: processor,    to: logs,         step: 8,"),
+    ]);
+    expect(document.activeElement?.id).toBe("form-diagram-edges-9-step-up");
+  });
+
+  it("removes a node with its edges after confirming", async () => {
+    const user = userEvent.setup();
+    const { text } = setup({ initial: pdfYaml });
+    await user.click(screen.getByRole("button", { name: "Nodos" }));
+    const number = nodeNumber("event-buffer");
+    await user.click(screen.getByRole("button", { name: `Quitar el nodo ${number}` }));
+    const dialog = screen.getByRole("alertdialog");
+    expect(dialog.textContent).toContain("las 2 aristas que llegan o salen de él");
+    await user.click(within(dialog).getByRole("button", { name: "Quitar" }));
+    expect(screen.getByRole("status").textContent).toBe(
+      `Se quitó el nodo ${number} y sus 2 aristas.`,
+    );
+    expect(text()).not.toMatch(/event-buffer/);
+  });
+
+  it("adds an edge after the last step and focuses its first field", async () => {
+    const user = userEvent.setup();
+    const { text } = setup({ initial: pdfYaml });
+    await user.click(screen.getByRole("button", { name: "Aristas" }));
+    await user.click(screen.getByRole("button", { name: "Agregar arista" }));
+    expect(document.activeElement).toBe(
+      screen.getByRole("combobox", { name: "Desde de la arista 11" }),
+    );
+    expect(text()).toContain(
+      "    - id: nueva-arista\n      from: client\n      to: logs\n      step: 10\n",
+    );
+  });
+
+  it("edits the box of a node and empties an optional description", async () => {
+    const user = userEvent.setup();
+    const { text } = setup({ initial: pdfYaml });
+    await user.click(screen.getByRole("button", { name: "Nodos" }));
+    const x = screen.getByRole("textbox", { name: "X del nodo 1" });
+    await user.clear(x);
+    expect(valueOf(x)).toBe("");
+    expect(text()).toBe(pdfYaml);
+    await user.type(x, "48");
+    expect(text()).toContain("position: { x: 48, y: 472 }");
+
+    await user.click(screen.getByRole("button", { name: "Aristas" }));
+    await user.clear(screen.getByRole("textbox", { name: "Descripción de la arista 3" }));
+    expect(text()).not.toContain("La URL vence en pocos minutos");
+    expect(text()).toContain('label: "Devuelve una URL temporal"');
   });
 });
 
