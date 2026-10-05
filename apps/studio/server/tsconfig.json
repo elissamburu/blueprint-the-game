@@ -1,0 +1,10 @@
+{
+  "extends": "@blueprint/config/tsconfig.node.json",
+  "compilerOptions": {
+    "noEmit": true,
+    "declaration": false,
+    "declarationMap": false,
+    "sourceMap": false
+  },
+  "include": [".", "../shared"]
+}

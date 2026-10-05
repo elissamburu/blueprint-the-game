@@ -67,6 +67,15 @@ module.exports = {
       to: { path: "(^|/)(@aws-sdk|@anthropic-ai)/" },
     },
     {
+      name: "studio-server-no-processes",
+      severity: "error",
+      comment:
+        "S11 (ADR-0025): the Studio server runs no processes in F2 (child_process). Also enforced " +
+        "by ESLint in apps/studio; creating PRs with gh (F5) revisits it with an ADR of its own.",
+      from: { path: "^apps/studio/server/" },
+      to: { dependencyTypes: ["core"], path: "^(node:)?child_process$" },
+    },
+    {
       name: "src-not-to-scripts",
       severity: "error",
       comment:
