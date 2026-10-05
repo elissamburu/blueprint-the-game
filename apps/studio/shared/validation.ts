@@ -16,6 +16,8 @@ export interface StudioFinding {
   message: string;
   /** Readable path inside the document, as content:validate prints it; empty for YAML errors. */
   where: string;
+  /** Path of the issue in the document (the field of the form it belongs to); empty for YAML. */
+  path: IssuePath;
   /** 1-based line and column of scenario.yaml. */
   line: number;
   column: number;
@@ -106,6 +108,7 @@ export const validateScenarioText = (
         severity: "error",
         message: `YAML inválido: ${(error.message.split("\n")[0] ?? "").replace(/:$/, "")}`,
         where: "",
+        path: [],
         ...(error.linePos === undefined
           ? position(error.pos[0])
           : { line: error.linePos[0].line, column: error.linePos[0].col }),
@@ -123,6 +126,7 @@ export const validateScenarioText = (
         severity: "error",
         message: issue.message,
         where: issue.where,
+        path: issue.path,
         ...position(offsetOfPath(document, issue.path)),
       })),
     };
@@ -144,6 +148,7 @@ export const validateScenarioText = (
       severity: issue.severity,
       message: issue.message,
       where: describePath(raw, issue.path),
+      path: issue.path,
       ...position(offsetOfPath(document, issue.path)),
     })),
   };
