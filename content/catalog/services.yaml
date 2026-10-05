@@ -813,6 +813,30 @@
   ssmNamespaces: [organizations]
   icon: Arch_AWS-Organizations_48
   status: active
+- id: control-tower
+  name: AWS Control Tower
+  category: management-tools
+  aliases: [control tower, landing zone gobernada, gobierno multicuenta, fábrica de cuentas]
+  leakPatterns: ["AWS Control Tower", "Control Tower", "Account Factory"]
+  short: "Arma y gobierna un entorno de varias cuentas (landing zone) con buenas prácticas y controles."
+  docs: https://docs.aws.amazon.com/controltower/
+  # TODO(verificar): namespace en /aws/service/global-infrastructure/services; la doc oficial de SSM
+  # solo muestra una lista truncada. Completar con el próximo snapshot de catalog-sync (ADR-0011).
+  ssmNamespaces: []
+  icon: Arch_AWS-Control-Tower_48
+  status: active
+- id: ram
+  name: AWS Resource Access Manager
+  category: management-tools
+  aliases: [resource access manager, compartir recursos, recursos compartidos entre cuentas]
+  leakPatterns: ["Resource Access Manager", "AWS RAM"]
+  short: "Comparte recursos entre cuentas de AWS o con toda la organización."
+  docs: https://docs.aws.amazon.com/ram/
+  # TODO(verificar): namespace en /aws/service/global-infrastructure/services; la doc oficial de SSM
+  # solo muestra una lista truncada. Completar con el próximo snapshot de catalog-sync (ADR-0011).
+  ssmNamespaces: []
+  icon: Arch_AWS-Resource-Access-Manager_48
+  status: active
 
 # ── Herramientas para desarrolladores ────────────────────────────────────────────────────────
 - id: codepipeline
