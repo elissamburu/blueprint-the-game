@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // What the API does with content/: list and read scenarios, save one (S7, S8, S10) regenerating
-// diagram.mmd and README.md, and read the shared files. Every path goes through ScenarioPaths (S5).
-// There is no operation to delete or rename (S8); creating arrives with RF-STU-01.
+// diagram.mmd and README.md, create one (RF-STU-01: empty, from a template or duplicating another;
+// S8) and read the shared files. Every path goes through ScenarioPaths (S5). There is no operation
+// to delete or rename (S8).
 import { createHash } from "node:crypto";
 import path from "node:path";
 import {
@@ -17,10 +18,14 @@ import {
   parseGameRules,
   parseServices,
   type ParseResult,
+  type Scenario,
 } from "@blueprint/scenario-schema";
 import { parse } from "yaml";
+import { EditError } from "../shared/document-edit.js";
 import {
   ScenarioIdSchema,
+  type CreateRequest,
+  type CreateResponse,
   type SaveResponse,
   type ScenarioFile,
   type ScenarioSummary,
@@ -30,6 +35,8 @@ import { validateScenarioText } from "../shared/validation.js";
 import { writeFileAtomic } from "./atomic-write.js";
 import { StudioError } from "./errors.js";
 import { isNotFound, type ContentFs } from "./fs.js";
+import { readGitHubUser } from "./git-config.js";
+import { EMPTY_SCENARIO, newScenarioText } from "./new-scenario.js";
 import { createScenarioPaths } from "./paths.js";
 
 export const sha256 = (data: string | Uint8Array): string =>
@@ -51,19 +58,31 @@ export interface ContentStore {
   listScenarios: () => Promise<ScenarioSummary[]>;
   readScenario: (id: string) => Promise<ScenarioFile>;
   saveScenario: (id: string, yaml: string, baseHash: string | undefined) => Promise<SaveResponse>;
+  createScenario: (request: CreateRequest) => Promise<CreateResponse>;
   readShared: () => Promise<SharedContent>;
 }
 
 export const createContentStore = ({
   fs,
   contentDir,
+  gitConfigFiles = [],
 }: {
   fs: ContentFs;
   contentDir: string;
+  /** Git config files with the author of new scenarios, the later overriding the earlier. */
+  gitConfigFiles?: readonly string[];
 }): ContentStore => {
   const paths = createScenarioPaths(fs, contentDir);
-  /** Saves run one after the other, so the hash check and the write of one are never interleaved. */
+  /**
+   * Writes run one after the other, so the hash check and the write of a save, or the creation of
+   * a scenario, never interleave with another write.
+   */
   let queue: Promise<unknown> = Promise.resolve();
+  const enqueue = <T>(task: () => Promise<T>): Promise<T> => {
+    const run = queue.then(task);
+    queue = run.catch(() => undefined);
+    return run;
+  };
 
   const readSharedFile = async <T>(
     segments: readonly string[],
@@ -163,7 +182,33 @@ export const createContentStore = ({
 
   const readScenario = async (id: string): Promise<ScenarioFile> => {
     const { bytes } = await readExisting(id);
-    return { id, yaml: bytes.toString("utf8"), hash: sha256(bytes) };
+    const notes = await paths.file(id, "notes.md");
+    return {
+      id,
+      yaml: bytes.toString("utf8"),
+      hash: sha256(bytes),
+      notes: notes.exists ? await fs.readFile(notes.path, "utf8") : null,
+    };
+  };
+
+  /** Writes the generated files that are missing or out of date; returns the ones written. */
+  const writeGenerated = async (
+    id: string,
+    scenario: Scenario,
+    shared: SharedContent,
+  ): Promise<GeneratedFileName[]> => {
+    const catalog = new Map(shared.catalog.map((service) => [service.id, service]));
+    const generated = renderGeneratedFiles(scenario, catalog);
+    const written: GeneratedFileName[] = [];
+    for (const name of GENERATED_FILES) {
+      const file = await paths.file(id, name);
+      const actual = file.exists ? await fs.readFile(file.path, "utf8") : undefined;
+      // Like pnpm content:gen: an up-to-date file is not rewritten, so its bytes do not change.
+      if (actual !== undefined && sameText(actual, generated[name])) continue;
+      await writeFileAtomic(fs, file.path, generated[name]);
+      written.push(name);
+    }
+    return written;
   };
 
   const save = async (
@@ -204,26 +249,70 @@ export const createContentStore = ({
     }
 
     await writeFileAtomic(fs, current.path, yaml);
-
-    const catalog = new Map(shared.catalog.map((service) => [service.id, service]));
-    const generated = renderGeneratedFiles(validation.scenario, catalog);
-    const regenerated: GeneratedFileName[] = [];
-    for (const name of GENERATED_FILES) {
-      const file = await paths.file(id, name);
-      const actual = file.exists ? await fs.readFile(file.path, "utf8") : undefined;
-      // Like pnpm content:gen: an up-to-date file is not rewritten, so its bytes do not change.
-      if (actual !== undefined && sameText(actual, generated[name])) continue;
-      await writeFileAtomic(fs, file.path, generated[name]);
-      regenerated.push(name);
-    }
+    const regenerated = await writeGenerated(id, validation.scenario, shared);
     return { hash: sha256(yaml), regenerated };
   };
 
-  const saveScenario: ContentStore["saveScenario"] = (id, yaml, baseHash) => {
-    const run = queue.then(() => save(id, yaml, baseHash));
-    queue = run.catch(() => undefined);
-    return run;
+  const saveScenario: ContentStore["saveScenario"] = (id, yaml, baseHash) =>
+    enqueue(() => save(id, yaml, baseHash));
+
+  /** The text the new scenario starts from; nothing is written yet. */
+  const sourceText = async (request: CreateRequest): Promise<string> => {
+    switch (request.source) {
+      case "empty":
+        return EMPTY_SCENARIO;
+      case "template":
+        return fs.readFile(await paths.template(request.from), "utf8");
+      case "duplicate":
+        // Only read: duplicating never changes the original.
+        return (await readExisting(request.from)).bytes.toString("utf8");
+    }
   };
 
-  return { listScenarios, readScenario, saveScenario, readShared };
+  const create = async (request: CreateRequest): Promise<CreateResponse> => {
+    const { id, title } = request;
+    const source = await sourceText(request);
+    const author = await readGitHubUser((file) => fs.readFile(file, "utf8"), gitConfigFiles);
+    let yaml: string;
+    try {
+      yaml = newScenarioText(source, { id, title, author });
+    } catch (error) {
+      if (!(error instanceof EditError)) throw error;
+      throw new StudioError(
+        422,
+        "invalid-scenario",
+        `No se creó: el escenario de origen no se puede leer (${error.message}). Corregilo antes de duplicarlo.`,
+      );
+    }
+    const shared = await readShared();
+    // S10 for a new scenario: the request carries no YAML, the text is the server's own. It has
+    // to parse and carry the new id, but it may not pass the schema yet (an empty scenario, or no
+    // author), so the generated files are written only when it does; saving regenerates them.
+    const validation = validateScenarioText(yaml, id, shared);
+    if (validation.findings.some((finding) => finding.code === "YAML")) {
+      throw new StudioError(
+        422,
+        "invalid-scenario",
+        "No se creó: el YAML resultante no es válido.",
+      );
+    }
+
+    const dir = await paths.createDir(id);
+    try {
+      await writeFileAtomic(fs, (await paths.file(id, "scenario.yaml")).path, yaml);
+    } catch (error) {
+      await paths.removeEmptyDir(dir);
+      throw error;
+    }
+    const generated =
+      validation.scenario === undefined
+        ? []
+        : await writeGenerated(id, validation.scenario, shared);
+    return { id, author: author ?? null, generated };
+  };
+
+  const createScenario: ContentStore["createScenario"] = (request) =>
+    enqueue(() => create(request));
+
+  return { listScenarios, readScenario, saveScenario, createScenario, readShared };
 };

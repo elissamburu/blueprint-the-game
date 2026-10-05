@@ -46,6 +46,7 @@ const studioServer = (): Plugin => {
           token,
           contentDir: config.contentDir,
           iconsDir: config.iconsDir,
+          gitConfigFiles: config.gitConfigFiles,
           log: consoleLog(),
           csp,
         }).fetch,

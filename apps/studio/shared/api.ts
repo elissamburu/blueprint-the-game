@@ -9,6 +9,7 @@ import {
   ConfusionGroupsFileSchema,
   GameRulesSchema,
   KEBAB_CASE,
+  MAX_LENGTH,
   SCENARIO_STATUSES,
   ServicesFileSchema,
 } from "@blueprint/scenario-schema";
@@ -46,6 +47,8 @@ export const ScenarioFileResponseSchema = z.strictObject({
   /** scenario.yaml exactly as it is on disk. */
   yaml: z.string(),
   hash: HashSchema,
+  /** notes.md of the scenario folder, or `null` when there is none (it goes in the .zip). */
+  notes: z.string().nullable(),
 });
 export type ScenarioFile = z.infer<typeof ScenarioFileResponseSchema>;
 
@@ -65,6 +68,48 @@ export const SaveResponseSchema = z.strictObject({
   regenerated: z.array(z.enum(GENERATED_FILES)),
 });
 export type SaveResponse = z.infer<typeof SaveResponseSchema>;
+
+/**
+ * Templates of content/scenarios/_templates/ a scenario can be created from: a closed list (S5),
+ * each one the file `<name>.template.yaml`.
+ */
+export const TEMPLATE_NAMES = ["scenario"] as const;
+export type TemplateName = (typeof TEMPLATE_NAMES)[number];
+
+export const CREATE_SOURCES = ["empty", "template", "duplicate"] as const;
+export type CreateSource = (typeof CREATE_SOURCES)[number];
+
+const NewTitleSchema = z.string().trim().min(1).max(MAX_LENGTH.title);
+
+/**
+ * POST /api/scenarios (RF-STU-01): a new scenario `id`, empty, from a template or duplicating the
+ * scenario `from`. The server never takes YAML here: it writes its own text (S10).
+ */
+export const CreateRequestSchema = z.discriminatedUnion("source", [
+  z.strictObject({ id: ScenarioIdSchema, title: NewTitleSchema, source: z.literal("empty") }),
+  z.strictObject({
+    id: ScenarioIdSchema,
+    title: NewTitleSchema,
+    source: z.literal("template"),
+    from: z.enum(TEMPLATE_NAMES),
+  }),
+  z.strictObject({
+    id: ScenarioIdSchema,
+    title: NewTitleSchema,
+    source: z.literal("duplicate"),
+    from: ScenarioIdSchema,
+  }),
+]);
+export type CreateRequest = z.infer<typeof CreateRequestSchema>;
+
+export const CreateResponseSchema = z.strictObject({
+  id: ScenarioIdSchema,
+  /** GitHub user written in `authors`, or `null` when the git config has none (the UI asks). */
+  author: z.string().nullable(),
+  /** Generated files written: none when the new scenario does not pass the schema yet. */
+  generated: z.array(z.enum(GENERATED_FILES)),
+});
+export type CreateResponse = z.infer<typeof CreateResponseSchema>;
 
 /** The shared content files, for the live validation in the browser. */
 export const SharedResponseSchema = z.strictObject({
@@ -93,9 +138,15 @@ export const ERROR_CODES = [
   /** S5: the scenario folder or file resolves outside content/scenarios/. */
   "outside-content",
   "not-found",
-  /** S8: the file changed on disk since it was read, or the request has no base hash. */
+  /**
+   * S8: the file changed on disk since it was read, the request has no base hash, or the folder of
+   * a new scenario already exists.
+   */
   "conflict",
-  /** S10: YAML with a syntax error, a scenario that fails the schema or an id that does not match. */
+  /**
+   * S10: YAML with a syntax error, a scenario that fails the schema or an id that does not match;
+   * when creating, a source scenario whose YAML cannot be read.
+   */
   "invalid-scenario",
   /** The shared files (catalog, game-rules, …) are missing or invalid. */
   "invalid-shared-content",

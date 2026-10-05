@@ -5,7 +5,16 @@ import * as fsp from "node:fs/promises";
 
 export type ContentFs = Pick<
   typeof fsp,
-  "lstat" | "open" | "readFile" | "readdir" | "realpath" | "rename" | "rm" | "stat"
+  | "lstat"
+  | "mkdir"
+  | "open"
+  | "readFile"
+  | "readdir"
+  | "realpath"
+  | "rename"
+  | "rm"
+  | "rmdir"
+  | "stat"
 >;
 
 export const nodeFs: ContentFs = fsp;

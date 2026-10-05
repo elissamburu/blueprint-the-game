@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Configuration of the Studio server, from environment variables. The host is not configurable
 // (S1): only the port and the content folder are.
+import os from "node:os";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import * as z from "zod";
@@ -20,6 +21,11 @@ export interface StudioConfig {
   /** Content folder the server reads and writes: `<repo>/content` unless STUDIO_CONTENT_DIR says otherwise. */
   contentDir: string;
   iconsDir: string;
+  /**
+   * Where the author of a new scenario is read from (RF-STU-01): the global git config and the
+   * .git/config of the repo that holds the content folder, in git's order of precedence.
+   */
+  gitConfigFiles: string[];
 }
 
 export class ConfigError extends Error {}
@@ -43,5 +49,11 @@ export const readConfig = (env: Record<string, string | undefined> = process.env
     env.STUDIO_CONTENT_DIR === undefined || env.STUDIO_CONTENT_DIR === ""
       ? path.join(REPO_ROOT, "content")
       : path.resolve(cwd, env.STUDIO_CONTENT_DIR);
-  return { port, contentDir, iconsDir: ICONS_DIR };
+  // As git: HOME if it is set (also on Windows), otherwise the user's profile folder.
+  const home = env.HOME || env.USERPROFILE || os.homedir();
+  const gitConfigFiles = [
+    path.join(home, ".gitconfig"),
+    path.join(path.dirname(contentDir), ".git", "config"),
+  ];
+  return { port, contentDir, iconsDir: ICONS_DIR, gitConfigFiles };
 };

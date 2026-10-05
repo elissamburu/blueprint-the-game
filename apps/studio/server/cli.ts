@@ -56,6 +56,7 @@ export const run = async ({
       token: createToken(),
       contentDir: config.contentDir,
       iconsDir: config.iconsDir,
+      gitConfigFiles: config.gitConfigFiles,
       log,
       client: { indexHtml, assetsDir: path.join(clientDir, "assets") },
     });
