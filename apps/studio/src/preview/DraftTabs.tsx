@@ -1,13 +1,14 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// The left panel of the editor: the form ("Formulario", RF-STU-03), the draft played ("Jugar",
-// RF-STU-08) and its answers ("Respuestas", RF-STU-09), as Radix tabs (arrows, Home, End; the
-// focus stays on the tab). The form edits the text and has its own notice for a text that does
-// not parse; the other two follow the last valid Scenario of the editor, and while the YAML does
-// not parse or fails the schema, a notice says so with the line of the error. The panels of
-// "Formulario" and "Jugar" stay mounted while hidden, so the open sections and the game in
-// progress survive a change of tab.
+// The left panel of the editor: the form ("Formulario", RF-STU-03), the visual editor of the
+// diagram ("Diagrama", RF-STU-04), the draft played ("Jugar", RF-STU-08) and its answers
+// ("Respuestas", RF-STU-09), as Radix tabs (arrows, Home, End; the focus stays on the tab). The
+// form and the diagram edit the text and have their own notice for a text that does not parse; the
+// other two follow the last valid Scenario of the editor, and while the YAML does not parse or
+// fails the schema, a notice says so with the line of the error. The panels of "Formulario" and
+// "Jugar" stay mounted while hidden, so the open sections and the game in progress survive a
+// change of tab; the diagram mounts when shown (the canvas needs its size to fit the view).
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@blueprint/ui/components/tabs";
-import { ListChecksIcon, PlayIcon, SquarePenIcon } from "lucide-react";
+import { ListChecksIcon, NetworkIcon, PlayIcon, SquarePenIcon } from "lucide-react";
 import { lazy, Suspense, useMemo, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { SharedContent } from "../../shared/api";
@@ -19,9 +20,9 @@ import { gameBundleOf } from "./studio-game-host";
 
 const AnswersView = lazy(() => import("./AnswersView"));
 
-export type DraftTab = "form" | "play" | "answers";
+export type DraftTab = "form" | "diagram" | "play" | "answers";
 const isTab = (value: string): value is DraftTab =>
-  value === "form" || value === "play" || value === "answers";
+  value === "form" || value === "diagram" || value === "play" || value === "answers";
 
 export function DraftTabs({
   result,
@@ -31,6 +32,7 @@ export function DraftTabs({
   tab,
   onTabChange,
   form,
+  diagram,
 }: {
   result: ScenarioValidation | undefined;
   shared: SharedContent | undefined;
@@ -40,6 +42,8 @@ export function DraftTabs({
   onTabChange: (tab: DraftTab) => void;
   /** The form, built by the editor page (it edits the editor's text). */
   form: ReactNode;
+  /** The visual editor of the diagram, built by the editor page as the form. */
+  diagram: ReactNode;
 }) {
   const { t } = useTranslation();
   const draft = useDraft(result);
@@ -63,6 +67,10 @@ export function DraftTabs({
           <SquarePenIcon aria-hidden />
           {t("draft.form")}
         </TabsTrigger>
+        <TabsTrigger value="diagram">
+          <NetworkIcon aria-hidden />
+          {t("draft.diagram")}
+        </TabsTrigger>
         <TabsTrigger value="play">
           <PlayIcon aria-hidden />
           {t("draft.play")}
@@ -80,7 +88,10 @@ export function DraftTabs({
       >
         {shared === undefined ? waiting : form}
       </TabsContent>
-      {draft.problem !== undefined && tab !== "form" && (
+      <TabsContent value="diagram" className="flex min-h-0 flex-1 flex-col">
+        {shared === undefined ? waiting : diagram}
+      </TabsContent>
+      {draft.problem !== undefined && tab !== "form" && tab !== "diagram" && (
         <DraftProblem
           problem={draft.problem}
           hasDraft={draft.scenario !== undefined}

@@ -43,7 +43,7 @@ import {
 } from "./fields";
 import { FormProvider, useForm } from "./form-context";
 import { isRecord, listOf, recordOf, textOf, uniqueId, useFormDocument } from "./form-data";
-import { anchorOf, fieldId, pathKey, type SectionKey } from "./form-paths";
+import { anchorOf, fieldId, findingsByAnchor, isSlotOf, type SectionKey } from "./form-paths";
 import { EdgesFields, GroupsFields, NodesFields } from "./DiagramFields";
 import { ServicePicker } from "./ServicePicker";
 
@@ -66,11 +66,6 @@ export interface ScenarioFormProps {
 
 const LEVELS = [100, 200, 300, 400] as const;
 
-const isSlotOf =
-  (raw: unknown) =>
-  (index: number): boolean =>
-    recordOf(listOf(recordOf(recordOf(raw).diagram).nodes)[index]).type === "slot";
-
 export function ScenarioForm({
   text,
   findings,
@@ -89,16 +84,7 @@ export function ScenarioForm({
   const headingId = useId();
   const isSlot = useMemo(() => isSlotOf(raw), [raw]);
 
-  const byAnchor = useMemo(() => {
-    const map = new Map<string, StudioFinding[]>();
-    for (const finding of findings) {
-      const anchor = anchorOf(finding.path, isSlot);
-      if (anchor === undefined) continue;
-      const key = pathKey(anchor.path);
-      map.set(key, [...(map.get(key) ?? []), finding]);
-    }
-    return map;
-  }, [findings, isSlot]);
+  const byAnchor = useMemo(() => findingsByAnchor(findings, isSlot), [findings, isSlot]);
 
   const slots = listOf(recordOf(recordOf(raw).diagram).nodes).flatMap((node, index) =>
     recordOf(node).type === "slot" ? [index] : [],

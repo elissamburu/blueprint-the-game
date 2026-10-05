@@ -13,7 +13,6 @@ import { useId, useState, type KeyboardEvent } from "react";
 import { useTranslation } from "react-i18next";
 import type { EditPath } from "./document-edit";
 import { FieldLabel, useIssues, type LabelText } from "./fields";
-import { fieldId } from "./form-paths";
 import { textOf, valueAt } from "./form-data";
 import { useForm } from "./form-context";
 
@@ -42,7 +41,7 @@ export function ServicePicker({
   services,
 }: LabelText & { path: EditPath; services: readonly Service[] }) {
   const { t } = useTranslation();
-  const { raw, readOnly, edit } = useForm();
+  const { raw, readOnly, edit, fieldId } = useForm();
   const issues = useIssues(path);
   const [open, setOpen] = useState(false);
   const [query, setQuery] = useState("");

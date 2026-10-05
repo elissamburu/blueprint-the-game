@@ -7,4 +7,5 @@ export * from "./bundle.js";
 export { formatIssues, type SchemaIssue } from "./errors.js";
 export * from "./parse.js";
 export * from "./palette.js";
+export * from "./draft.js";
 export { scenarioJsonSchema } from "./json-schema.js";

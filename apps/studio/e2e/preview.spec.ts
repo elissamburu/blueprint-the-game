@@ -53,8 +53,13 @@ test("jugar el borrador con teclado hasta el resumen, editar, reiniciar y ver la
   const slots = await expectedSlots(id);
   await openScenario(page, title);
   const play = page.getByRole("tab", { name: "Jugar" });
-  // "Formulario" is the first tab: the arrow goes to "Jugar" and activates it.
+  // "Formulario" is the first tab: the arrows go through "Diagrama" to "Jugar" and activate it.
   await page.getByRole("tab", { name: "Formulario" }).focus();
+  await page.keyboard.press("ArrowRight");
+  await expect(page.getByRole("tab", { name: "Diagrama" })).toHaveAttribute(
+    "aria-selected",
+    "true",
+  );
   await page.keyboard.press("ArrowRight");
   await expect(play).toHaveAttribute("aria-selected", "true");
 

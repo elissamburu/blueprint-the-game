@@ -21,7 +21,6 @@ import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, Trash2Icon } from "lucide
 import { useId, useState, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
 import type { EditCommand, EditPath } from "./document-edit";
-import { errorId, fieldId } from "./form-paths";
 import { listOf, textOf, valueAt } from "./form-data";
 import { useForm } from "./form-context";
 
@@ -54,7 +53,7 @@ export function FieldLabel({
 /** The issues of the path: the message under the field and the ARIA attributes of its control. */
 export const useIssues = (path: EditPath, hintId?: string) => {
   const { t } = useTranslation();
-  const { findingsAt } = useForm();
+  const { findingsAt, errorId } = useForm();
   const findings = findingsAt(path);
   const ids = [hintId, findings.length > 0 ? errorId(path) : undefined].filter(
     (id): id is string => id !== undefined,
@@ -118,7 +117,7 @@ export function TextField({
   optional?: boolean;
   type?: "text" | "url";
 }) {
-  const { raw, readOnly, edit } = useForm();
+  const { raw, readOnly, edit, fieldId } = useForm();
   const hintId = useId();
   const issues = useIssues(path, hint === undefined ? undefined : hintId);
   const id = fieldId(path);
@@ -156,7 +155,7 @@ export function TextField({
 
 /** A whole number. What is typed stays in the field while it is not a number yet ("" or "-"). */
 export function NumberField({ path, label, context, hint, className }: FieldProps) {
-  const { raw, readOnly, edit } = useForm();
+  const { raw, readOnly, edit, fieldId } = useForm();
   const hintId = useId();
   const issues = useIssues(path, hint === undefined ? undefined : hintId);
   const id = fieldId(path);
@@ -214,7 +213,7 @@ export function SelectField({
   none?: { label: string; value: null | undefined };
 }) {
   const { t } = useTranslation();
-  const { raw, readOnly, edit } = useForm();
+  const { raw, readOnly, edit, fieldId } = useForm();
   const hintId = useId();
   const issues = useIssues(path, hint === undefined ? undefined : hintId);
   const id = fieldId(path);
@@ -282,7 +281,7 @@ export function CheckboxGroup({
   options,
 }: FieldProps & { options: readonly CheckOption[] }) {
   const { t } = useTranslation();
-  const { raw, readOnly, edit } = useForm();
+  const { raw, readOnly, edit, fieldId } = useForm();
   const legendId = useId();
   const hintId = useId();
   const issues = useIssues(path, hint === undefined ? undefined : hintId);
@@ -381,7 +380,7 @@ export function ItemActions({
   children?: ReactNode;
 }) {
   const { t } = useTranslation();
-  const { readOnly, edit, confirm } = useForm();
+  const { readOnly, edit, confirm, fieldId } = useForm();
   const itemPath = [...listPath, index];
   const base = fieldId(itemPath);
   const move = (to: number, button: "up" | "down") => {
@@ -473,7 +472,7 @@ export function AddButton({
   focus: string;
   disabled?: boolean;
 }) {
-  const { readOnly, edit } = useForm();
+  const { readOnly, edit, fieldId } = useForm();
   return (
     <Button
       id={id ?? `${fieldId(listPath)}-add`}
@@ -554,6 +553,7 @@ export function ItemGroup({
   children: ReactNode;
 }) {
   const legendId = useId();
+  const { fieldId } = useForm();
   const issues = useIssues(path);
   return (
     <div
@@ -597,6 +597,7 @@ export function ListSection({
   children: ReactNode;
 }) {
   const headingId = useId();
+  const { fieldId } = useForm();
   const issues = useIssues(path);
   const Heading = level === 4 ? "h4" : level === 5 ? "h5" : "h6";
   return (

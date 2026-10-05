@@ -84,6 +84,7 @@
   "draft": {
     "tabs": "Vista del borrador",
     "form": "Formulario",
+    "diagram": "Diagrama",
     "play": "Jugar",
     "answers": "Respuestas",
     "invalid": "El YAML tiene un error en la línea {{line}}: se muestra la última versión válida.",
@@ -110,6 +111,66 @@
     "lead": "Todos los casilleros revelados con su óptimo y, debajo, cada respuesta con su grado, los objetivos y el porqué.",
     "diagramLabel": "Diagrama de «{{title}}» con las respuestas óptimas",
     "slotTitle": "Casillero {{number}}: {{role}}"
+  },
+  "diagram": {
+    "title": "Diagrama",
+    "canvas": "Diagrama del escenario",
+    "readOnly": "El YAML tiene un error en la línea {{line}}: el diagrama se muestra en solo lectura hasta que se corrija.",
+    "readOnlyNoData": "El YAML tiene un error en la línea {{line}} y todavía no hay un diagrama para mostrar.",
+    "item": {
+      "node": "el {{type}} «{{title}}»",
+      "group": "el grupo «{{title}}»",
+      "edge": "la arista de {{from}} a {{to}}"
+    },
+    "types": {
+      "actor": "un actor",
+      "external": "un sistema externo",
+      "fixed": "un servicio fijo",
+      "slot": "un casillero",
+      "group": "un grupo"
+    },
+    "status": {
+      "at": "{{item}} queda en x {{x}}, y {{y}}.",
+      "atBox": "{{item}} queda en x {{x}}, y {{y}}, con ancho {{w}} y alto {{h}}.",
+      "inGroup": "Ahora está en {{group}}.",
+      "noGroup": "Ahora no está en ningún grupo.",
+      "added": "Se agregó {{type}}: completá sus datos en el inspector.",
+      "connected": "Se agregó la arista de {{from}} a {{to}}: escribí su etiqueta en el inspector.",
+      "removed": "Se eliminó {{item}}.",
+      "step": "{{item}}: ahora es el paso {{step}}."
+    },
+    "remove": {
+      "title": "¿Eliminar {{item}}?",
+      "action": "Eliminar"
+    },
+    "inspector": {
+      "title": "Inspector",
+      "empty": "Elegí un elemento en el diagrama, o recorrelos con Tab, para editarlo acá.",
+      "flow": "Flujo",
+      "noEdges": "El diagrama todavía no tiene aristas.",
+      "flowItem": "Paso {{step}}: {{from}} → {{to}}",
+      "noStep": "sin número",
+      "findings": "Avisos de este elemento",
+      "group": "Grupo · {{id}}",
+      "node": "{{type}} · {{id}}",
+      "edge": "Arista · {{id}}",
+      "nodesInside_one": "Tiene 1 nodo adentro.",
+      "nodesInside_other": "Tiene {{count}} nodos adentro.",
+      "answers_one": "Este casillero tiene 1 respuesta.",
+      "answers_other": "Este casillero tiene {{count}} respuestas.",
+      "answersNone": "Este casillero todavía no tiene respuestas.",
+      "editAnswers": "Editar respuestas en el formulario",
+      "edges": "Aristas",
+      "noNodeEdges": "Ninguna arista llega ni sale de este nodo.",
+      "step": "Paso {{step}}",
+      "noStepTitle": "Sin paso",
+      "stepEarlier": "Antes en el flujo",
+      "stepLater": "Después en el flujo",
+      "parallel": "En paralelo con: {{edges}}.",
+      "noParallel": "No va en paralelo con otra arista.",
+      "connect": "Conectar con…",
+      "remove": "Eliminar…"
+    }
   },
   "form": {
     "title": "Formulario del escenario",

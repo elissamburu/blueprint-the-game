@@ -122,7 +122,7 @@ describe("scenario page", () => {
 });
 
 describe("about page", () => {
-  it("shows the licenses, the repository and the non-affiliation notice", async () => {
+  it("shows the licenses, the repository, the non-affiliation notice and the credits", async () => {
     renderAt("/acerca");
     await screen.findByRole("heading", { level: 1, name: "Acerca de Blueprint" });
     expect(screen.getByRole("link", { name: /PolyForm Noncommercial 1\.0\.0/ })).toBeTruthy();
@@ -133,5 +133,9 @@ describe("about page", () => {
     expect(
       screen.getByText(/No está afiliado, patrocinado ni avalado por Amazon Web Services/),
     ).toBeTruthy();
+    // React Flow's attribution, hidden in the printed diagram and in the Studio editor.
+    expect(screen.getByRole("link", { name: /React Flow \(xyflow\)/ }).getAttribute("href")).toBe(
+      "https://reactflow.dev/",
+    );
   });
 });

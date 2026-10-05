@@ -71,14 +71,18 @@ export interface DiagramLayout {
   labels: ReadonlyMap<string, { point: Point; free: boolean }>;
 }
 
+/** What the layout reads of a diagram: the game passes a Diagram, the Studio editor a draft. */
+export interface LayoutInput {
+  groups: readonly Pick<Group, "label" | "rect">[];
+  nodes: readonly Pick<DiagramNode, "id" | "type" | "position">[];
+  edges: readonly Pick<DiagramEdge, "id" | "from" | "to" | "step">[];
+}
+
 /**
  * `groupLabelSize`: font size of the group labels when it is not the one of the board (the
  * printed diagram), so the step circles keep clear of the bigger labels.
  */
-export const layoutDiagram = (
-  diagram: Pick<Diagram, "groups" | "nodes" | "edges">,
-  groupLabelSize?: number,
-) => {
+export const layoutDiagram = (diagram: LayoutInput, groupLabelSize?: number) => {
   const boxes = new Map(diagram.nodes.map((node) => [node.id, nodeBox(node)]));
   const segments = new Map<string, Segment>();
   for (const edge of diagram.edges) {
