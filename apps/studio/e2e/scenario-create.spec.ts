@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The DoD of F2 over the temporary copy of content/: create a scenario from the list without
-// touching the YAML (RF-STU-01), fill it in with the form and the diagram, play it in the preview,
+// touching the YAML (RF-STU-01), writing only its title (the id comes from it), fill it in with the form and the diagram, play it in the preview,
 // save it and content:validate passes. Then "Descargar .zip" (RF-STU-14): the files of the zip are
 // the ones on disk, and with unsaved changes the zip carries the draft after a warning. axe on the
 // dialog and on the editor. Runs after the other specs (it adds a scenario to the copy).
@@ -13,14 +13,16 @@ import {
   E2E_AUTHOR,
   editorContent,
   expectNoViolations,
+  expectSolidDialog,
   saveState,
   scenarioFile,
   SCENARIOS,
   validationSummary,
 } from "./support/studio";
 
-const ID = "fotos-en-miniatura";
 const TITLE = "Miniaturas para las fotos de una tienda";
+/** The id the dialog derives from the title. */
+const ID = "miniaturas-para-las-fotos-de-una-tienda";
 const ROLE = "Genera la miniatura de cada foto que llega.";
 const SERVICE = "AWS Lambda";
 
@@ -43,6 +45,7 @@ const downloadZip = async (page: Page, confirm?: string) => {
   if (confirm !== undefined) {
     const dialog = page.getByRole("alertdialog", { name: "¿Descargar el borrador actual?" });
     await expect(dialog).toContainText(confirm);
+    await expectSolidDialog(dialog);
     await expectNoViolations(page, "aviso del .zip");
     await dialog.getByRole("button", { name: "Descargar" }).click();
     await expect(dialog).toBeHidden();
@@ -60,12 +63,20 @@ test("crear un escenario sin tocar el YAML, jugarlo, guardarlo y descargarlo", a
   await page.goto("/");
   const open = page.getByRole("button", { name: "Nuevo escenario" });
   const dialog = page.getByRole("dialog", { name: "Nuevo escenario" });
+  const title = dialog.getByRole("textbox", { name: "Título" });
   const id = dialog.getByRole("textbox", { name: "Id" });
 
-  await test.step("el diálogo: foco en el id, validación en vivo y el foco vuelve al cerrar", async () => {
+  await test.step("el diálogo: foco en el título, «Cambiar id» valida en vivo y el foco vuelve al cerrar", async () => {
     await open.click();
-    await expect(id).toBeFocused();
+    await expect(title).toBeFocused();
     await page.keyboard.type("Fotos en Miniatura");
+    await expect(dialog.locator("[data-id-preview]")).toHaveText(
+      "Se va a crear como content/scenarios/fotos-en-miniatura/",
+    );
+    await dialog.getByRole("button", { name: "Cambiar id" }).click();
+    await expect(id).toBeFocused();
+    await expect(id).toHaveValue("fotos-en-miniatura");
+    await id.fill("Fotos en Miniatura");
     await expect(id).toHaveAttribute("aria-invalid", "true");
     await expect(id).toHaveAccessibleDescription(/Usá solo minúsculas/);
     await id.fill(SCENARIOS.site.id);
@@ -76,12 +87,15 @@ test("crear un escenario sin tocar el YAML, jugarlo, guardarlo y descargarlo", a
     await expect(open).toBeFocused();
   });
 
-  await test.step("crear vacío: abre el editor con la autora de git", async () => {
+  await test.step("crear vacío escribiendo solo el título: abre el editor con la autora de git", async () => {
     await page.keyboard.press("Enter");
-    await expect(id).toBeFocused();
-    await page.keyboard.type(ID);
-    await expect(id).not.toHaveAttribute("aria-invalid");
-    await dialog.getByRole("textbox", { name: "Título" }).fill(TITLE);
+    await expect(title).toBeFocused();
+    // Closing forgot the id written by hand: it follows the title again.
+    await expect(id).toBeHidden();
+    await page.keyboard.type(TITLE);
+    await expect(dialog.locator("[data-id-preview]")).toHaveText(
+      `Se va a crear como content/scenarios/${ID}/`,
+    );
     await expect(dialog.getByRole("radio", { name: "Vacío" })).toBeChecked();
     await dialog.getByRole("button", { name: "Crear y abrir" }).click();
     await expect(page).toHaveURL(new RegExp(`/escenarios/${ID}$`));

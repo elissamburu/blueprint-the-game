@@ -77,3 +77,30 @@ export const expectNoViolations = async (page: Page, screen: string) => {
   );
   expect.soft(found, `axe en «${screen}»`).toEqual([]);
 };
+
+/**
+ * A dialog that covers what is behind it: once its animations end, the background of its content
+ * is opaque (alpha 1, read through a canvas so any color syntax counts), the point at its center
+ * is one of its own elements, and nothing inside it is wider than its box (a wider child spills
+ * over the overlay and the page shows through around it).
+ */
+export const expectSolidDialog = async (dialog: Locator) => {
+  await expect(dialog).toBeVisible();
+  await dialog.evaluate((element) =>
+    Promise.all(element.getAnimations({ subtree: true }).map((animation) => animation.finished)),
+  );
+  const found = await dialog.evaluate((element) => {
+    const canvas = document.createElement("canvas").getContext("2d");
+    if (canvas === null) throw new Error("No 2D canvas");
+    canvas.fillStyle = getComputedStyle(element).backgroundColor;
+    canvas.fillRect(0, 0, 1, 1);
+    const box = element.getBoundingClientRect();
+    const hit = document.elementFromPoint(box.x + box.width / 2, box.y + box.height / 2);
+    return {
+      alpha: (canvas.getImageData(0, 0, 1, 1).data[3] ?? 0) / 255,
+      centerInside: hit !== null && element.contains(hit),
+      overflow: element.scrollWidth - element.clientWidth,
+    };
+  });
+  expect(found).toEqual({ alpha: 1, centerInside: true, overflow: 0 });
+};

@@ -6,7 +6,13 @@
 import { readFile } from "node:fs/promises";
 import { expect, test, type Page } from "@playwright/test";
 import { tabTo } from "./support/game";
-import { contentValidate, openScenario, saveState, scenarioFile } from "./support/studio";
+import {
+  contentValidate,
+  expectSolidDialog,
+  openScenario,
+  saveState,
+  scenarioFile,
+} from "./support/studio";
 
 const GPU = {
   id: "gpu-inference-on-eks",
@@ -55,6 +61,7 @@ test("con teclado: recorrer, mover, conectar, eliminar, salir y guardar", async 
     await page.keyboard.press("c");
     const dialog = page.getByRole("dialog", { name: "Conectar «Equipo de datos» con…" });
     await expect(dialog.getByRole("searchbox", { name: "Buscar" })).toBeFocused();
+    await expectSolidDialog(dialog);
     await page.keyboard.type("registry");
     await page.keyboard.press("Enter");
     await expect(dialog).toBeHidden();
@@ -77,7 +84,7 @@ test("con teclado: recorrer, mover, conectar, eliminar, salir y guardar", async 
     const confirm = page.getByRole("alertdialog", {
       name: "¿Eliminar el sistema externo «Repositorio GitOps»?",
     });
-    await expect(confirm).toBeVisible();
+    await expectSolidDialog(confirm);
     await confirm.getByRole("button", { name: "Eliminar" }).focus();
     await page.keyboard.press("Enter");
     await expect(element(page, "node:gitops")).toHaveCount(0);

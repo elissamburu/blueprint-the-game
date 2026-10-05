@@ -8,6 +8,7 @@ import {
   contentValidate,
   cursorLine,
   editorContent,
+  expectSolidDialog,
   openScenario,
   saveState,
   scenarioFile,
@@ -125,7 +126,7 @@ test("avisa antes de salir con cambios sin guardar", async ({ page }) => {
 
   await page.getByRole("link", { name: "Escenarios" }).click();
   const dialog = page.getByRole("alertdialog", { name: "¿Salir sin guardar?" });
-  await expect(dialog).toBeVisible();
+  await expectSolidDialog(dialog);
   await dialog.getByRole("button", { name: "Seguir editando" }).click();
   await expect(dialog).toBeHidden();
   await expect(editorContent(page)).toContainText("# borrador");

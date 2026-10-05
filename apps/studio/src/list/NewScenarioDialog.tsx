@@ -1,8 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// "Nuevo escenario" (RF-STU-01, F2 part): the id, with live validation against the schema pattern
-// and the scenarios that already exist, the title and the source (empty, a template of
+// "Nuevo escenario" (RF-STU-01, F2 part): the title, the id and the source (empty, a template of
 // content/scenarios/_templates/ or a copy of an existing scenario). Creating opens the editor.
-// The focus starts on the id, each error is tied to its field with aria-describedby, and closing
+// The id follows the title (scenario-id.ts) and is shown as the folder it creates; "Cambiar id"
+// lets the author write it, with live validation against the schema pattern and the scenarios that
+// already exist, and from then on it no longer follows the title. The server still checks it.
+// The focus starts on the title, each error is tied to its field with aria-describedby, and closing
 // returns the focus to the button that opened the dialog.
 import { Button } from "@blueprint/ui/components/button";
 import {
@@ -37,6 +39,7 @@ import {
   type TemplateName,
 } from "../../shared/api";
 import { api, ApiError } from "../api/client";
+import { copyTitle, idFromTitle, ID_MAX_LENGTH, ID_MIN_LENGTH } from "./scenario-id";
 
 /** What the editor shows after creating: whether the author was found, and what was generated. */
 export interface CreatedState {
@@ -51,7 +54,7 @@ type IdProblem = "required" | "length" | "pattern" | "exists";
 export const idProblem = (id: string, existing: readonly string[]): IdProblem | undefined => {
   if (id === "") return "required";
   if (!KEBAB_CASE.test(id)) return "pattern";
-  if (id.length < 3 || id.length > 64) return "length";
+  if (id.length < ID_MIN_LENGTH || id.length > ID_MAX_LENGTH) return "length";
   if (existing.includes(id)) return "exists";
   return undefined;
 };
@@ -60,8 +63,9 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
   const { t } = useTranslation();
   const navigate = useNavigate();
   const [open, setOpen] = useState(false);
-  const [id, setId] = useState("");
   const [title, setTitle] = useState("");
+  /** The id written with "Cambiar id"; while `undefined`, the id follows the title. */
+  const [manualId, setManualId] = useState<string>();
   const [source, setSource] = useState<Source>("empty");
   const [from, setFrom] = useState("");
   /** Once the author tried to create, the empty fields show their error too. */
@@ -69,6 +73,10 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
   const [serverIdError, setServerIdError] = useState<string>();
   const [failure, setFailure] = useState<string>();
   const [creating, setCreating] = useState(false);
+  /** The id field gets the focus once it is rendered ("Cambiar id", or the server's error). */
+  const focusIdOnMount = useRef(false);
+  /** The title the dialog suggested for a copy: replaced when another scenario is chosen. */
+  const suggestedTitle = useRef<string>(undefined);
   const idInput = useRef<HTMLInputElement>(null);
   const titleInput = useRef<HTMLInputElement>(null);
   const fromTrigger = useRef<HTMLButtonElement>(null);
@@ -76,15 +84,24 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
     id: useId(),
     idHint: useId(),
     idError: useId(),
+    idPreview: useId(),
+    noId: useId(),
     title: useId(),
     titleError: useId(),
     source: useId(),
     from: useId(),
+    fromLabel: useId(),
+    fromValue: useId(),
     fromError: useId(),
   };
 
   const existing = scenarios.map((scenario) => scenario.id);
+  const manual = manualId !== undefined;
+  const autoId = idFromTitle(title, existing);
+  const id = manualId ?? autoId ?? "";
   const problem = idProblem(id, existing);
+  /** The title gives no valid id (only symbols, say): "Crear" waits, saying why. */
+  const noId = !manual && title.trim() !== "" && autoId === undefined;
   // Live: a wrong id shows its error while it is typed; an empty one only after trying to create.
   const idError =
     serverIdError ??
@@ -94,16 +111,35 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
   const titleError = submitted && title.trim() === "" ? t("create.titleField.required") : undefined;
   const fromError =
     submitted && source === "duplicate" && from === "" ? t("create.from.required") : undefined;
+  /** The folder it creates, once the id is valid. */
+  const preview = problem === undefined && serverIdError === undefined;
+
+  const focusId = () => {
+    if (idInput.current === null) focusIdOnMount.current = true;
+    else idInput.current.focus();
+  };
 
   const reset = () => {
-    setId("");
     setTitle("");
+    setManualId(undefined);
     setSource("empty");
     setFrom("");
     setSubmitted(false);
     setServerIdError(undefined);
     setFailure(undefined);
     setCreating(false);
+    suggestedTitle.current = undefined;
+  };
+
+  const chooseFrom = (value: string) => {
+    setFrom(value);
+    const scenario = scenarios.find((candidate) => candidate.id === value);
+    if (scenario === undefined) return;
+    // A title the author wrote stays; an empty one or the previous suggestion is replaced.
+    if (title.trim() !== "" && title !== suggestedTitle.current) return;
+    const suggestion = copyTitle(scenario.title ?? scenario.id, MAX_LENGTH.title);
+    suggestedTitle.current = suggestion;
+    setTitle(suggestion);
   };
 
   const request = (): CreateRequest => {
@@ -115,12 +151,12 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
 
   const submit = (event: FormEvent) => {
     event.preventDefault();
-    if (creating) return;
+    if (creating || noId) return;
     setSubmitted(true);
     setFailure(undefined);
     const invalid = [
-      [problem !== undefined || serverIdError !== undefined, idInput],
       [title.trim() === "", titleInput],
+      [manual && (problem !== undefined || serverIdError !== undefined), idInput],
       [source === "duplicate" && from === "", fromTrigger],
     ] as const;
     const first = invalid.find(([isInvalid]) => isInvalid);
@@ -140,8 +176,10 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
           error instanceof ApiError &&
           (error.code === "conflict" || error.code === "invalid-id")
         ) {
+          // The id field opens with the error and the id that was sent, to change it.
+          setManualId(id);
           setServerIdError(error.message);
-          idInput.current?.focus();
+          focusId();
           return;
         }
         setFailure(error instanceof Error ? error.message : String(error));
@@ -169,7 +207,7 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
       <DialogContent
         onOpenAutoFocus={(event) => {
           event.preventDefault();
-          idInput.current?.focus();
+          titleInput.current?.focus();
         }}
       >
         <DialogHeader>
@@ -178,34 +216,6 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
         </DialogHeader>
         <form noValidate onSubmit={submit} className="grid gap-5">
           <div className="grid gap-2">
-            <Label htmlFor={ids.id}>{t("create.id.label")}</Label>
-            <Input
-              ref={idInput}
-              id={ids.id}
-              value={id}
-              autoComplete="off"
-              spellCheck={false}
-              className="font-mono"
-              maxLength={64}
-              aria-required
-              aria-invalid={idError === undefined ? undefined : true}
-              aria-describedby={describedBy(ids.idHint, idError !== undefined && ids.idError)}
-              onChange={(event) => {
-                setId(event.target.value);
-                setServerIdError(undefined);
-              }}
-            />
-            <p id={ids.idHint} className="text-sm text-muted-foreground">
-              {t("create.id.hint")}
-            </p>
-            {idError !== undefined && (
-              <p id={ids.idError} className="text-sm text-destructive">
-                {idError}
-              </p>
-            )}
-          </div>
-
-          <div className="grid gap-2">
             <Label htmlFor={ids.title}>{t("create.titleField.label")}</Label>
             <Input
               ref={titleInput}
@@ -213,14 +223,88 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
               value={title}
               maxLength={MAX_LENGTH.title}
               aria-required
-              aria-invalid={titleError === undefined ? undefined : true}
-              aria-describedby={describedBy(titleError !== undefined && ids.titleError)}
-              onChange={(event) => setTitle(event.target.value)}
+              aria-invalid={titleError === undefined && !noId ? undefined : true}
+              aria-describedby={describedBy(
+                titleError !== undefined && ids.titleError,
+                noId && ids.noId,
+                !manual && preview && ids.idPreview,
+              )}
+              onChange={(event) => {
+                setTitle(event.target.value);
+                if (!manual) setServerIdError(undefined);
+              }}
             />
             {titleError !== undefined && (
               <p id={ids.titleError} className="text-sm text-destructive">
                 {titleError}
               </p>
+            )}
+            {noId && (
+              <p id={ids.noId} className="text-sm text-destructive">
+                {t("create.id.noId")}
+              </p>
+            )}
+          </div>
+
+          <div className="grid gap-2">
+            {manual && (
+              <>
+                <Label htmlFor={ids.id}>{t("create.id.label")}</Label>
+                <Input
+                  ref={(element) => {
+                    idInput.current = element;
+                    if (element === null || !focusIdOnMount.current) return;
+                    focusIdOnMount.current = false;
+                    element.focus();
+                  }}
+                  id={ids.id}
+                  value={id}
+                  autoComplete="off"
+                  spellCheck={false}
+                  className="font-mono"
+                  maxLength={ID_MAX_LENGTH}
+                  aria-required
+                  aria-invalid={idError === undefined ? undefined : true}
+                  aria-describedby={describedBy(
+                    ids.idHint,
+                    idError !== undefined && ids.idError,
+                    preview && ids.idPreview,
+                  )}
+                  onChange={(event) => {
+                    setManualId(event.target.value);
+                    setServerIdError(undefined);
+                  }}
+                />
+                <p id={ids.idHint} className="text-sm text-muted-foreground">
+                  {t("create.id.hint")}
+                </p>
+                {idError !== undefined && (
+                  <p id={ids.idError} className="text-sm text-destructive">
+                    {idError}
+                  </p>
+                )}
+              </>
+            )}
+            {preview && (
+              <p id={ids.idPreview} data-id-preview className="text-sm text-muted-foreground">
+                {t("create.id.preview")}{" "}
+                <code className="font-mono break-all text-foreground">{`content/scenarios/${id}/`}</code>
+              </p>
+            )}
+            {!manual && (
+              <div>
+                <Button
+                  type="button"
+                  variant="outline"
+                  size="sm"
+                  onClick={() => {
+                    setManualId(autoId ?? "");
+                    focusId();
+                  }}
+                >
+                  {t("create.id.change")}
+                </Button>
+              </div>
             )}
           </div>
 
@@ -245,16 +329,20 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
             </RadioGroup>
             {source === "duplicate" && (
               <div className="grid gap-2 pl-6">
-                <Label htmlFor={ids.from}>{t("create.from.label")}</Label>
-                <Select value={from} onValueChange={setFrom}>
+                <Label id={ids.fromLabel} htmlFor={ids.from}>
+                  {t("create.from.label")}
+                </Label>
+                <Select value={from} onValueChange={chooseFrom}>
                   <SelectTrigger
                     ref={fromTrigger}
                     id={ids.from}
+                    // The chosen title is cut with an ellipsis to fit: the name says it whole.
+                    aria-labelledby={`${ids.fromLabel} ${ids.fromValue}`}
                     aria-required
                     aria-invalid={fromError === undefined ? undefined : true}
                     aria-describedby={describedBy(fromError !== undefined && ids.fromError)}
                   >
-                    <SelectValue placeholder={t("create.from.placeholder")} />
+                    <SelectValue id={ids.fromValue} placeholder={t("create.from.placeholder")} />
                   </SelectTrigger>
                   <SelectContent>
                     {scenarios.map((scenario) => (
@@ -288,7 +376,11 @@ export function NewScenarioDialog({ scenarios }: { scenarios: readonly ScenarioS
             <Button type="button" variant="outline" onClick={() => setOpen(false)}>
               {t("create.cancel")}
             </Button>
-            <Button type="submit" disabled={creating}>
+            <Button
+              type="submit"
+              disabled={creating || noId}
+              aria-describedby={describedBy(noId && ids.noId)}
+            >
               {creating ? t("create.creating") : t("create.submit")}
             </Button>
           </DialogFooter>
