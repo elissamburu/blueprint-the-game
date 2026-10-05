@@ -552,18 +552,9 @@ importers:
       '@dnd-kit/core':
         specifier: 'catalog:'
         version: 6.3.1(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
-      i18next:
-        specifier: 'catalog:'
-        version: 26.4.2(typescript@6.0.3)
       lucide-react:
         specifier: 'catalog:'
         version: 1.48.0(react@19.3.0)
-      react-i18next:
-        specifier: 'catalog:'
-        version: 17.0.15(i18next@26.4.2(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
-      react-router:
-        specifier: 'catalog:'
-        version: 8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       zustand:
         specifier: 'catalog:'
         version: 5.0.15(@types/react@19.3.0)(react@19.3.0)(use-sync-external-store@1.7.0(react@19.3.0))
@@ -586,6 +577,9 @@ importers:
       eslint:
         specifier: 'catalog:'
         version: 10.11.0(jiti@2.7.0)(supports-color@7.2.0)
+      i18next:
+        specifier: 'catalog:'
+        version: 26.4.2(typescript@6.0.3)
       jsdom:
         specifier: 'catalog:'
         version: 30.1.1
@@ -595,6 +589,12 @@ importers:
       react-dom:
         specifier: 'catalog:'
         version: 19.3.0(react@19.3.0)
+      react-i18next:
+        specifier: 'catalog:'
+        version: 17.0.15(i18next@26.4.2(typescript@6.0.3))(react-dom@19.3.0(react@19.3.0))(react@19.3.0)(typescript@6.0.3)
+      react-router:
+        specifier: 'catalog:'
+        version: 8.4.0(react-dom@19.3.0(react@19.3.0))(react@19.3.0)
       rimraf:
         specifier: 'catalog:'
         version: 6.1.3

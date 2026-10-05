@@ -23,10 +23,7 @@
     "@blueprint/scenario-schema": "workspace:*",
     "@blueprint/ui": "workspace:*",
     "@dnd-kit/core": "catalog:",
-    "i18next": "catalog:",
     "lucide-react": "catalog:",
-    "react-i18next": "catalog:",
-    "react-router": "catalog:",
     "zustand": "catalog:"
   },
   "devDependencies": {
@@ -36,16 +33,22 @@
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "eslint": "catalog:",
+    "i18next": "catalog:",
     "jsdom": "catalog:",
     "react": "catalog:",
     "react-dom": "catalog:",
+    "react-i18next": "catalog:",
+    "react-router": "catalog:",
     "rimraf": "catalog:",
     "typescript": "catalog:",
     "vitest": "catalog:",
     "yaml": "catalog:"
   },
   "peerDependencies": {
+    "i18next": "catalog:",
     "react": "catalog:",
-    "react-dom": "catalog:"
+    "react-dom": "catalog:",
+    "react-i18next": "catalog:",
+    "react-router": "catalog:"
   }
 }
