@@ -12,6 +12,8 @@
   "scripts": {
     "dev": "pnpm content:dev && turbo run dev",
     "dev:web": "pnpm content:dev && pnpm --filter @blueprint/web dev",
+    "dev:studio": "pnpm --reporter=silent content:prepare && pnpm --filter @blueprint/studio dev",
+    "studio": "turbo run build --filter=@blueprint/studio... --output-logs=errors-only && pnpm --reporter=silent --filter @blueprint/studio start",
     "build": "turbo run build",
     "test": "turbo run test",
     "lint": "turbo run lint",
@@ -27,6 +29,7 @@
     "content:dev": "pnpm content:build --include-drafts --out dist/content-dev",
     "content:e2e": "pnpm content:build --content apps/web/e2e/fixtures/content --out dist/content-e2e",
     "e2e": "pnpm content:dev && pnpm content:e2e && turbo run build --filter=@blueprint/web && pnpm --filter @blueprint/web e2e",
+    "e2e:studio": "turbo run build --filter=@blueprint/studio... --output-logs=errors-only && pnpm --filter @blueprint/studio e2e",
     "icons:prepare": "turbo run build --filter=@blueprint/tools-icons-fetch... --output-logs=errors-only 1>&2",
     "icons:fetch": "pnpm --reporter=silent icons:prepare && pnpm --reporter=silent --dir tools/icons-fetch exec tsx src/bin.ts",
     "beta:prepare": "turbo run build --filter=@blueprint/tools-deploy-beta... --output-logs=errors-only 1>&2",

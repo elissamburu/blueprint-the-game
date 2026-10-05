@@ -8,15 +8,17 @@ import { describe, expect, it } from "vitest";
 const STUDIO_DIR = fileURLToPath(new URL("..", import.meta.url));
 const SERVER_FILE = fileURLToPath(new URL("./app.ts", import.meta.url));
 
+// One instance: the first type-aware lint builds the TypeScript program, which takes a while.
+const eslint = new ESLint({ cwd: STUDIO_DIR });
+
 const lint = async (code: string, filePath = SERVER_FILE) => {
-  const eslint = new ESLint({ cwd: STUDIO_DIR });
   const [result] = await eslint.lintText(code, { filePath });
   return (result?.messages ?? []).filter((m) =>
     ["no-restricted-imports", "no-restricted-syntax"].includes(m.ruleId ?? ""),
   );
 };
 
-describe("S11: no processes in the server", () => {
+describe("S11: no processes in the server", { timeout: 180_000 }, () => {
   it.each([
     'import { execFile } from "node:child_process";\nexecFile("gh");\n',
     'import { spawn } from "child_process";\nspawn("git");\n',
