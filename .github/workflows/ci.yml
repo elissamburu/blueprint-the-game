@@ -158,16 +158,54 @@ jobs:
         run: pnpm --filter @blueprint/web exec playwright install-deps chromium
 
       # Builds the content bundles and the web, then starts the servers from the Playwright config.
+      # The output is kept for the summary of the job (`shell: bash` runs with pipefail).
       - name: Run end-to-end tests
-        run: pnpm e2e
+        shell: bash
+        run: pnpm e2e 2>&1 | tee "$RUNNER_TEMP/e2e-web.log"
 
       # Scenario Studio (ADR-0025): a Playwright project of its own, against `pnpm studio` over a
       # temporary copy of content/. Builds the Studio UI first.
       - name: Run Studio end-to-end tests
-        run: pnpm e2e:studio
+        shell: bash
+        run: pnpm e2e:studio 2>&1 | tee "$RUNNER_TEMP/e2e-studio.log"
+
+      # The failed and flaky tests of each suite (flaky: failed, then passed on the retry), from the
+      # final summary of the list reporter. A flaky test leaves the job green, so it also uploads
+      # the report: the HTML report keeps the failed attempt and its trace (#66).
+      - name: Summarize Playwright results
+        id: playwright-summary
+        if: ${{ !cancelled() }}
+        shell: bash
+        run: |
+          flaky=false
+          {
+            echo "## Pruebas end-to-end"
+            for suite in web studio; do
+              echo "### \`$suite\`"
+              log="$RUNNER_TEMP/e2e-$suite.log"
+              if [ ! -f "$log" ]; then
+                echo "No corrió."
+                continue
+              fi
+              results=$(sed -E 's/\x1B\[[0-9;]*[A-Za-z]//g' "$log" | awk '
+                /^  [0-9]+ (failed|flaky|interrupted)$/ { keep = 1; print; next }
+                keep && /^    [^ ]/ { print; next }
+                { keep = 0 }
+                /^  [0-9]+ (passed|skipped|did not run)/ { print }
+              ' | awk '!seen[$0]++')
+              if grep -qE '^  [0-9]+ flaky$' <<< "$results"; then flaky=true; fi
+              if [ -z "$results" ]; then
+                echo "Sin resumen de Playwright: falló antes de correr los tests (ver el log del paso)."
+              else
+                printf '```text\n%s\n```\n' "$results"
+              fi
+            done
+          } >> "$GITHUB_STEP_SUMMARY"
+          echo "flaky=$flaky" >> "$GITHUB_OUTPUT"
 
       - name: Upload Playwright report
-        if: failure()
+        id: playwright-report
+        if: failure() || steps.playwright-summary.outputs.flaky == 'true'
         uses: actions/upload-artifact@043fb46d1a93c77aae656e7c1c64a875d1fc6a0a # v7.0.1
         with:
           name: playwright-report
@@ -176,6 +214,14 @@ jobs:
             apps/studio/playwright-report/
           if-no-files-found: ignore
           retention-days: 7
+
+      - name: Link the Playwright report in the summary
+        if: ${{ !cancelled() && steps.playwright-report.outputs.artifact-url != '' }}
+        shell: bash
+        env:
+          REPORT_URL: ${{ steps.playwright-report.outputs.artifact-url }}
+        run: |
+          echo "Reporte de Playwright (con los traces de los intentos fallidos): $REPORT_URL" >> "$GITHUB_STEP_SUMMARY"
 
   # Single stable status check for branch protection, independent of matrix names.
   ci:
