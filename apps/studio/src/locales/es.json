@@ -3,7 +3,8 @@
     "name": "Blueprint Studio",
     "skipToContent": "Saltar al contenido",
     "loading": "Cargando…",
-    "localOnly": "Solo local: lee y escribe content/ de tu copia del repo."
+    "localOnly": "Solo local: lee y escribe content/ de tu copia del repo.",
+    "reloadPage": "Recargar la página"
   },
   "list": {
     "title": "Escenarios",

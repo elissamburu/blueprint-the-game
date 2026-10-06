@@ -3,7 +3,9 @@
 // rationale of each answer, …) add the rest of their name for screen readers in a sr-only span
 // ("Rationale de la respuesta 2 del casillero 3"), so every accessible name is unique and starts
 // with the visible text (WCAG 2.5.3). The issues of the validation that belong to a field are
-// shown under it, tied with aria-describedby, and an error marks it with aria-invalid.
+// shown under it, tied with aria-describedby, and an error marks it with aria-invalid. A message
+// wraps anywhere (a long id or URL never spills out of the form) and, when it appears under the
+// field being edited, it scrolls into view: it is never left cut by the form's scroll container.
 import { Button } from "@blueprint/ui/components/button";
 import { Checkbox } from "@blueprint/ui/components/checkbox";
 import { Input } from "@blueprint/ui/components/input";
@@ -18,7 +20,8 @@ import {
 import { Textarea } from "@blueprint/ui/components/textarea";
 import { cn } from "@blueprint/ui/lib/utils";
 import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, Trash2Icon } from "lucide-react";
-import { useId, useState, type ReactNode } from "react";
+import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import type { StudioFinding } from "../../shared/validation";
 import { useTranslation } from "react-i18next";
 import type { EditCommand, EditPath } from "../../shared/document-edit";
 import { listOf, textOf, valueAt } from "./form-data";
@@ -52,7 +55,6 @@ export function FieldLabel({
 
 /** The issues of the path: the message under the field and the ARIA attributes of its control. */
 export const useIssues = (path: EditPath, hintId?: string) => {
-  const { t } = useTranslation();
   const { findingsAt, errorId } = useForm();
   const findings = findingsAt(path);
   const ids = [hintId, findings.length > 0 ? errorId(path) : undefined].filter(
@@ -61,24 +63,36 @@ export const useIssues = (path: EditPath, hintId?: string) => {
   return {
     invalid: findings.some((finding) => finding.severity === "error"),
     describedBy: ids.length > 0 ? ids.join(" ") : undefined,
-    messages:
-      findings.length === 0 ? null : (
-        <ul id={errorId(path)} className="flex flex-col gap-1 text-sm">
-          {findings.map((finding, index) => (
-            <li
-              key={`${finding.code}-${index}`}
-              className={finding.severity === "error" ? "text-destructive" : "text-warning"}
-            >
-              <span className="font-medium">
-                {t(`validation.severity.${finding.severity}`)} {finding.code}:
-              </span>{" "}
-              {finding.message}
-            </li>
-          ))}
-        </ul>
-      ),
+    messages: findings.length === 0 ? null : <IssueList id={errorId(path)} findings={findings} />,
   };
 };
+
+function IssueList({ id, findings }: { id: string; findings: readonly StudioFinding[] }) {
+  const { t } = useTranslation();
+  const list = useRef<HTMLUListElement>(null);
+  const text = findings.map((finding) => finding.message).join("\n");
+  // A new message under the field being edited: scroll just enough to show it whole.
+  useLayoutEffect(() => {
+    const focused = document.activeElement;
+    const describedBy = focused?.getAttribute("aria-describedby")?.split(" ") ?? [];
+    if (describedBy.includes(id)) list.current?.scrollIntoView?.({ block: "nearest" });
+  }, [id, text]);
+  return (
+    <ul ref={list} id={id} className="flex flex-col gap-1 text-sm wrap-anywhere">
+      {findings.map((finding, index) => (
+        <li
+          key={`${finding.code}-${index}`}
+          className={finding.severity === "error" ? "text-destructive" : "text-warning"}
+        >
+          <span className="font-medium">
+            {t(`validation.severity.${finding.severity}`)} {finding.code}:
+          </span>{" "}
+          {finding.message}
+        </li>
+      ))}
+    </ul>
+  );
+}
 
 const ariaOf = (issues: { invalid: boolean; describedBy: string | undefined }) => ({
   ...(issues.invalid ? { "aria-invalid": true } : {}),

@@ -88,7 +88,7 @@ export function DraftTabs({
       >
         {shared === undefined ? waiting : form}
       </TabsContent>
-      <TabsContent value="diagram" className="flex min-h-0 flex-1 flex-col">
+      <TabsContent value="diagram" className="flex min-h-0 flex-1 flex-col overflow-y-auto">
         {shared === undefined ? waiting : diagram}
       </TabsContent>
       {draft.problem !== undefined && tab !== "form" && tab !== "diagram" && (
@@ -102,7 +102,7 @@ export function DraftTabs({
         value="play"
         forceMount
         hidden={tab !== "play"}
-        className="flex min-h-0 flex-1 flex-col"
+        className="flex min-h-0 flex-1 flex-col overflow-y-auto"
       >
         {bundle === undefined ? waiting : <PreviewPanel draft={draft.scenario} bundle={bundle} />}
       </TabsContent>

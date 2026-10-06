@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // List of the scenarios of content/scenarios/ (RF-STU-02): title, level, status and whether they
-// have errors, each one a link to its editor.
+// have errors, each one a link to its editor. A failed load offers to retry; with a stale session
+// token (the server restarted), to reload the page instead.
 import { Button } from "@blueprint/ui/components/button";
 import { LevelBadge, type ScenarioLevel } from "@blueprint/ui/components/level-badge";
 import { CircleCheckIcon, CircleXIcon } from "lucide-react";
@@ -10,11 +11,12 @@ import { Link } from "react-router";
 import type { ScenarioSummary } from "../../shared/api";
 import { api, ApiError } from "../api/client";
 import { usePageTitle } from "../app/page-title";
+import { isTokenError, reloadPage } from "../app/reload";
 import { NewScenarioDialog } from "./NewScenarioDialog";
 
 type State =
   | { kind: "loading" }
-  | { kind: "failed"; message: string }
+  | { kind: "failed"; message: string; token: boolean }
   | { kind: "ready"; scenarios: ScenarioSummary[] };
 
 export function ScenarioListPage() {
@@ -29,6 +31,7 @@ export function ScenarioListPage() {
         setState({
           kind: "failed",
           message: error instanceof ApiError ? error.message : String(error),
+          token: isTokenError(error),
         }),
     );
   }, []);
@@ -50,8 +53,8 @@ export function ScenarioListPage() {
         {state.kind === "failed" && (
           <div role="alert" className="flex flex-wrap items-center gap-3">
             <p>{t("list.loadFailed", { message: state.message })}</p>
-            <Button variant="outline" onClick={retry}>
-              {t("list.retry")}
+            <Button variant="outline" onClick={state.token ? reloadPage : retry}>
+              {state.token ? t("app.reloadPage") : t("list.retry")}
             </Button>
           </div>
         )}

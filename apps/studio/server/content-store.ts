@@ -218,7 +218,8 @@ export const createContentStore = ({
   ): Promise<SaveResponse> => {
     const current = await readExisting(id);
     // S8: never overwrite blindly. Without the hash of what the author opened, or with an old
-    // one, the file is left as it is.
+    // one, the file is left as it is. The messages of a failed save say why, not that it failed:
+    // the UI already says so.
     if (baseHash === undefined || baseHash !== sha256(current.bytes)) {
       throw new StudioError(
         409,
@@ -238,7 +239,7 @@ export const createContentStore = ({
       throw new StudioError(
         422,
         "invalid-scenario",
-        `No se guardó: ${first?.message ?? "el escenario no es válido"}${where}.`,
+        `${first?.message ?? "El escenario no es válido"}${where}.`,
         first?.line,
       );
     }
@@ -248,8 +249,8 @@ export const createContentStore = ({
         422,
         "invalid-scenario",
         writtenId === undefined
-          ? `No se guardó: falta el id del escenario, que tiene que ser igual al nombre de su carpeta ("${id}").`
-          : `No se guardó: el id del escenario ("${writtenId}") tiene que ser igual al nombre de su carpeta ("${id}").`,
+          ? `Falta el id del escenario, que tiene que ser igual al nombre de su carpeta ("${id}").`
+          : `El id del escenario ("${writtenId}") tiene que ser igual al nombre de su carpeta ("${id}").`,
       );
     }
 

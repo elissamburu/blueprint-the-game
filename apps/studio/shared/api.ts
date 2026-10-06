@@ -130,8 +130,13 @@ export type SharedContent = z.infer<typeof SharedResponseSchema>;
 export const ERROR_CODES = [
   /** S2: Host header other than 127.0.0.1:<port> or localhost:<port>. */
   "misdirected-request",
-  /** S3: foreign or missing Origin, cross-site Sec-Fetch-Site or a wrong token. */
+  /** S3: foreign or missing Origin, or cross-site Sec-Fetch-Site. */
   "forbidden",
+  /**
+   * S3: a missing or wrong session token, e.g. the page was loaded before the server restarted:
+   * only reloading the page gets the new one.
+   */
+  "invalid-token",
   /** S3: a body that is not application/json. */
   "unsupported-media-type",
   /** S6: body over 1 MiB. */

@@ -301,6 +301,8 @@ describe("S10: validation at the border", () => {
       "invalid-scenario",
     );
     expect(error.message).toContain("YAML inválido");
+    // The UI says "No se guardó:" before the message: the server does not repeat it.
+    expect(error.message).not.toMatch(/^No se guardó/);
     expect(error.line).toBeGreaterThanOrEqual(5);
   });
 
@@ -348,6 +350,7 @@ describe("S10: validation at the border", () => {
     const yaml = opened.toString("utf8").replace(`id: ${ID}`, "id: otro-escenario");
     const error = await expectRejected({ yaml, baseHash: sha256(opened) }, 422, "invalid-scenario");
     expect(error.message).toContain("otro-escenario");
+    expect(error.message).not.toMatch(/^No se guardó/);
   });
 
   it("S10: a draft that fails the schema and whose id is not its folder gets 422, without writing", async () => {
@@ -367,7 +370,7 @@ describe("S10: validation at the border", () => {
       422,
       "invalid-scenario",
     );
-    expect(noId.message).toContain("falta el id");
+    expect(noId.message).toContain("Falta el id");
   });
 
   it("S10: a body that is not JSON or not { yaml, baseHash } gets 400", async () => {

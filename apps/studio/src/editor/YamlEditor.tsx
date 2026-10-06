@@ -151,6 +151,8 @@ export function YamlEditor({
         highlightSelectionMatches(),
         lintGutter(),
         yaml(),
+        // Long lines wrap: an edit from the form never leaves the editor scrolled sideways.
+        EditorView.lineWrapping,
         keymap.of([
           {
             key: "Mod-s",
@@ -193,5 +195,5 @@ export function YamlEditor({
     current.dispatch(setDiagnostics(current.state, toDiagnostics(current, findings)));
   }, [findings, documentKey]);
 
-  return <div ref={parent} className="h-full min-h-[20rem] overflow-hidden rounded-md border" />;
+  return <div ref={parent} className="h-full min-h-[12rem] overflow-hidden rounded-md border" />;
 }

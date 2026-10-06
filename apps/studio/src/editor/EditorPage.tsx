@@ -35,6 +35,7 @@ import {
 } from "../../shared/validation";
 import { api, ApiError } from "../api/client";
 import { usePageTitle } from "../app/page-title";
+import { isTokenError, reloadPage } from "../app/reload";
 import { ValidationPanel } from "../validation/ValidationPanel";
 import { useValidation } from "../validation/use-validation";
 import { DraftTabs, type DraftTab } from "../preview/DraftTabs";
@@ -64,10 +65,12 @@ type SaveState =
   | { kind: "saving" }
   /** `skippedWithErrors`: a draft saved with errors, without regenerating the generated files. */
   | { kind: "saved"; regenerated: string[]; skippedWithErrors?: number }
-  | { kind: "error"; message: string; line?: number }
+  /** `token`: the session token is stale; only reloading the page gets a new one. */
+  | { kind: "error"; message: string; line?: number; token: boolean }
   | { kind: "conflict" };
 
-type Load = { kind: "loading" } | { kind: "failed"; message: string } | { kind: "ready" };
+type Load =
+  { kind: "loading" } | { kind: "failed"; message: string; token: boolean } | { kind: "ready" };
 
 /** The result of creating this scenario, when the list just did it (router state, checked). */
 const createdOf = (state: unknown, id: string): CreateResponse | undefined => {
@@ -138,6 +141,7 @@ export function EditorPage() {
         setLoad({
           kind: "failed",
           message: error instanceof ApiError ? error.message : String(error),
+          token: isTokenError(error),
         }),
     );
   }, [id]);
@@ -175,6 +179,11 @@ export function EditorPage() {
     setText(recovery.text);
     setRecovery(undefined);
   };
+  /** A stale token: the text goes to the local copy right away, and the page reloads. */
+  const reloadWithCopy = () => {
+    if (dirty) writeLocalDraft(id, { text, baseHash: saved.hash });
+    reloadPage();
+  };
   const discard = () => {
     clearLocalDraft(id);
     setRecovery(undefined);
@@ -206,6 +215,7 @@ export function EditorPage() {
           setSave({
             kind: "error",
             message: error instanceof Error ? error.message : String(error),
+            token: isTokenError(error),
             ...(error instanceof ApiError && error.line !== undefined ? { line: error.line } : {}),
           });
         }
@@ -308,12 +318,17 @@ export function EditorPage() {
               <DownloadIcon aria-hidden />
               {t("editor.download.button")}
             </Button>
-            <Button onClick={onSave} disabled={save.kind === "saving"}>
-              {save.kind === "saving"
-                ? t("editor.saving")
-                : draftWithErrors
-                  ? t("editor.saveDraft")
-                  : t("editor.save")}
+            <Button
+              onClick={save.kind === "error" && save.token ? reloadWithCopy : onSave}
+              disabled={save.kind === "saving"}
+            >
+              {save.kind === "error" && save.token
+                ? t("app.reloadPage")
+                : save.kind === "saving"
+                  ? t("editor.saving")
+                  : draftWithErrors
+                    ? t("editor.saveDraft")
+                    : t("editor.save")}
             </Button>
           </>
         )}
@@ -325,9 +340,14 @@ export function EditorPage() {
         </p>
       )}
       {load.kind === "failed" && (
-        <p role="alert" className="p-6">
-          {t("editor.loadFailed", { message: load.message })}
-        </p>
+        <div role="alert" className="flex flex-wrap items-center gap-3 p-6">
+          <p>{t("editor.loadFailed", { message: load.message })}</p>
+          {load.token && (
+            <Button variant="outline" onClick={reloadPage}>
+              {t("app.reloadPage")}
+            </Button>
+          )}
+        </div>
       )}
 
       {load.kind === "ready" && created !== undefined && (
@@ -470,8 +490,10 @@ export function EditorPage() {
               )
             }
           />
-          <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(20rem,3fr)_minmax(12rem,2fr)] gap-4">
-            <section aria-labelledby={ids.yaml} className="flex min-h-0 flex-col gap-2">
+          {/* The YAML takes the height the validation panel leaves; the panel takes what its
+              findings need, up to 40 % of the column, and then its list scrolls. */}
+          <div className="flex min-h-[40rem] min-w-0 flex-col gap-4 lg:min-h-0">
+            <section aria-labelledby={ids.yaml} className="flex min-h-48 flex-1 flex-col gap-2">
               <h2 id={ids.yaml} className="font-mono text-lg font-semibold">
                 {t("editor.yamlTitle")}
               </h2>
@@ -492,6 +514,7 @@ export function EditorPage() {
               </div>
             </section>
             <ValidationPanel
+              className="max-h-[40%] shrink-0"
               headingId={ids.validation}
               findings={validation.result?.findings}
               pending={validation.pending}
