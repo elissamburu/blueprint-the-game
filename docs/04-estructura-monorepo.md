@@ -25,8 +25,7 @@ blueprint/
 │   │   ├── error-en-escenario.yml     # destino del botón "Reportar un problema" (RF-PLAY-13)
 │   │   └── feedback-beta.yml          # destino de "Contanos qué te pareció" del aviso de beta
 │   ├── PULL_REQUEST_TEMPLATE/
-│   │   ├── codigo.md
-│   │   └── escenario.md
+│   │   └── nuevo-escenario.md         # checklist de PR de escenarios (RF-CNT-05); los PR de código no usan plantilla
 │   ├── CODEOWNERS                     # infra/ y .github/ requieren revisión de mantenedores
 │   └── dependabot.yml                 # npm, github-actions (SHA), terraform
 │
@@ -217,5 +216,8 @@ Reglas (enforced con `eslint-plugin-boundaries` o `dependency-cruiser`):
 - **Idioma**: código, identificadores, commits y nombres de archivo en **inglés**; documentación, UI y contenido en **español** (v1).
 - **Commits**: Conventional Commits + DCO (`git commit -s`) ([ADR-0016](adr/0016-licenciamiento.md)).
 - **Ramas**: `main` protegida; PRs con al menos 1 revisión; `infra/` y `.github/` con CODEOWNERS.
+- **Plantilla de PR de escenarios**: los PR que agregan o cambian un escenario usan [`.github/PULL_REQUEST_TEMPLATE/nuevo-escenario.md`](../.github/PULL_REQUEST_TEMPLATE/nuevo-escenario.md) (RF-CNT-05; la sección «Solo nivel 0» cubre RF-CNT-09). No hay plantilla por defecto, así que hay que pedirla:
+  - **Desde la web**: agregá `?template=nuevo-escenario.md` a la URL de comparación, por ejemplo `https://github.com/<owner>/blueprint-the-game/compare/main...<rama>?template=nuevo-escenario.md` (si la URL ya tiene parámetros, sumalo con `&`). Ver [Creating a pull request template for your repository](https://docs.github.com/en/communities/using-templates-to-encourage-useful-issues-and-pull-requests/creating-a-pull-request-template-for-your-repository) y [Using query parameters to create a pull request](https://docs.github.com/en/pull-requests/collaborating-with-pull-requests/proposing-changes-to-your-work-with-pull-requests/using-query-parameters-to-create-a-pull-request).
+  - **Desde la CLI**: `gh pr create --template nuevo-escenario.md` ([`gh pr create`](https://cli.github.com/manual/gh_pr_create), flag `-T, --template`).
 - **Versiones**: Node LTS (fijada en `.nvmrc`, alineada con el runtime de Lambda disponible al implementar), pnpm fijado en `packageManager`, Terraform fijado en `versions.tf`.
 - **Encabezado SPDX** en cada archivo de código (`PolyForm-Noncommercial-1.0.0`) y de contenido (`CC-BY-NC-SA-4.0`).
