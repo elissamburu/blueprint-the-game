@@ -200,7 +200,7 @@ diagram:
           violates: [no-servers, pay-per-use]
           rationale: "Funciona, pero implica administrar instancias, sistema operativo, parches y escalado, y pagar por hora aunque no haya consultas."
         - service: app-runner
-          rationale: "Correría la lógica como servicio web en contenedores, pero ya no acepta clientes nuevos: un proyecto que arranca hoy no puede adoptarlo."
+          rationale: "Correría la lógica como servicio web en contenedores, pero ya no está abierto a clientes nuevos y AWS no planea sumarle funciones: no es una base para un proyecto que arranca hoy."
       hints:
         - "La tarea dura segundos y ocurre solo cuando un cliente pregunta."
 

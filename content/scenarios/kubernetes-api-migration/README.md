@@ -92,7 +92,7 @@ flowchart LR
 | Amazon ECS (`ecs`) | 🔴 Incorrecto | viola `keep-kubernetes` | Es un orquestador propio de AWS, con definiciones de tareas y servicios en su propio formato: no lee manifiestos de Kubernetes ni charts de Helm. Habría que reescribir todo el despliegue. |  |
 | Amazon EC2 (`ec2`) | 🔴 Incorrecto | viola `no-control-plane` | Podés instalar Kubernetes en máquinas virtuales, pero el plano de control vuelve a ser tuyo: versiones, certificados, respaldos de etcd y alta disponibilidad. Es justo lo que el equipo quiere dejar de hacer. |  |
 | AWS Fargate (`fargate`) | 🔴 Incorrecto | — | Pone la capacidad donde corren los pods, pero no es un orquestador: no expone la API de Kubernetes ni agenda nada por sí solo. Va en otro lugar del diagrama. |  |
-| AWS App Runner (`app-runner`) | 🔴 Incorrecto | viola `keep-kubernetes` | Corre una aplicación web a partir de una imagen o del código, con su propia configuración; no acepta manifiestos de Kubernetes ni charts de Helm. |  |
+| AWS App Runner (`app-runner`) | 🔴 Incorrecto | viola `keep-kubernetes` | Corre una aplicación web a partir de una imagen o del código, con su propia configuración; no acepta manifiestos de Kubernetes ni charts de Helm. Además, ya no está abierto a clientes nuevos y AWS no planea sumarle funciones. |  |
 
 Pistas:
 

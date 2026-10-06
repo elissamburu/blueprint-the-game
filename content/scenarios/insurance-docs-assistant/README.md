@@ -133,7 +133,7 @@ Pistas:
 | AWS Lambda (`lambda`) | 🟢 Óptimo | `no-servers`, `pay-per-use` | Cómputo por evento: corre solo cuando llega una pregunta, escala solo en las rachas de renovaciones y no cobra de noche. Recibe del API los datos del token validado y llama a la base de conocimiento con el SDK. | [1](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html) [2](https://docs.aws.amazon.com/apigateway/latest/developerguide/http-api-jwt-authorizer.html) |
 | AWS Fargate (`fargate`) | 🟠 Aceptable | `pay-per-use` | Correr contenedores sin administrar servidores cumple con la operación, pero un servicio web tiene tareas encendidas todo el tiempo: pagás capacidad aunque nadie pregunte. | [1](https://docs.aws.amazon.com/AmazonECS/latest/developerguide/AWS_Fargate.html) |
 | Amazon EC2 (`ec2`) | 🔴 Incorrecto | viola `no-servers`, `pay-per-use` | Funciona, pero implica administrar instancias, sistema operativo, parches y escalado, y pagar por hora aunque no haya consultas. |  |
-| AWS App Runner (`app-runner`) | 🔴 Incorrecto | — | Correría la lógica como servicio web en contenedores, pero ya no acepta clientes nuevos: un proyecto que arranca hoy no puede adoptarlo. |  |
+| AWS App Runner (`app-runner`) | 🔴 Incorrecto | — | Correría la lógica como servicio web en contenedores, pero ya no está abierto a clientes nuevos y AWS no planea sumarle funciones: no es una base para un proyecto que arranca hoy. |  |
 
 Pistas:
 
