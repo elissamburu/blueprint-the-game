@@ -25,6 +25,7 @@
     },
     "test": {
       "dependsOn": ["^build"],
+      "inputs": ["$TURBO_DEFAULT$", "$TURBO_ROOT$/content/**"],
       "outputs": []
     },
     "clean": {

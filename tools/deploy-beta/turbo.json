@@ -4,9 +4,9 @@
   "tasks": {
     "test": {
       "inputs": [
-        "$TURBO_DEFAULT$",
-        "../../docs/guias/deploy-manual-beta.md",
-        "../../docs/guias/deploy-manual-beta/**"
+        "$TURBO_EXTENDS$",
+        "$TURBO_ROOT$/docs/guias/deploy-manual-beta.md",
+        "$TURBO_ROOT$/docs/guias/deploy-manual-beta/**"
       ]
     }
   }
