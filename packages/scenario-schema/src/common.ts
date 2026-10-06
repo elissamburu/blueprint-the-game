@@ -11,9 +11,22 @@ export const MAX_LENGTH = {
   role: 140,
   label: 40,
   rationale: 600,
+  analogyLimit: 300,
 } as const;
 
 export const LEVELS = [100, 200, 300, 400] as const;
+
+/**
+ * Hosts of official AWS documentation, matched exactly (lint L011, `analogyLimit.references`,
+ * `docs` of a concept in C012).
+ */
+export const OFFICIAL_DOC_HOSTS: readonly string[] = ["docs.aws.amazon.com", "aws.amazon.com"];
+
+/** Exact hostname match against OFFICIAL_DOC_HOSTS; any scheme other than https fails. */
+export const isOfficialReference = (url: string): boolean => {
+  const host = /^https:\/\/([^/?#:]+)/i.exec(url)?.[1]?.toLowerCase();
+  return host !== undefined && OFFICIAL_DOC_HOSTS.includes(host);
+};
 
 /** Palette modes a level resolves to (`auto` is resolved from the level by game-rules). */
 export const CONCRETE_PALETTE_MODES = ["curated", "categories", "categories-plus", "full"] as const;

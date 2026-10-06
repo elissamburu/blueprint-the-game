@@ -6,7 +6,9 @@ import {
   MAX_LENGTH,
   discriminatorMessage,
   discriminatorOf,
+  OFFICIAL_DOC_HOSTS,
   httpsUrl,
+  isOfficialReference,
   kebabId,
   level,
   oneOf,
@@ -92,6 +94,23 @@ export const GroupSchema = z.strictObject({
   parent: kebabId().nullable().optional().describe("Id del grupo padre (anidamiento) o null."),
 });
 
+/**
+ * Where the analogy of an answer stops being true (ADR-0027 §2). It carries its own official
+ * references because it states a different AWS fact than the one that justifies the grade.
+ */
+export const AnalogyLimitSchema = z.strictObject({
+  text: text(MAX_LENGTH.analogyLimit).describe("Markdown corto: dónde se rompe la analogía."),
+  references: z
+    .array(
+      httpsUrl().refine(isOfficialReference, {
+        error: (iss) =>
+          `${JSON.stringify(iss.input)} no es documentación oficial: usá ${OFFICIAL_DOC_HOSTS.join(" o ")}`,
+      }),
+    )
+    .min(1, { error: "Dónde se rompe la analogía necesita al menos una referencia oficial" })
+    .describe(`≥ 1, documentación oficial (${OFFICIAL_DOC_HOSTS.join(" o ")}).`),
+});
+
 export const AnswerSchema = z.strictObject({
   service: kebabId().describe("Id de content/catalog/services.yaml."),
   grade: oneOf(GRADES, "grade").describe(
@@ -102,6 +121,9 @@ export const AnswerSchema = z.strictObject({
     .min(1, { error: "Tiene que referenciar al menos un objetivo que justifique el grado" }),
   rationale: text(MAX_LENGTH.rationale),
   references: z.array(httpsUrl()).default([]),
+  analogyLimit: AnalogyLimitSchema.optional().describe(
+    "Dónde se rompe la analogía. Se muestra después de colocar, como la rationale.",
+  ),
 });
 
 export const IncorrectSchema = z.strictObject({
@@ -266,6 +288,7 @@ export type ExternalNode = z.infer<typeof ExternalNodeSchema>;
 export type FixedNode = z.infer<typeof FixedNodeSchema>;
 export type SlotNode = z.infer<typeof SlotNodeSchema>;
 export type Answer = z.infer<typeof AnswerSchema>;
+export type AnalogyLimit = z.infer<typeof AnalogyLimitSchema>;
 export type Grade = (typeof GRADES)[number];
 export type Incorrect = z.infer<typeof IncorrectSchema>;
 export type Edge = z.infer<typeof EdgeSchema>;

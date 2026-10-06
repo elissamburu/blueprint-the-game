@@ -69,6 +69,19 @@ describe("resolveIcons", () => {
     expect(resolution.missing).toEqual([{ id: "typo", icon: "Arch_AWS-Lamda_48" }]);
   });
 
+  it("skips concepts: they have no official icon and are not reported as unmapped", () => {
+    const resolution = resolveIcons(
+      [
+        { id: "lambda", type: "service", icon: "Arch_AWS-Lambda_48" },
+        { id: "region", type: "concept" },
+      ],
+      ENTRIES,
+    );
+    expect(resolution.resolved.map((icon) => icon.id)).toEqual(["lambda"]);
+    expect(resolution.unmapped).toEqual([]);
+    expect(resolution.missing).toEqual([]);
+  });
+
   it("reports icons that match more than one file", () => {
     const duplicated = [
       "Architecture-Service-Icons_07312026/Arch_Compute/48/Arch_AWS-Lambda_48.svg",

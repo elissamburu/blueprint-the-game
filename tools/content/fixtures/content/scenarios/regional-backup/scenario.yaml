@@ -1,0 +1,79 @@
+schemaVersion: 1
+id: regional-backup
+version: 1
+status: beta
+lang: es
+level: 100
+areas: [storage]
+title: "Copias de un estudio contable"
+summary: "Un estudio guarda los balances de sus clientes y quiere una copia lejos de la original."
+estimatedMinutes: 5
+authors:
+  - github: autora
+context: |
+  Un estudio contable guarda los balances de sus clientes.
+  Si un desastre natural afecta la zona donde están los archivos, no puede perderlos.
+objectives:
+  - id: survive-disaster
+    kind: hard
+    category: durability
+    text: "Los archivos sobreviven a un desastre que afecte a toda una zona geográfica."
+  - id: low-cost
+    kind: soft
+    category: cost
+    text: "Pagar solo por lo que se guarda."
+diagram:
+  canvas: { width: 1200, height: 700 }
+  groups:
+    - id: cloud
+      kind: aws-cloud
+      label: "Nube"
+      rect: { x: 200, y: 40, w: 960, h: 620 }
+      parent: null
+  nodes:
+    - id: accountant
+      type: actor
+      label: "Contadora"
+      icon: user
+      position: { x: 40, y: 300 }
+    - id: store
+      type: slot
+      role: "Almacenamiento durable donde quedan los balances originales."
+      position: { x: 300, y: 120 }
+      group: cloud
+      answers:
+        - service: s3
+          grade: optimal
+          objectives: [low-cost]
+          rationale: "Almacenamiento de objetos durable con pago por uso."
+          references:
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html
+      incorrect:
+        - service: efs
+          rationale: "Se monta desde cómputo; no recibe archivos de la contadora."
+    - id: copy-site
+      type: slot
+      role: "Lugar geográfico lejano donde se guarda la segunda copia."
+      position: { x: 600, y: 120 }
+      group: cloud
+      answers:
+        - service: region
+          grade: optimal
+          objectives: [survive-disaster]
+          rationale: "Está aislada geográficamente de la original: un desastre no afecta a las dos."
+          references:
+            - https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html
+          analogyLimit:
+            text: "No es una oficina más: cada una tiene sus propios servicios y los datos no se copian solos."
+            references:
+              - https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html
+      incorrect:
+        - service: availability-zone
+          violates: [survive-disaster]
+          rationale: "Está en la misma zona geográfica que la original: un desastre grande puede afectar a las dos."
+  edges:
+    - { id: e1, from: accountant, to: store, step: 1, label: "Sube el balance", style: data }
+    - { id: e2, from: store, to: copy-site, step: 2, label: "Copia el balance", style: async }
+palette:
+  mode: auto
+  extra: [dynamodb]

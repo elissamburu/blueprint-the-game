@@ -92,6 +92,9 @@ describe("lintSharedContent", () => {
       "C008",
       "C009",
       "C010",
+      "C011",
+      "C012",
+      "C013",
     ]);
     for (const rule of sharedRules) expect(rule.description).not.toBe("");
   });

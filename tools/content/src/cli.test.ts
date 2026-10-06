@@ -39,8 +39,9 @@ describe("content validate", () => {
     expect(stderr).toBe("");
     expect(stdout).toContain("✔ club-photos  (content/scenarios/club-photos/scenario.yaml)");
     expect(stdout).toContain("✔ photo-queue");
+    expect(stdout).toContain("✔ regional-backup");
     expect(stdout).not.toContain("_templates");
-    expect(stdout).toContain("OK: 0 errores, 0 warnings en 2 escenarios.");
+    expect(stdout).toContain("OK: 0 errores, 0 warnings en 3 escenarios.");
     expect(stdout).toContain("✔ Integridad entre archivos compartidos");
     expect(stdout.indexOf("Integridad")).toBeLessThan(stdout.indexOf("club-photos"));
   });
@@ -60,7 +61,7 @@ describe("content validate", () => {
     );
     expect(stdout).toContain("error   C003   content/catalog/confusion-groups.yaml › ");
     expect(stdout).toContain("✔ club-photos");
-    expect(stdout).toContain("FALLÓ: 2 errores, 0 warnings en 2 escenarios.");
+    expect(stdout).toContain("FALLÓ: 2 errores, 0 warnings en 3 escenarios.");
 
     const report = await validateJson();
     expect(report.integrity).toEqual([
@@ -115,7 +116,7 @@ describe("content validate", () => {
     expect(stdout).toContain("FILE");
     expect(stdout).toContain("Falta el archivo obligatorio content/catalog/services.yaml");
     expect(stdout).toContain("catálogo curado de servicios");
-    expect(stdout).toContain("Omitida C001-C010");
+    expect(stdout).toContain("Omitida C001-C013");
     expect(stdout).toContain("Omitida L001-L019");
     expect(stdout).not.toContain("Integridad entre archivos compartidos");
     noStackTrace(stdout + stderr);
@@ -149,7 +150,7 @@ describe("content validate", () => {
     expect(stdout).toContain("✖ club-photos  (content/scenarios/club-photos/scenario.yaml)");
     expect(stdout).toMatch(/error\s+L005\s+title: /);
     expect(stdout).toContain("✔ photo-queue");
-    expect(stdout).toMatch(/FALLÓ: \d+ errores?, 0 warnings en 2 escenarios\./);
+    expect(stdout).toMatch(/FALLÓ: \d+ errores?, 0 warnings en 3 escenarios\./);
   });
 
   it("reports schema errors with a readable path", async () => {
@@ -179,7 +180,7 @@ describe("content validate", () => {
     const { code, stdout } = await ws.cli("validate");
     expect(code).toBe(0);
     expect(stdout).toMatch(/warning\s+L005/);
-    expect(stdout).toContain("OK: 0 errores, 1 warning en 2 escenarios.");
+    expect(stdout).toContain("OK: 0 errores, 1 warning en 3 escenarios.");
   });
 
   it("reports out-of-date generated files as L012", async () => {
@@ -209,7 +210,11 @@ describe("content validate --base (L014)", () => {
   });
 
   const promoteFargate = () =>
-    ws.edit(CLUB, "        - service: fargate\n          grade: acceptable", "        - service: fargate\n          grade: optimal");
+    ws.edit(
+      CLUB,
+      "        - service: fargate\n          grade: acceptable",
+      "        - service: fargate\n          grade: optimal",
+    );
 
   it("fails when a beta scenario changes grades without bumping version", async () => {
     await promoteFargate();
@@ -257,7 +262,7 @@ describe("content gen", () => {
   it("--check passes when generated files are up to date", async () => {
     const { code, stdout } = await ws.cli("gen", "--check");
     expect(code).toBe(0);
-    expect(stdout).toContain("OK: 4 archivo/s generado/s al día.");
+    expect(stdout).toContain("OK: 6 archivo/s generado/s al día.");
   });
 
   it("--check fails on outdated or missing files and does not write", async () => {
@@ -277,7 +282,7 @@ describe("content gen", () => {
     const { code, stdout } = await ws.cli("gen");
     expect(code).toBe(0);
     expect(stdout).toContain("escrito content/scenarios/club-photos/README.md");
-    expect(stdout).toContain("OK: 1 archivo/s escrito/s, 3 sin cambios.");
+    expect(stdout).toContain("OK: 1 archivo/s escrito/s, 5 sin cambios.");
     expect((await ws.cli("gen", "--check")).code).toBe(0);
   });
 
@@ -309,7 +314,7 @@ describe("content build", () => {
   it("leaves drafts out by default and lists only beta and published scenarios", async () => {
     const { code, stdout } = await ws.cli("build");
     expect(code).toBe(0);
-    expect(stdout).toContain("5 archivos; 1 escenario/s en index.json");
+    expect(stdout).toContain("6 archivos; 2 escenario/s en index.json");
     expect(stdout).toContain("1 draft/s excluido/s (usá --include-drafts en desarrollo local)");
     expect((await readdir(ws.outDir)).sort()).toEqual([
       "badges.json",
@@ -317,29 +322,61 @@ describe("content build", () => {
       "club-photos.v1.json",
       "game-rules.json",
       "index.json",
+      "regional-backup.v1.json",
     ]);
     const index = await readIndex();
     // The game validates index.json with this same schema when it loads the bundle.
     expect(parseBundleIndex(index).success).toBe(true);
     expect(index.scenarios.map((s) => [s.id, s.status, s.file])).toEqual([
       ["club-photos", "beta", "club-photos.v1.json"],
+      ["regional-backup", "beta", "regional-backup.v1.json"],
     ]);
     const catalog = JSON.parse(await readFile(path.join(ws.outDir, "catalog.json"), "utf8")) as {
       services: unknown[];
     };
-    expect(catalog.services).toHaveLength(8);
+    expect(catalog.services).toHaveLength(10);
     expect(parseBundleCatalog(catalog).success).toBe(true);
+  });
+
+  it("bundles a level 100 scenario that uses a concept, with type, plainName, glyph and kind", async () => {
+    expect((await ws.cli("build")).code).toBe(0);
+    const catalog = JSON.parse(await readFile(path.join(ws.outDir, "catalog.json"), "utf8")) as {
+      services: Record<string, unknown>[];
+      categories: Record<string, unknown>[];
+    };
+    expect(catalog.services.find((s) => s["id"] === "s3")?.["type"]).toBe("service");
+    expect(catalog.services.find((s) => s["id"] === "region")).toMatchObject({
+      type: "concept",
+      plainName: "Lugar del mundo",
+      glyph: "region",
+    });
+    expect(catalog.categories.find((c) => c["id"] === "concept-global-infrastructure")).toEqual({
+      id: "concept-global-infrastructure",
+      name: "Infraestructura global",
+      kind: "concept",
+      adjacent: [],
+    });
+    const scenario = JSON.parse(
+      await readFile(path.join(ws.outDir, "regional-backup.v1.json"), "utf8"),
+    ) as { level: number; diagram: { nodes: { id: string; answers?: unknown[] }[] } };
+    expect(scenario.level).toBe(100);
+    const copySite = scenario.diagram.nodes.find((n) => n.id === "copy-site");
+    expect(copySite?.answers?.[0]).toMatchObject({
+      service: "region",
+      analogyLimit: { references: [expect.stringMatching(/^https:\/\/docs\.aws\.amazon\.com\//)] },
+    });
   });
 
   it("bundles and lists drafts with --include-drafts", async () => {
     const { code, stdout } = await ws.cli("build", "--include-drafts");
     expect(code).toBe(0);
-    expect(stdout).toContain("6 archivos; 2 escenario/s en index.json).\n");
+    expect(stdout).toContain("7 archivos; 3 escenario/s en index.json).\n");
     expect(await readdir(ws.outDir)).toContain("photo-queue.v1.json");
     const index = await readIndex();
     expect(index.scenarios.map((s) => [s.id, s.status])).toEqual([
       ["club-photos", "beta"],
       ["photo-queue", "draft"],
+      ["regional-backup", "beta"],
     ]);
   });
 
@@ -348,9 +385,9 @@ describe("content build", () => {
     await ws.cli("gen");
     const { code, stdout } = await ws.cli("build");
     expect(code).toBe(0);
-    expect(stdout).toContain("5 archivos; 0 escenario/s en index.json");
+    expect(stdout).toContain("6 archivos; 1 escenario/s en index.json");
     expect(await readdir(ws.outDir)).toContain("club-photos.v1.json");
-    expect((await readIndex()).scenarios).toEqual([]);
+    expect((await readIndex()).scenarios.map((s) => s.id)).toEqual(["regional-backup"]);
   });
 
   it("removes a draft written by a previous --include-drafts build", async () => {
@@ -377,7 +414,9 @@ describe("content build", () => {
     const { code, stdout } = await ws.cli("build");
     expect(code).toBe(1);
     expect(stdout).toContain("L005");
-    expect(stdout).toContain("FALLÓ: content:build necesita que content:validate pase sin errores.");
+    expect(stdout).toContain(
+      "FALLÓ: content:build necesita que content:validate pase sin errores.",
+    );
     await expect(stat(ws.outDir)).rejects.toThrow();
   });
 });

@@ -18,7 +18,7 @@ describe("C005 unique ids in shared files", () => {
       input.gameRules.ranks[1]!.id = "aprendiz";
     });
     expect(issues.map((issue) => issue.path)).toEqual([
-      ["catalog", 9, "id"],
+      ["catalog", 10, "id"],
       ["categories", 1, "id"],
       ["confusionGroups", 1, "id"],
       ["areas", 1, "id"],
@@ -29,7 +29,7 @@ describe("C005 unique ids in shared files", () => {
       code: "C005",
       severity: "error",
       message: 'El id "s3" está repetido en catalog/services.yaml: cada id tiene que ser único.',
-      path: ["catalog", 9, "id"],
+      path: ["catalog", 10, "id"],
     });
     expect(issues[5]?.message).toBe(
       'El id "aprendiz" está repetido en los rangos de game-rules.yaml: cada id tiene que ser único.',
