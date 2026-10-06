@@ -66,6 +66,11 @@ export const SaveResponseSchema = z.strictObject({
   hash: HashSchema,
   /** Generated files rewritten because their content changed. */
   regenerated: z.array(z.enum(GENERATED_FILES)),
+  /**
+   * A draft saved although it fails the schema: diagram.mmd and README.md were not regenerated
+   * (ADR-0025, S10 as amended on 2026-10-05).
+   */
+  generatedSkipped: z.boolean(),
 });
 export type SaveResponse = z.infer<typeof SaveResponseSchema>;
 
@@ -144,8 +149,8 @@ export const ERROR_CODES = [
    */
   "conflict",
   /**
-   * S10: YAML with a syntax error, a scenario that fails the schema or an id that does not match;
-   * when creating, a source scenario whose YAML cannot be read.
+   * S10: YAML with a syntax error, a scenario that is not a draft and fails the schema, or an id
+   * that does not match; when creating, a source scenario whose YAML cannot be read.
    */
   "invalid-scenario",
   /** The shared files (catalog, game-rules, …) are missing or invalid. */

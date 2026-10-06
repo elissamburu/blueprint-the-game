@@ -228,10 +228,12 @@ export const createContentStore = ({
     }
     const shared = await readShared();
     // S10: revalidate YAML, schema and id before writing anything. Lint findings do not block
-    // saving: a draft can be saved while it is being fixed.
+    // saving, and a draft that parses is saved even if it fails the schema (ADR-0025, S10 as
+    // amended on 2026-10-05): the author does not lose the work while it is being fixed.
     const validation = validateScenarioText(yaml, id, shared);
+    const { scenario, header } = validation;
     const first = validation.findings[0];
-    if (validation.scenario === undefined) {
+    if (scenario === undefined && (validation.stage === "yaml" || header?.status !== "draft")) {
       const where = first !== undefined && first.where !== "" ? ` (${first.where})` : "";
       throw new StudioError(
         422,
@@ -240,17 +242,25 @@ export const createContentStore = ({
         first?.line,
       );
     }
-    if (validation.scenario.id !== id) {
+    const writtenId = scenario?.id ?? header?.id;
+    if (writtenId !== id) {
       throw new StudioError(
         422,
         "invalid-scenario",
-        `No se guardó: el id del escenario ("${validation.scenario.id}") tiene que ser igual al nombre de su carpeta ("${id}").`,
+        writtenId === undefined
+          ? `No se guardó: falta el id del escenario, que tiene que ser igual al nombre de su carpeta ("${id}").`
+          : `No se guardó: el id del escenario ("${writtenId}") tiene que ser igual al nombre de su carpeta ("${id}").`,
       );
     }
 
     await writeFileAtomic(fs, current.path, yaml);
-    const regenerated = await writeGenerated(id, validation.scenario, shared);
-    return { hash: sha256(yaml), regenerated };
+    // The generator needs a valid scenario: a draft that fails the schema keeps the generated
+    // files as they were, and the response says so.
+    if (scenario === undefined) {
+      return { hash: sha256(yaml), regenerated: [], generatedSkipped: true };
+    }
+    const regenerated = await writeGenerated(id, scenario, shared);
+    return { hash: sha256(yaml), regenerated, generatedSkipped: false };
   };
 
   const saveScenario: ContentStore["saveScenario"] = (id, yaml, baseHash) =>

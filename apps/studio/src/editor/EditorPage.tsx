@@ -25,7 +25,12 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useBlocker, useLocation, useParams } from "react-router";
 import { CreateResponseSchema, type CreateResponse } from "../../shared/api";
-import type { StudioFinding } from "../../shared/validation";
+import {
+  countFindings,
+  isDraft,
+  validateScenarioText,
+  type StudioFinding,
+} from "../../shared/validation";
 import { api, ApiError } from "../api/client";
 import { usePageTitle } from "../app/page-title";
 import { ValidationPanel } from "../validation/ValidationPanel";
@@ -48,7 +53,8 @@ interface Opened {
 type SaveState =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved"; regenerated: string[] }
+  /** `skippedWithErrors`: a draft saved with errors, without regenerating the generated files. */
+  | { kind: "saved"; regenerated: string[]; skippedWithErrors?: number }
   | { kind: "error"; message: string; line?: number }
   | { kind: "conflict" };
 
@@ -124,7 +130,16 @@ export function EditorPage() {
     api.saveScenario(id, { yaml: sent, baseHash: saved.hash }).then(
       (result) => {
         setSaved({ text: sent, hash: result.hash });
-        setSave({ kind: "saved", regenerated: result.regenerated });
+        setSave({
+          kind: "saved",
+          regenerated: result.regenerated,
+          ...(result.generatedSkipped && shared !== undefined
+            ? {
+                skippedWithErrors: countFindings(validateScenarioText(sent, id, shared).findings)
+                  .errors,
+              }
+            : {}),
+        });
       },
       (error: unknown) => {
         if (error instanceof ApiError && error.code === "conflict") {
@@ -138,7 +153,7 @@ export function EditorPage() {
         }
       },
     );
-  }, [id, load.kind, save.kind, saved.hash, text]);
+  }, [id, load.kind, save.kind, saved.hash, shared, text]);
 
   // Unsaved changes: the browser asks before closing or reloading the tab, and the app before
   // leaving the page.
@@ -177,6 +192,9 @@ export function EditorPage() {
     editor.current?.focusLine(finding.line, finding.column);
   };
   const title = validation.result?.scenario?.title ?? id;
+  // ADR-0025, S10 as amended: a draft with errors is saved anyway, without the generated files.
+  const draftWithErrors =
+    isDraft(validation.result) && countFindings(validation.result?.findings ?? []).errors > 0;
   const editText = (commands: readonly EditCommand[], isolate: boolean) => {
     if (editor.current === null) throw new EditError("El editor no está listo");
     editor.current.edit(commands, isolate);
@@ -192,6 +210,9 @@ export function EditorPage() {
         return t("editor.state.error");
       default:
         if (dirty) return t("editor.state.dirty");
+        if (save.kind === "saved" && save.skippedWithErrors !== undefined) {
+          return t("editor.savedSkipped", { count: save.skippedWithErrors });
+        }
         return save.kind === "saved" && save.regenerated.length > 0
           ? t("editor.savedRegenerated", { files: save.regenerated.join(", ") })
           : t("editor.state.saved");
@@ -230,7 +251,11 @@ export function EditorPage() {
               {t("editor.download.button")}
             </Button>
             <Button onClick={onSave} disabled={save.kind === "saving"}>
-              {save.kind === "saving" ? t("editor.saving") : t("editor.save")}
+              {save.kind === "saving"
+                ? t("editor.saving")
+                : draftWithErrors
+                  ? t("editor.saveDraft")
+                  : t("editor.save")}
             </Button>
           </>
         )}

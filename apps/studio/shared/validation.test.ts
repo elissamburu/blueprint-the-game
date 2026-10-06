@@ -11,7 +11,7 @@ import { nodeFs } from "../server/fs.js";
 import { createWorkspace, realScenarioIds, type Workspace } from "../server/testing/workspace.js";
 import type { SharedContent } from "./api.js";
 import { FIXTURE_SCENARIO_IDS } from "./testing/fixture-scenarios.js";
-import { describePath, validateScenarioText } from "./validation.js";
+import { describePath, isDraft, validateScenarioText } from "./validation.js";
 
 let workspace: Workspace;
 let shared: SharedContent;
@@ -99,6 +99,26 @@ describe("validateScenarioText", () => {
     const yaml = validateScenarioText(broken.join("\n"), id, shared);
     expect(yaml.stage).toBe("yaml");
     expect(yaml.findings[0]?.line).toBeGreaterThanOrEqual(6);
+  });
+
+  it("keeps the id and status as written when the text parses, even if it fails the schema", async () => {
+    const id = "static-website-https";
+    const text = await readFile(workspace.scenarioFile(id), "utf8");
+    const draft = text.replace(/^status: beta$/m, "status: draft");
+
+    const failing = validateScenarioText(draft.replace(/^level: \d+$/m, "level: 250"), id, shared);
+    expect(failing.stage).toBe("schema");
+    expect(failing.header).toEqual({ id, status: "draft" });
+    expect(isDraft(failing)).toBe(true);
+
+    const valid = validateScenarioText(text, id, shared);
+    expect(valid.header).toEqual({ id, status: "beta" });
+    expect(isDraft(valid)).toBe(false);
+
+    const broken = validateScenarioText(`${draft}\nroto: [`, id, shared);
+    expect(broken.header).toBeUndefined();
+    expect(isDraft(broken)).toBe(false);
+    expect(isDraft(undefined)).toBe(false);
   });
 
   it("points a missing field to its parent and a nested one to its key", () => {

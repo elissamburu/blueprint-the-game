@@ -75,6 +75,7 @@
     "loading": "Abriendo el escenario…",
     "loadFailed": "No se pudo abrir el escenario: {{message}}",
     "save": "Guardar",
+    "saveDraft": "Guardar borrador",
     "saving": "Guardando…",
     "state": {
       "saved": "Guardado",
@@ -84,6 +85,8 @@
       "conflict": "No se guardó: el archivo cambió en disco"
     },
     "savedRegenerated": "Guardado. Se regeneraron: {{files}}.",
+    "savedSkipped_one": "Guardado con {{count}} error: diagram.mmd y README.md sin regenerar",
+    "savedSkipped_other": "Guardado con {{count}} errores: diagram.mmd y README.md sin regenerar",
     "yamlTitle": "scenario.yaml",
     "yamlLabel": "Editor YAML de {{id}}",
     "keyboardHelp": "Tab indenta. Para salir del editor con el teclado: Esc y después Tab (o Mayús + Tab). Ctrl + S guarda.",
@@ -103,7 +106,7 @@
     },
     "created": {
       "title": "Escenario creado",
-      "body": "Está en content/scenarios/{{id}}/ como borrador. Guardalo cuando pase la validación: al guardar se regeneran diagram.mmd y README.md.",
+      "body": "Está en content/scenarios/{{id}}/ como borrador. Como es un borrador, lo podés guardar aunque tenga errores: diagram.mmd y README.md se regeneran al guardar cuando pase el schema.",
       "noAuthor": "No encontramos tu usuario de GitHub en la configuración de git (github.user, o user.name si es un usuario de GitHub): agregalo en «Autores».",
       "addAuthor": "Ir a «Autores»",
       "dismiss": "Cerrar aviso"
