@@ -57,7 +57,8 @@ export const saveState = (page: Page): Locator => page.locator("[data-save-state
 
 export const openScenario = async (page: Page, title: RegExp | string) => {
   await page.goto("/");
-  await page.getByRole("link", { name: title }).click();
+  // Exact: a copy made in the Studio keeps the title of its source and adds " (copia)".
+  await page.getByRole("link", { name: title, exact: true }).click();
   await expect(editorContent(page)).toBeVisible();
   await expect(validationSummary(page)).not.toBeEmpty();
 };

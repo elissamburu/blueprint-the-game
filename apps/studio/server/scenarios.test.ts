@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The scenario API over a temporary copy of content/: S5 (path traversal), S8 (never overwrite
-// blindly), S10 (validation at the border), the round trip of the 8 scenarios and the generator.
+// blindly), S10 (validation at the border), the round trip of every scenario and the generator.
 import { mkdir, readFile, symlink, writeFile } from "node:fs/promises";
 import path from "node:path";
 import { renderGeneratedFiles } from "@blueprint/content-lint";
@@ -14,6 +14,7 @@ import {
   ScenarioListResponseSchema,
   SharedResponseSchema,
 } from "../shared/api.js";
+import { FIXTURE_SCENARIO_IDS } from "../shared/testing/fixture-scenarios.js";
 import { sha256 } from "./content-store.js";
 import {
   createWorkspace,
@@ -57,7 +58,7 @@ describe("GET /api/scenarios", () => {
     const site = scenarios.find((s) => s.id === ID);
     expect(site).toMatchObject({ level: 100, hasErrors: false });
     expect(site?.title).toEqual(expect.any(String));
-    expect(scenarios.every((s) => !s.hasErrors)).toBe(true);
+    expect(scenarios.filter((s) => s.hasErrors).map((s) => s.id)).toEqual([]);
   });
 
   it("marks a scenario with errors and keeps listing the others", async () => {
@@ -72,7 +73,7 @@ describe("GET /api/scenarios", () => {
       status: null,
       hasErrors: true,
     });
-    expect(scenarios.filter((s) => s.hasErrors)).toHaveLength(1);
+    expect(scenarios.filter((s) => s.hasErrors).map((s) => s.id)).toEqual([ID]);
   });
 });
 
@@ -330,9 +331,9 @@ describe("S10: validation at the border", () => {
 });
 
 describe("PUT /api/scenarios/:id", () => {
-  it("opening and saving without changes leaves the 8 scenarios and their generated files identical byte for byte", async () => {
+  it("opening and saving without changes leaves every scenario and its generated files identical byte for byte", async () => {
     const ids = await realScenarioIds();
-    expect(ids).toHaveLength(8);
+    expect(ids).toEqual(expect.arrayContaining([...FIXTURE_SCENARIO_IDS]));
     const app = testApp(workspace);
     for (const id of ids) {
       const before = await Promise.all(

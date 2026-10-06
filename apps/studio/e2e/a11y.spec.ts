@@ -1,12 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // axe on the two pages of the Studio (docs/accesibilidad.md §7): the list and the editor, also
-// with findings in the validation panel, and the whole form of the 8 scenarios. It does not
+// with findings in the validation panel, and the whole form of the fixture scenarios. It does not
 // replace the manual tests of that protocol.
-import { readdir, readFile } from "node:fs/promises";
-import path from "node:path";
+import { readFile } from "node:fs/promises";
 import { expect, test } from "@playwright/test";
+import { FIXTURE_SCENARIO_IDS } from "../shared/testing/fixture-scenarios";
 import {
-  E2E_CONTENT,
   editorContent,
   expectNoViolations,
   openScenario,
@@ -64,23 +63,18 @@ test("pestañas «Jugar» y «Respuestas», también en partida y con el resumen
   await expectNoViolations(page, "Respuestas");
 });
 
-/** The 8 scenarios of the copy, with their titles as they are now (other specs edit some). */
-const scenarios = async (): Promise<{ id: string; title: string }[]> => {
-  const ids = (await readdir(path.join(E2E_CONTENT, "scenarios"))).filter(
-    (id) => !id.startsWith("_"),
-  );
-  return Promise.all(
-    ids.map(async (id) => {
+/** The fixture scenarios in the copy, with their titles as they are now (other specs edit some). */
+const scenarios = (): Promise<{ id: string; title: string }[]> =>
+  Promise.all(
+    FIXTURE_SCENARIO_IDS.map(async (id) => {
       const text = await readFile(scenarioFile(id), "utf8");
       return { id, title: /^title: "(.*)"$/m.exec(text)?.[1] ?? id };
     }),
   );
-};
 
-test("formulario completo de los 8 escenarios, también con errores", async ({ page }) => {
+test("formulario completo de los escenarios de prueba, también con errores", async ({ page }) => {
   test.setTimeout(180_000);
   const all = await scenarios();
-  expect(all).toHaveLength(8);
   for (const { id, title } of all) {
     await openScenario(page, title);
     const form = page.getByRole("tabpanel", { name: "Formulario" });

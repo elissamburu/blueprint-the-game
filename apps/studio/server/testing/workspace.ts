@@ -5,6 +5,7 @@ import { cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { ScenarioIdSchema } from "../../shared/api.js";
 import { createApp } from "../app.js";
 import { REPO_ROOT } from "../config.js";
 import { nodeFs, type ContentFs } from "../fs.js";
@@ -85,10 +86,10 @@ export const createWorkspace = async (): Promise<Workspace> => {
   };
 };
 
-/** Ids of the scenarios of the real content/ (folders not starting with `_`). */
+/** Ids of the scenarios of the real content/: the folders named with a scenario id, as the API. */
 export const realScenarioIds = async (): Promise<string[]> =>
   (await readdir(path.join(REAL_CONTENT, "scenarios"), { withFileTypes: true }))
-    .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
+    .filter((entry) => entry.isDirectory() && ScenarioIdSchema.safeParse(entry.name).success)
     .map((entry) => entry.name)
     .sort();
 

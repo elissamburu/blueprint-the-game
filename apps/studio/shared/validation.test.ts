@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The validation of the browser gives the same findings as pnpm content:validate (same code,
-// severity, message and path) on the 8 scenarios, as they are and broken on purpose, over a
+// severity, message and path) on every scenario, as they are and broken on purpose, over a
 // temporary copy of content/. L012 and L014 are left out: they do not run in the Studio.
 import { readFile, writeFile } from "node:fs/promises";
 import path from "node:path";
@@ -10,6 +10,7 @@ import { createContentStore } from "../server/content-store.js";
 import { nodeFs } from "../server/fs.js";
 import { createWorkspace, realScenarioIds, type Workspace } from "../server/testing/workspace.js";
 import type { SharedContent } from "./api.js";
+import { FIXTURE_SCENARIO_IDS } from "./testing/fixture-scenarios.js";
 import { describePath, validateScenarioText } from "./validation.js";
 
 let workspace: Workspace;
@@ -50,8 +51,8 @@ const VARIANTS: Record<string, (text: string, id: string) => string> = {
 };
 
 describe("validateScenarioText", () => {
-  it("validates the 8 scenarios of content/", () => {
-    expect(ids).toHaveLength(8);
+  it("validates every scenario of content/", () => {
+    expect(ids).toEqual(expect.arrayContaining([...FIXTURE_SCENARIO_IDS]));
   });
 
   it.each(Object.keys(VARIANTS))(
