@@ -28,7 +28,7 @@ describe("api client", () => {
   });
 
   it("sends saves as JSON with the base hash", async () => {
-    const fetch = respond(200, { hash: "a".repeat(64), regenerated: [] });
+    const fetch = respond(200, { hash: "a".repeat(64), regenerated: [], generatedSkipped: false });
     await api.saveScenario("abc", { yaml: "x", baseHash: "b".repeat(64) });
     const [url, init] = fetch.mock.calls[0] ?? [];
     expect(url).toBe("/api/scenarios/abc");

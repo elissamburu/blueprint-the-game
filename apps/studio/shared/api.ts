@@ -66,6 +66,11 @@ export const SaveResponseSchema = z.strictObject({
   hash: HashSchema,
   /** Generated files rewritten because their content changed. */
   regenerated: z.array(z.enum(GENERATED_FILES)),
+  /**
+   * A draft saved although it fails the schema: diagram.mmd and README.md were not regenerated
+   * (ADR-0025, S10 as amended on 2026-10-05).
+   */
+  generatedSkipped: z.boolean(),
 });
 export type SaveResponse = z.infer<typeof SaveResponseSchema>;
 
@@ -125,8 +130,13 @@ export type SharedContent = z.infer<typeof SharedResponseSchema>;
 export const ERROR_CODES = [
   /** S2: Host header other than 127.0.0.1:<port> or localhost:<port>. */
   "misdirected-request",
-  /** S3: foreign or missing Origin, cross-site Sec-Fetch-Site or a wrong token. */
+  /** S3: foreign or missing Origin, or cross-site Sec-Fetch-Site. */
   "forbidden",
+  /**
+   * S3: a missing or wrong session token, e.g. the page was loaded before the server restarted:
+   * only reloading the page gets the new one.
+   */
+  "invalid-token",
   /** S3: a body that is not application/json. */
   "unsupported-media-type",
   /** S6: body over 1 MiB. */
@@ -144,8 +154,8 @@ export const ERROR_CODES = [
    */
   "conflict",
   /**
-   * S10: YAML with a syntax error, a scenario that fails the schema or an id that does not match;
-   * when creating, a source scenario whose YAML cannot be read.
+   * S10: YAML with a syntax error, a scenario that is not a draft and fails the schema, or an id
+   * that does not match; when creating, a source scenario whose YAML cannot be read.
    */
   "invalid-scenario",
   /** The shared files (catalog, game-rules, …) are missing or invalid. */

@@ -63,7 +63,7 @@ CodeMirror 6 (`@codemirror/*`, editor YAML con diagnósticos) y `elkjs` (auto-la
 | S7 | Escritura atómica | Se escribe en un archivo temporal en la misma carpeta (patrón `*.studio-tmp`, ignorado por git) y se hace `rename`, con reintentos ante `EPERM`/`EBUSY` en Windows. Ante un error se borra solo ese temporal. | Si la escritura falla antes del `rename`, el archivo original queda intacto y no quedan temporales. |
 | S8 | Nunca borrar ni pisar a ciegas | Sin rutas para borrar ni renombrar escenarios. Crear usa `mkdir` exclusivo: si la carpeta existe, 409. Guardar exige el hash del archivo tal como se leyó: si cambió en disco desde entonces, 409 y no se escribe. | Guardar con un hash viejo o sin hash devuelve 409 y el archivo no cambia; crear un `id` existente devuelve 409. |
 | S9 | Headers de seguridad | `Content-Security-Policy: default-src 'self'; style-src 'self' 'unsafe-inline'; frame-ancestors 'none'` (CodeMirror y React Flow usan estilos inline), `X-Content-Type-Options: nosniff`, `Referrer-Policy: no-referrer`. | Los headers están en `/` y en `/api/*`. |
-| S10 | Validación en la frontera | Zod en cada request y respuesta. Antes de escribir, el servidor revalida YAML y schema, y que el `id` del contenido sea igual al de la ruta. | Un YAML con error de sintaxis o que no pasa el schema devuelve 422 sin escribir. |
+| S10 | Validación en la frontera | Zod en cada request y respuesta. Antes de escribir, el servidor revalida YAML y schema, y que el `id` del contenido sea igual al de la ruta. Un escenario con `status: draft` se guarda aunque no pase el schema ni el lint, si el YAML parsea y el `id` es el de la ruta; en ese caso no se regeneran `diagram.mmd` ni `README.md`, y la respuesta lo dice ([Enmiendas, 2026-10-05](#enmiendas)). | Un YAML con error de sintaxis devuelve 422 sin escribir, aunque sea un borrador. Un escenario que no es borrador y no pasa el schema devuelve 422 sin escribir. Un borrador que no pasa el schema se guarda (200) sin regenerar los archivos generados. Un `id` distinto al de la ruta devuelve 422 sin escribir, también en un borrador. |
 | S11 | Sin procesos en F2 | El servidor no ejecuta procesos (`child_process`, `execFile`, `spawn`, `exec`, `fork`). Una regla de ESLint `no-restricted-imports` sobre `node:child_process` y `child_process` en `apps/studio/server` lo impide. Crear el PR con `gh` (RF-STU-15, F5) revisa esta regla con un ADR propio. | `pnpm lint` falla con un archivo de prueba que importa `node:child_process` en `apps/studio/server`. |
 | S12 | El token no se filtra | El token se genera con 32 bytes aleatorios en cada arranque, vive solo en memoria y **nunca** se escribe en logs, mensajes de error ni archivos, tampoco en modo desarrollo. | Dos arranques generan tokens distintos; capturando la salida del servidor durante una sesión completa (incluido un error), el token no aparece. |
 
@@ -94,6 +94,17 @@ CodeMirror 6 (`@codemirror/*`, editor YAML con diagnósticos) y `elkjs` (auto-la
 - El **preview** y la vista de **respuestas** siguen usando el último escenario válido, sin cambios.
 - Si el YAML **no parsea**, el canvas queda en solo lectura con el último borrador válido y el aviso de la línea del error, como el resto de las vistas.
 - Las ediciones del canvas siguen siendo comandos sobre el `Document` por el path más fino (una sola pila de deshacer); el borrador solo cambia qué se dibuja, no cómo se edita.
+
+### 2026-10-05 · Un borrador se guarda aunque no pase el schema (§4, S10)
+**Motivo.** En uso real, un escenario nuevo o a medio escribir no pasa el schema durante un buen rato (un casillero sin respuestas, un objetivo sin texto), y S10 impedía guardarlo: el trabajo quedaba solo en la memoria del navegador hasta completar todo. El lint ya no bloqueaba el guardado; el schema sí.
+
+**Precisión.**
+- Si el YAML **parsea**, su `status` es `draft` y su `id` es igual al de la ruta, el servidor lo guarda **aunque no pase el schema ni el lint**. En ese caso **no** regenera `diagram.mmd` ni `README.md` (el generador necesita un escenario válido) y la respuesta lo dice (`generatedSkipped: true`), para que la UI avise que quedaron sin regenerar.
+- Un YAML que **no parsea** se sigue rechazando con 422, sea o no un borrador: sin un documento no hay `status` ni `id` que verificar.
+- Un `id` distinto al de la ruta se sigue rechazando con 422, también en un borrador.
+- Para un escenario que **no** es `draft`, S10 queda como estaba: tiene que pasar el schema, y el lint no bloquea.
+- No cambian Zod en la frontera (request y respuesta), el límite de tamaño (S6) ni el control del hash (S8).
+- Un borrador inválido guardado en `content/` hace fallar `pnpm content:validate` y el CI hasta que se corrija, como cualquier otro error: la enmienda solo evita perder trabajo en la copia local del autor.
 
 ## Referencias
 - Hono — [Node.js (`@hono/node-server`)](https://hono.dev/docs/getting-started/nodejs), [Body Limit](https://hono.dev/docs/middleware/builtin/body-limit), [CSRF Protection](https://hono.dev/docs/middleware/builtin/csrf)

@@ -67,6 +67,20 @@ export const openScenario = async (page: Page, title: RegExp | string) => {
 export const cursorLine = async (page: Page): Promise<number> =>
   Number(await page.locator(".cm-activeLineGutter").first().innerText());
 
+/**
+ * Moves the cursor of the YAML editor to the end of a line (1-based) with the keyboard. Long lines
+ * wrap, so ArrowDown and End work on visual lines: it goes down to the start of the next line and
+ * back one character.
+ */
+export const goToLineEnd = async (page: Page, line: number) => {
+  await editorContent(page).click();
+  await page.keyboard.press("Control+Home");
+  while ((await cursorLine(page)) <= line) await page.keyboard.press("ArrowDown");
+  await page.keyboard.press("Home");
+  await page.keyboard.press("ArrowLeft");
+  expect(await cursorLine(page)).toBe(line);
+};
+
 /** axe on the page as it is now; the violations are soft failures, named by `screen`. */
 export const expectNoViolations = async (page: Page, screen: string) => {
   const { violations } = await new AxeBuilder({ page }).analyze();

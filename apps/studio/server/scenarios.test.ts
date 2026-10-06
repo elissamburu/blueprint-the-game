@@ -284,6 +284,13 @@ describe("S10: validation at the border", () => {
     return error;
   };
 
+  /** The scenario of the tests as a draft: its status is beta on disk. */
+  const asDraft = (text: string): string => {
+    const draft = text.replace(/^status: beta$/m, "status: draft");
+    expect(draft).not.toBe(text);
+    return draft;
+  };
+
   it("S10: a YAML with a syntax error gets 422 with its line, without writing", async () => {
     const opened = await workspace.read(ID);
     const lines = opened.toString("utf8").split("\n");
@@ -294,10 +301,19 @@ describe("S10: validation at the border", () => {
       "invalid-scenario",
     );
     expect(error.message).toContain("YAML inválido");
+    // The UI says "No se guardó:" before the message: the server does not repeat it.
+    expect(error.message).not.toMatch(/^No se guardó/);
     expect(error.line).toBeGreaterThanOrEqual(5);
   });
 
-  it("S10: a scenario that fails the schema gets 422, without writing", async () => {
+  it("S10: a draft whose YAML does not parse gets 422, without writing", async () => {
+    const opened = await workspace.read(ID);
+    const yaml = `${asDraft(opened.toString("utf8"))}\nroto: [sin cerrar\n`;
+    const error = await expectRejected({ yaml, baseHash: sha256(opened) }, 422, "invalid-scenario");
+    expect(error.message).toContain("YAML inválido");
+  });
+
+  it("S10: a scenario that is not a draft and fails the schema gets 422, without writing", async () => {
     const opened = await workspace.read(ID);
     const yaml = opened.toString("utf8").replace(/^level: \d+$/m, "level: 250");
     const error = await expectRejected({ yaml, baseHash: sha256(opened) }, 422, "invalid-scenario");
@@ -305,11 +321,56 @@ describe("S10: validation at the border", () => {
     expect(error.line).toBeGreaterThan(1);
   });
 
+  it("S10: a draft that fails the schema is saved (200) without regenerating the generated files", async () => {
+    const opened = await workspace.read(ID);
+    const generated = await Promise.all(
+      ["diagram.mmd", "README.md"].map((name) => workspace.read(ID, name)),
+    );
+    // Fails the schema, and would change README.md if it were regenerated.
+    const yaml = asDraft(opened.toString("utf8"))
+      .replace(/^level: \d+$/m, "level: 250")
+      .replace(/^title: .*$/m, "title: Otro título");
+    const response = await put(testApp(workspace), ID, { yaml, baseHash: sha256(opened) });
+    expect(response.status).toBe(200);
+    expect(SaveResponseSchema.parse(await response.json())).toEqual({
+      hash: sha256(yaml),
+      regenerated: [],
+      generatedSkipped: true,
+    });
+    expect((await workspace.read(ID)).toString("utf8")).toBe(yaml);
+    const after = await Promise.all(
+      ["diagram.mmd", "README.md"].map((name) => workspace.read(ID, name)),
+    );
+    after.forEach((bytes, i) => expect(bytes.equals(generated[i] ?? Buffer.alloc(0))).toBe(true));
+    expect(await workspace.tmpFiles(ID)).toEqual([]);
+  });
+
   it("S10: a scenario whose id is not its folder gets 422, without writing", async () => {
     const opened = await workspace.read(ID);
     const yaml = opened.toString("utf8").replace(`id: ${ID}`, "id: otro-escenario");
     const error = await expectRejected({ yaml, baseHash: sha256(opened) }, 422, "invalid-scenario");
     expect(error.message).toContain("otro-escenario");
+    expect(error.message).not.toMatch(/^No se guardó/);
+  });
+
+  it("S10: a draft that fails the schema and whose id is not its folder gets 422, without writing", async () => {
+    const opened = await workspace.read(ID);
+    const draft = asDraft(opened.toString("utf8")).replace(/^level: \d+$/m, "level: 250");
+    const renamed = draft.replace(`id: ${ID}`, "id: otro-escenario");
+    const error = await expectRejected(
+      { yaml: renamed, baseHash: sha256(opened) },
+      422,
+      "invalid-scenario",
+    );
+    expect(error.message).toContain("otro-escenario");
+    const missing = draft.replace(`id: ${ID}\n`, "");
+    expect(missing).not.toBe(draft);
+    const noId = await expectRejected(
+      { yaml: missing, baseHash: sha256(opened) },
+      422,
+      "invalid-scenario",
+    );
+    expect(noId.message).toContain("Falta el id");
   });
 
   it("S10: a body that is not JSON or not { yaml, baseHash } gets 400", async () => {
@@ -347,6 +408,7 @@ describe("PUT /api/scenarios/:id", () => {
       expect(SaveResponseSchema.parse(await response.json()), id).toEqual({
         hash: opened.hash,
         regenerated: [],
+        generatedSkipped: false,
       });
       const after = await Promise.all(
         ["scenario.yaml", "diagram.mmd", "README.md"].map((name) => workspace.read(id, name)),
@@ -380,7 +442,11 @@ describe("PUT /api/scenarios/:id", () => {
     const response = await put(testApp(workspace), ID, { yaml, baseHash: sha256(opened) });
     expect(response.status).toBe(200);
     const saved = SaveResponseSchema.parse(await response.json());
-    expect(saved).toEqual({ hash: sha256(yaml), regenerated: ["README.md"] });
+    expect(saved).toEqual({
+      hash: sha256(yaml),
+      regenerated: ["README.md"],
+      generatedSkipped: false,
+    });
     expect((await workspace.read(ID)).toString("utf8")).toBe(yaml);
 
     const scenario = parseScenario(parse(yaml));

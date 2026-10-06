@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // S2, S3, S4, S6 and S9 of ADR-0025 §4, through app.request over a temporary copy of content/.
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
+import { ErrorResponseSchema } from "../shared/api.js";
 import { BODY_LIMIT } from "./app.js";
 import { sha256 } from "./content-store.js";
 import {
@@ -137,6 +138,10 @@ describe("S3: CSRF", () => {
         headers: studioHeaders({ "x-studio-token": "nope" }),
       });
       expect(response.status, url).toBe(403);
+      // A code of its own: the UI offers to reload the page instead of retrying with this token.
+      expect(ErrorResponseSchema.parse(await response.json()).error.code, url).toBe(
+        "invalid-token",
+      );
       const missing = studioHeaders();
       delete missing["x-studio-token"];
       expect((await app.request(url, { headers: missing })).status, url).toBe(403);

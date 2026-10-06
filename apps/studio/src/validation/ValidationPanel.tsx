@@ -14,6 +14,7 @@ export interface ValidationPanelProps {
   problem?: string;
   onJump: (finding: StudioFinding) => void;
   headingId: string;
+  className?: string;
 }
 
 export function useSummary(findings: readonly StudioFinding[] | undefined): string {
@@ -34,13 +35,14 @@ export function ValidationPanel({
   problem,
   onJump,
   headingId,
+  className,
 }: ValidationPanelProps) {
   const { t } = useTranslation();
   const summary = useSummary(findings);
   const ok = findings !== undefined && findings.length === 0;
 
   return (
-    <section aria-labelledby={headingId} className="flex min-h-0 flex-col gap-3">
+    <section aria-labelledby={headingId} className={cn("flex min-h-0 flex-col gap-3", className)}>
       <div className="flex flex-wrap items-baseline justify-between gap-2">
         <h2 id={headingId} className="text-lg font-semibold">
           {t("validation.title")}

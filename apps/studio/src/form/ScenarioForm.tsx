@@ -128,6 +128,8 @@ export function ScenarioForm({
     pendingFocus.current = undefined;
     element.focus();
     element.scrollIntoView?.({ block: "center" });
+    // Its message too, whole: a tall field (a long text) can push it out of the container.
+    document.getElementById(`${id}-error`)?.scrollIntoView?.({ block: "nearest" });
   });
 
   const onKeyDown = (event: KeyboardEvent) => {

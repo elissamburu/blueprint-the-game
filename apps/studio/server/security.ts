@@ -91,7 +91,12 @@ export const apiGuard =
       return forbidden("El pedido no viene del Studio (Sec-Fetch-Site no es same-origin).");
     }
     if (!tokensEqual(token, c.req.header(TOKEN_HEADER))) {
-      return forbidden("Falta el token de la sesión del Studio o no es válido: recargá la página.");
+      return errorResponse(
+        c,
+        403,
+        "invalid-token",
+        "Falta el token de la sesión del Studio o no es válido: recargá la página.",
+      );
     }
     if (unsafe && !isJson(c.req.header("content-type"))) {
       return errorResponse(

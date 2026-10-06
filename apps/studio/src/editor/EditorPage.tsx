@@ -8,7 +8,9 @@
 // truth and is saved as it is (ADR-0025 §2). A 409 means the file changed on disk: it is explained
 // and nothing is overwritten (S8). "Descargar .zip" (RF-STU-14) packs the current text, notes.md and
 // the generated files in the browser; right after creating a scenario (RF-STU-01) a notice says
-// where it is and, without an author from git, asks for one.
+// where it is and, without an author from git, asks for one. The unsaved text is copied to the
+// browser's storage as it is written; opening the scenario with a copy that differs from the file
+// offers to recover it.
 import {
   AlertDialog,
   AlertDialogAction,
@@ -25,15 +27,28 @@ import { useCallback, useEffect, useId, useRef, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, useBlocker, useLocation, useParams } from "react-router";
 import { CreateResponseSchema, type CreateResponse } from "../../shared/api";
-import type { StudioFinding } from "../../shared/validation";
+import {
+  countFindings,
+  isDraft,
+  validateScenarioText,
+  type StudioFinding,
+} from "../../shared/validation";
 import { api, ApiError } from "../api/client";
 import { usePageTitle } from "../app/page-title";
+import { isTokenError, reloadPage } from "../app/reload";
 import { ValidationPanel } from "../validation/ValidationPanel";
 import { useValidation } from "../validation/use-validation";
 import { DraftTabs, type DraftTab } from "../preview/DraftTabs";
 import { EditError, type EditCommand } from "../../shared/document-edit";
 import { ScenarioForm, type ScenarioFormHandle } from "../form/ScenarioForm";
 import { DiagramTab } from "../diagram/DiagramTab";
+import {
+  AUTOSAVE_DELAY_MS,
+  clearLocalDraft,
+  readLocalDraft,
+  writeLocalDraft,
+  type LocalDraft,
+} from "./local-draft";
 import { buildScenarioZip, downloadZip, type ScenarioZip } from "./scenario-zip";
 import { useSharedContent } from "./use-shared-content";
 import { YamlEditor, type YamlEditorHandle } from "./YamlEditor";
@@ -48,11 +63,14 @@ interface Opened {
 type SaveState =
   | { kind: "idle" }
   | { kind: "saving" }
-  | { kind: "saved"; regenerated: string[] }
-  | { kind: "error"; message: string; line?: number }
+  /** `skippedWithErrors`: a draft saved with errors, without regenerating the generated files. */
+  | { kind: "saved"; regenerated: string[]; skippedWithErrors?: number }
+  /** `token`: the session token is stale; only reloading the page gets a new one. */
+  | { kind: "error"; message: string; line?: number; token: boolean }
   | { kind: "conflict" };
 
-type Load = { kind: "loading" } | { kind: "failed"; message: string } | { kind: "ready" };
+type Load =
+  { kind: "loading" } | { kind: "failed"; message: string; token: boolean } | { kind: "ready" };
 
 /** The result of creating this scenario, when the list just did it (router state, checked). */
 const createdOf = (state: unknown, id: string): CreateResponse | undefined => {
@@ -80,6 +98,8 @@ export function EditorPage() {
   const [downloaded, setDownloaded] = useState<string>();
   const downloadButton = useRef<HTMLButtonElement>(null);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
+  /** A local copy of unsaved changes found when opening, until the author recovers or discards it. */
+  const [recovery, setRecovery] = useState<LocalDraft & { stale: boolean }>();
   const editor = useRef<YamlEditorHandle>(null);
   const form = useRef<ScenarioFormHandle>(null);
   const [tab, setTab] = useState<DraftTab>("form");
@@ -87,7 +107,13 @@ export function EditorPage() {
   // Only once the file is there: never a result for the empty text before it loads.
   const validation = useValidation(text, id, load.kind === "ready" ? shared : undefined);
   const dirty = load.kind === "ready" && text !== saved.text;
-  const ids = { yaml: useId(), help: useId(), validation: useId(), created: useId() };
+  const ids = {
+    yaml: useId(),
+    help: useId(),
+    validation: useId(),
+    created: useId(),
+    recovery: useId(),
+  };
 
   /** Reads the file; the state starts as loading, and `reload` sets it before calling this. */
   const fetchFile = useCallback(() => {
@@ -102,19 +128,65 @@ export function EditorPage() {
         setSaved({ text: file.yaml, hash: file.hash });
         setNotes(file.notes);
         setSave({ kind: "idle" });
+        const local = readLocalDraft(id);
+        if (local !== undefined && local.text !== file.yaml) {
+          setRecovery({ ...local, stale: local.baseHash !== file.hash });
+        } else {
+          setRecovery(undefined);
+          clearLocalDraft(id);
+        }
         setLoad({ kind: "ready" });
       },
       (error: unknown) =>
         setLoad({
           kind: "failed",
           message: error instanceof ApiError ? error.message : String(error),
+          token: isTokenError(error),
         }),
     );
   }, [id]);
   useEffect(fetchFile, [fetchFile]);
+  /** Reloads from disk: the unsaved changes are discarded, and so is their local copy. */
   const reload = () => {
+    clearLocalDraft(id);
     setLoad({ kind: "loading" });
     fetchFile();
+  };
+
+  // The local copy follows the text: written a moment after the last change, removed when the
+  // text is the file again. While a copy waits to be recovered, it is left alone.
+  useEffect(() => {
+    if (load.kind !== "ready" || recovery !== undefined) return;
+    if (!dirty) {
+      clearLocalDraft(id);
+      return;
+    }
+    const timer = setTimeout(
+      () => writeLocalDraft(id, { text, baseHash: saved.hash }),
+      AUTOSAVE_DELAY_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [dirty, id, load.kind, recovery, saved.hash, text]);
+
+  const recover = () => {
+    if (recovery === undefined) return;
+    // The editor starts over with the recovered text; the file is still the base of the save.
+    setOpened((previous) => ({
+      yaml: recovery.text,
+      hash: previous.hash,
+      generation: previous.generation + 1,
+    }));
+    setText(recovery.text);
+    setRecovery(undefined);
+  };
+  /** A stale token: the text goes to the local copy right away, and the page reloads. */
+  const reloadWithCopy = () => {
+    if (dirty) writeLocalDraft(id, { text, baseHash: saved.hash });
+    reloadPage();
+  };
+  const discard = () => {
+    clearLocalDraft(id);
+    setRecovery(undefined);
   };
 
   const onSave = useCallback(() => {
@@ -123,8 +195,18 @@ export function EditorPage() {
     setSave({ kind: "saving" });
     api.saveScenario(id, { yaml: sent, baseHash: saved.hash }).then(
       (result) => {
+        clearLocalDraft(id);
         setSaved({ text: sent, hash: result.hash });
-        setSave({ kind: "saved", regenerated: result.regenerated });
+        setSave({
+          kind: "saved",
+          regenerated: result.regenerated,
+          ...(result.generatedSkipped && shared !== undefined
+            ? {
+                skippedWithErrors: countFindings(validateScenarioText(sent, id, shared).findings)
+                  .errors,
+              }
+            : {}),
+        });
       },
       (error: unknown) => {
         if (error instanceof ApiError && error.code === "conflict") {
@@ -133,12 +215,13 @@ export function EditorPage() {
           setSave({
             kind: "error",
             message: error instanceof Error ? error.message : String(error),
+            token: isTokenError(error),
             ...(error instanceof ApiError && error.line !== undefined ? { line: error.line } : {}),
           });
         }
       },
     );
-  }, [id, load.kind, save.kind, saved.hash, text]);
+  }, [id, load.kind, save.kind, saved.hash, shared, text]);
 
   // Unsaved changes: the browser asks before closing or reloading the tab, and the app before
   // leaving the page.
@@ -177,6 +260,9 @@ export function EditorPage() {
     editor.current?.focusLine(finding.line, finding.column);
   };
   const title = validation.result?.scenario?.title ?? id;
+  // ADR-0025, S10 as amended: a draft with errors is saved anyway, without the generated files.
+  const draftWithErrors =
+    isDraft(validation.result) && countFindings(validation.result?.findings ?? []).errors > 0;
   const editText = (commands: readonly EditCommand[], isolate: boolean) => {
     if (editor.current === null) throw new EditError("El editor no está listo");
     editor.current.edit(commands, isolate);
@@ -192,6 +278,9 @@ export function EditorPage() {
         return t("editor.state.error");
       default:
         if (dirty) return t("editor.state.dirty");
+        if (save.kind === "saved" && save.skippedWithErrors !== undefined) {
+          return t("editor.savedSkipped", { count: save.skippedWithErrors });
+        }
         return save.kind === "saved" && save.regenerated.length > 0
           ? t("editor.savedRegenerated", { files: save.regenerated.join(", ") })
           : t("editor.state.saved");
@@ -229,8 +318,17 @@ export function EditorPage() {
               <DownloadIcon aria-hidden />
               {t("editor.download.button")}
             </Button>
-            <Button onClick={onSave} disabled={save.kind === "saving"}>
-              {save.kind === "saving" ? t("editor.saving") : t("editor.save")}
+            <Button
+              onClick={save.kind === "error" && save.token ? reloadWithCopy : onSave}
+              disabled={save.kind === "saving"}
+            >
+              {save.kind === "error" && save.token
+                ? t("app.reloadPage")
+                : save.kind === "saving"
+                  ? t("editor.saving")
+                  : draftWithErrors
+                    ? t("editor.saveDraft")
+                    : t("editor.save")}
             </Button>
           </>
         )}
@@ -242,9 +340,14 @@ export function EditorPage() {
         </p>
       )}
       {load.kind === "failed" && (
-        <p role="alert" className="p-6">
-          {t("editor.loadFailed", { message: load.message })}
-        </p>
+        <div role="alert" className="flex flex-wrap items-center gap-3 p-6">
+          <p>{t("editor.loadFailed", { message: load.message })}</p>
+          {load.token && (
+            <Button variant="outline" onClick={reloadPage}>
+              {t("app.reloadPage")}
+            </Button>
+          )}
+        </div>
       )}
 
       {load.kind === "ready" && created !== undefined && (
@@ -272,6 +375,29 @@ export function EditorPage() {
             )}
             <Button variant="ghost" size="sm" onClick={() => setCreated(undefined)}>
               {t("editor.created.dismiss")}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {load.kind === "ready" && recovery !== undefined && (
+        <section
+          aria-labelledby={ids.recovery}
+          className="mx-4 mt-4 flex flex-col gap-2 rounded-md border border-l-4 border-l-warning bg-warning-soft p-4 md:mx-6"
+          data-recovery-notice
+        >
+          <h2 id={ids.recovery} className="flex items-center gap-2 font-semibold">
+            <TriangleAlertIcon aria-hidden className="size-5 shrink-0 text-warning" />
+            {t("editor.recovery.title")}
+          </h2>
+          <p>{t("editor.recovery.body")}</p>
+          {recovery.stale && <p>{t("editor.recovery.stale")}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={recover}>
+              {t("editor.recovery.recover")}
+            </Button>
+            <Button variant="ghost" onClick={discard}>
+              {t("editor.recovery.discard")}
             </Button>
           </div>
         </section>
@@ -364,8 +490,10 @@ export function EditorPage() {
               )
             }
           />
-          <div className="grid min-h-0 min-w-0 grid-cols-[minmax(0,1fr)] grid-rows-[minmax(20rem,3fr)_minmax(12rem,2fr)] gap-4">
-            <section aria-labelledby={ids.yaml} className="flex min-h-0 flex-col gap-2">
+          {/* The YAML takes the height the validation panel leaves; the panel takes what its
+              findings need, up to 40 % of the column, and then its list scrolls. */}
+          <div className="flex min-h-[40rem] min-w-0 flex-col gap-4 lg:min-h-0">
+            <section aria-labelledby={ids.yaml} className="flex min-h-48 flex-1 flex-col gap-2">
               <h2 id={ids.yaml} className="font-mono text-lg font-semibold">
                 {t("editor.yamlTitle")}
               </h2>
@@ -386,6 +514,7 @@ export function EditorPage() {
               </div>
             </section>
             <ValidationPanel
+              className="max-h-[40%] shrink-0"
               headingId={ids.validation}
               findings={validation.result?.findings}
               pending={validation.pending}
@@ -450,7 +579,13 @@ export function EditorPage() {
             <AlertDialogCancel onClick={() => blocker.reset?.()}>
               {t("editor.leave.stay")}
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => blocker.proceed?.()}>
+            <AlertDialogAction
+              onClick={() => {
+                // Leaving without saving on purpose: the local copy goes too.
+                clearLocalDraft(id);
+                blocker.proceed?.();
+              }}
+            >
               {t("editor.leave.leave")}
             </AlertDialogAction>
           </AlertDialogFooter>

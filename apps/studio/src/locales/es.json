@@ -3,7 +3,8 @@
     "name": "Blueprint Studio",
     "skipToContent": "Saltar al contenido",
     "loading": "Cargando…",
-    "localOnly": "Solo local: lee y escribe content/ de tu copia del repo."
+    "localOnly": "Solo local: lee y escribe content/ de tu copia del repo.",
+    "reloadPage": "Recargar la página"
   },
   "list": {
     "title": "Escenarios",
@@ -75,6 +76,7 @@
     "loading": "Abriendo el escenario…",
     "loadFailed": "No se pudo abrir el escenario: {{message}}",
     "save": "Guardar",
+    "saveDraft": "Guardar borrador",
     "saving": "Guardando…",
     "state": {
       "saved": "Guardado",
@@ -84,10 +86,19 @@
       "conflict": "No se guardó: el archivo cambió en disco"
     },
     "savedRegenerated": "Guardado. Se regeneraron: {{files}}.",
+    "savedSkipped_one": "Guardado con {{count}} error: diagram.mmd y README.md sin regenerar",
+    "savedSkipped_other": "Guardado con {{count}} errores: diagram.mmd y README.md sin regenerar",
     "yamlTitle": "scenario.yaml",
     "yamlLabel": "Editor YAML de {{id}}",
     "keyboardHelp": "Tab indenta. Para salir del editor con el teclado: Esc y después Tab (o Mayús + Tab). Ctrl + S guarda.",
     "saveFailed": "No se guardó: {{message}}",
+    "recovery": {
+      "title": "Hay cambios sin guardar de una sesión anterior",
+      "body": "El navegador guardó una copia local de este escenario con cambios que no llegaste a guardar en el archivo.",
+      "stale": "El archivo cambió en disco desde que se hizo la copia: si la recuperás y guardás, reemplaza esos cambios.",
+      "recover": "Recuperar los cambios sin guardar",
+      "discard": "Descartar"
+    },
     "conflict": {
       "title": "El archivo cambió en disco",
       "body": "Alguien (u otro programa) modificó scenario.yaml desde que lo abriste. No se guardó para no pisar esos cambios.",
@@ -103,7 +114,7 @@
     },
     "created": {
       "title": "Escenario creado",
-      "body": "Está en content/scenarios/{{id}}/ como borrador. Guardalo cuando pase la validación: al guardar se regeneran diagram.mmd y README.md.",
+      "body": "Está en content/scenarios/{{id}}/ como borrador. Como es un borrador, lo podés guardar aunque tenga errores: diagram.mmd y README.md se regeneran al guardar cuando pase el schema.",
       "noAuthor": "No encontramos tu usuario de GitHub en la configuración de git (github.user, o user.name si es un usuario de GitHub): agregalo en «Autores».",
       "addAuthor": "Ir a «Autores»",
       "dismiss": "Cerrar aviso"

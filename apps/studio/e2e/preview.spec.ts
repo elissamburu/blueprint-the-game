@@ -17,6 +17,7 @@ import {
 import {
   cursorLine,
   editorContent,
+  goToLineEnd,
   openScenario,
   saveState,
   scenarioFile,
@@ -34,11 +35,7 @@ const changedNotice = (page: Page) => page.getByRole("status").filter({ hasText:
 const editTitle = async (page: Page, suffix: string) => {
   const text = await readFile(scenarioFile(id), "utf8");
   const line = text.split(/\r?\n/).findIndex((l) => l.startsWith("title:")) + 1;
-  await editorContent(page).click();
-  await page.keyboard.press("Control+Home");
-  for (let i = 1; i < line; i++) await page.keyboard.press("ArrowDown");
-  expect(await cursorLine(page)).toBe(line);
-  await page.keyboard.press("End");
+  await goToLineEnd(page, line);
   // Before the closing quote.
   await page.keyboard.press("ArrowLeft");
   await page.keyboard.type(suffix);

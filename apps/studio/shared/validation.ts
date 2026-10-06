@@ -30,13 +30,28 @@ export interface ScenarioValidation {
   stage: "yaml" | "schema" | "lint";
   /** The parsed scenario, when the text passes the schema. */
   scenario?: Scenario;
+  /**
+   * `id` and `status` as written, when the text parses, even if it fails the schema: a draft is
+   * saved anyway (ADR-0025, S10 as amended on 2026-10-05).
+   */
+  header?: ScenarioHeader;
 }
 
-const idOf = (value: unknown): string | undefined => {
-  if (typeof value !== "object" || value === null || !("id" in value)) return undefined;
-  const { id } = value;
-  return typeof id === "string" ? id : undefined;
+export interface ScenarioHeader {
+  id: string | undefined;
+  status: string | undefined;
+}
+
+/** A text that parses and says `status: draft`, whether or not it passes the schema. */
+export const isDraft = (validation: ScenarioValidation | undefined): boolean =>
+  validation?.header?.status === "draft";
+
+const textField = (value: unknown, key: "id" | "status"): string | undefined => {
+  if (typeof value !== "object" || value === null || !(key in value)) return undefined;
+  const field: unknown = value[key as keyof typeof value];
+  return typeof field === "string" ? field : undefined;
 };
+const idOf = (value: unknown): string | undefined => textField(value, "id");
 
 /** `["diagram", "nodes", 3, "role"]` → `diagram.nodes[3] (upload-store).role`, as content:validate. */
 export const describePath = (document: unknown, path: IssuePath): string => {
@@ -117,10 +132,12 @@ export const validateScenarioText = (
   }
 
   const raw: unknown = document.toJS();
+  const header = { id: idOf(raw), status: textField(raw, "status") };
   const parsed = parseScenario(raw);
   if (!parsed.success) {
     return {
       stage: "schema",
+      header,
       findings: parsed.issues.map((issue) => ({
         code: "SCHEMA",
         severity: "error",
@@ -143,6 +160,7 @@ export const validateScenarioText = (
   return {
     stage: "lint",
     scenario: parsed.data,
+    header,
     findings: issues.map((issue) => ({
       code: issue.code,
       severity: issue.severity,
