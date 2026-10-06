@@ -3,7 +3,7 @@
 > Convenciones
 > - **ID**: `RF-<MÓDULO>-<NN>`. No se reutilizan IDs; si un RF se descarta, se marca `~~tachado~~` con motivo.
 > - **Prioridad** (MoSCoW): **M** = Must, **S** = Should, **C** = Could, **W** = Won't (v1).
-> - **Fase**: fase del [roadmap](05-roadmap.md) en la que se implementa (F0–F7).
+> - **Fase**: fase del [roadmap](05-roadmap.md) en la que se implementa (F0–F8).
 > - Los criterios de aceptación (CA) son la definición de "terminado" para Claude Code y para la revisión del PR.
 
 ## Módulos
@@ -21,6 +21,7 @@
 | CNT | Contenido y contribución |
 | CAT | Catálogo de servicios |
 | OPS | Operación, métricas y reportes |
+| AST | Asistente de arquitectura con IA |
 
 ---
 
@@ -324,6 +325,40 @@ Desde F2.1 todas las experiencias incluyen el nivel 0, porque no hay un nivel an
 | RF-OPS-01 | **Métricas de calibración anónimas** por casillero: distribución de servicios colocados y tasa de acierto al primer intento. | S | F7 |
 | RF-OPS-02 | Vista (interna, para mantenedores) de **escenarios mal calibrados**: casilleros con tasa de acierto < 15 % o > 95 % en su nivel. | C | F7 |
 | RF-OPS-03 | Página "Acerca de" con licencia, aviso de no afiliación con AWS y créditos a contribuidores (desde `authors`). | M | F1 |
+
+---
+
+## AST · Asistente de arquitectura con IA
+
+> Propuesto en [ADR-0026](adr/0026-asistente-de-arquitectura-con-ia.md) (estado: Propuesto). Depende de F4 (cuentas) y F5 (`packages/ai-generator`). Los valores de cuota, retención y límites quedan abiertos en el ADR.
+
+| ID | Requisito | P | Fase |
+|---|---|---|---|
+| RF-AST-01 | **Chat con preguntas de restricciones**: el usuario describe su caso de uso en texto libre y el asistente le pregunta las restricciones que faltan (costo, disponibilidad, equipo, cumplimiento, latencia, tráfico, nivel de gestión). Antes de dibujar, muestra la lista de objetivos `hard` y `soft` que resultó para que el usuario la confirme o la corrija. | S | F8 |
+| RF-AST-02 | **Diagrama con justificación**: el asistente dibuja el diagrama recomendado y, por cada servicio, muestra el porqué, los objetivos que cumple y al menos una referencia oficial. El diagrama tiene una alternativa textual equivalente ([ADR-0022](adr/0022-modo-texto.md)). | S | F8 |
+| RF-AST-03 | **Exportar como borrador**: desde una conversación terminada, el usuario descarga un borrador de escenario (`status: draft`) para curarlo en el Studio local y abrir un PR con la plantilla «Nuevo escenario» (RF-CNT-05). | S | F8 |
+| RF-AST-04 | **Registro obligatorio**: el asistente solo está disponible para usuarios registrados (RF-AUTH-02). Un invitado ve qué hace y una invitación a registrarse. | S | F8 |
+| RF-AST-05 | **Cuota y aviso de límite**: cada usuario tiene una cuota por período y cada conversación un máximo de turnos y de tokens. La UI muestra cuánto queda, avisa antes de llegar al límite y explica qué pasa al agotarlo. Si se agota el presupuesto global, el asistente se desactiva para todos con un mensaje claro y el juego sigue funcionando. | S | F8 |
+| RF-AST-06 | **Borrar conversaciones**: el usuario puede borrar una conversación o todas. Borrar la cuenta (RF-AUTH-06) también las borra. | S | F8 |
+| RF-AST-07 | **Avisos**: la UI aclara que es una recomendación educativa y no asesoramiento profesional, y pide no pegar credenciales, account IDs, ARNs ni datos personales. | S | F8 |
+
+**CA RF-AST-01**
+- El texto del usuario se trata como dato, nunca como instrucción (RNF-23).
+- Cada objetivo tiene `id`, `type` (`hard` o `soft`) y `text`, con el formato de los escenarios ([03](03-modelo-de-escenarios.md)). El asistente no dibuja hasta que el usuario confirma los objetivos o pide seguir sin cambios.
+
+**CA RF-AST-02**
+- La salida se valida con el schema de `packages/scenario-schema` antes de mostrarse; si no valida tras el bucle de reparación, se muestra un error y no un diagrama parcial.
+- Todo servicio pertenece al catálogo. Lo que no está en el catálogo se rechaza o se muestra marcado como «fuera del catálogo, sin verificar», nunca con un id inventado ni con ícono.
+- Las referencias apuntan solo a los dominios oficiales que acepta el lint (L011).
+- La salida nunca se interpreta como HTML.
+
+**CA RF-AST-03**
+- El borrador incluye los objetivos confirmados, el diagrama y un casillero por servicio con su `optimal`, `rationale`, `objectives` y `references`.
+- Se abre en el Studio aunque tenga errores de lint (roles con filtraciones, pistas o distractores faltantes); curarlo es tarea del autor.
+- La web no escribe en `content/` ni abre PR.
+
+**CA RF-AST-05**
+- El aviso de cuota es un mensaje de estado (`role="status"`), no un toast, y se anuncia una sola vez ([accesibilidad](accesibilidad.md)).
 
 ---
 

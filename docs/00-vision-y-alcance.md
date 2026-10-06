@@ -63,6 +63,7 @@ La clave pedagógica: **"óptimo" siempre se justifica contra objetivos explíci
 | **Nombre simple (`plainName`)** | Nombre en lenguaje cotidiano de una entrada del catálogo (p. ej. «Almacenamiento de archivos»). En el nivel 0 la tarjeta lo muestra primero y el nombre real en chico. |
 | **Dónde se rompe la analogía (`analogyLimit`)** | En una respuesta, el punto en que la analogía cotidiana deja de valer para AWS, con referencia oficial. Obligatorio en el nivel 0. |
 | **Grupo de confusión** | Conjunto de servicios que se suelen confundir entre sí (p. ej. SQS / SNS / EventBridge). Fuente de distractores. |
+| **Asistente de arquitectura** | Chat con IA (propuesto, F8) en el que un usuario registrado describe su caso de uso, responde preguntas sobre sus restricciones y recibe un diagrama recomendado con el porqué de cada servicio contra objetivos explícitos; se puede exportar como borrador de escenario ([ADR-0026](adr/0026-asistente-de-arquitectura-con-ia.md)). |
 | **Studio** | Herramienta local para crear/editar escenarios con IA y preview jugable. |
 | **Filtración (leak)** | Texto del escenario que revela el nombre de un servicio que el jugador debe adivinar. Es un error de validación. |
 
