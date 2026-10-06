@@ -91,6 +91,13 @@
     "yamlLabel": "Editor YAML de {{id}}",
     "keyboardHelp": "Tab indenta. Para salir del editor con el teclado: Esc y después Tab (o Mayús + Tab). Ctrl + S guarda.",
     "saveFailed": "No se guardó: {{message}}",
+    "recovery": {
+      "title": "Hay cambios sin guardar de una sesión anterior",
+      "body": "El navegador guardó una copia local de este escenario con cambios que no llegaste a guardar en el archivo.",
+      "stale": "El archivo cambió en disco desde que se hizo la copia: si la recuperás y guardás, reemplaza esos cambios.",
+      "recover": "Recuperar los cambios sin guardar",
+      "discard": "Descartar"
+    },
     "conflict": {
       "title": "El archivo cambió en disco",
       "body": "Alguien (u otro programa) modificó scenario.yaml desde que lo abriste. No se guardó para no pisar esos cambios.",

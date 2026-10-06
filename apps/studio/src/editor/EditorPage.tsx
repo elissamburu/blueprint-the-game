@@ -8,7 +8,9 @@
 // truth and is saved as it is (ADR-0025 §2). A 409 means the file changed on disk: it is explained
 // and nothing is overwritten (S8). "Descargar .zip" (RF-STU-14) packs the current text, notes.md and
 // the generated files in the browser; right after creating a scenario (RF-STU-01) a notice says
-// where it is and, without an author from git, asks for one.
+// where it is and, without an author from git, asks for one. The unsaved text is copied to the
+// browser's storage as it is written; opening the scenario with a copy that differs from the file
+// offers to recover it.
 import {
   AlertDialog,
   AlertDialogAction,
@@ -39,6 +41,13 @@ import { DraftTabs, type DraftTab } from "../preview/DraftTabs";
 import { EditError, type EditCommand } from "../../shared/document-edit";
 import { ScenarioForm, type ScenarioFormHandle } from "../form/ScenarioForm";
 import { DiagramTab } from "../diagram/DiagramTab";
+import {
+  AUTOSAVE_DELAY_MS,
+  clearLocalDraft,
+  readLocalDraft,
+  writeLocalDraft,
+  type LocalDraft,
+} from "./local-draft";
 import { buildScenarioZip, downloadZip, type ScenarioZip } from "./scenario-zip";
 import { useSharedContent } from "./use-shared-content";
 import { YamlEditor, type YamlEditorHandle } from "./YamlEditor";
@@ -86,6 +95,8 @@ export function EditorPage() {
   const [downloaded, setDownloaded] = useState<string>();
   const downloadButton = useRef<HTMLButtonElement>(null);
   const [save, setSave] = useState<SaveState>({ kind: "idle" });
+  /** A local copy of unsaved changes found when opening, until the author recovers or discards it. */
+  const [recovery, setRecovery] = useState<LocalDraft & { stale: boolean }>();
   const editor = useRef<YamlEditorHandle>(null);
   const form = useRef<ScenarioFormHandle>(null);
   const [tab, setTab] = useState<DraftTab>("form");
@@ -93,7 +104,13 @@ export function EditorPage() {
   // Only once the file is there: never a result for the empty text before it loads.
   const validation = useValidation(text, id, load.kind === "ready" ? shared : undefined);
   const dirty = load.kind === "ready" && text !== saved.text;
-  const ids = { yaml: useId(), help: useId(), validation: useId(), created: useId() };
+  const ids = {
+    yaml: useId(),
+    help: useId(),
+    validation: useId(),
+    created: useId(),
+    recovery: useId(),
+  };
 
   /** Reads the file; the state starts as loading, and `reload` sets it before calling this. */
   const fetchFile = useCallback(() => {
@@ -108,6 +125,13 @@ export function EditorPage() {
         setSaved({ text: file.yaml, hash: file.hash });
         setNotes(file.notes);
         setSave({ kind: "idle" });
+        const local = readLocalDraft(id);
+        if (local !== undefined && local.text !== file.yaml) {
+          setRecovery({ ...local, stale: local.baseHash !== file.hash });
+        } else {
+          setRecovery(undefined);
+          clearLocalDraft(id);
+        }
         setLoad({ kind: "ready" });
       },
       (error: unknown) =>
@@ -118,9 +142,42 @@ export function EditorPage() {
     );
   }, [id]);
   useEffect(fetchFile, [fetchFile]);
+  /** Reloads from disk: the unsaved changes are discarded, and so is their local copy. */
   const reload = () => {
+    clearLocalDraft(id);
     setLoad({ kind: "loading" });
     fetchFile();
+  };
+
+  // The local copy follows the text: written a moment after the last change, removed when the
+  // text is the file again. While a copy waits to be recovered, it is left alone.
+  useEffect(() => {
+    if (load.kind !== "ready" || recovery !== undefined) return;
+    if (!dirty) {
+      clearLocalDraft(id);
+      return;
+    }
+    const timer = setTimeout(
+      () => writeLocalDraft(id, { text, baseHash: saved.hash }),
+      AUTOSAVE_DELAY_MS,
+    );
+    return () => clearTimeout(timer);
+  }, [dirty, id, load.kind, recovery, saved.hash, text]);
+
+  const recover = () => {
+    if (recovery === undefined) return;
+    // The editor starts over with the recovered text; the file is still the base of the save.
+    setOpened((previous) => ({
+      yaml: recovery.text,
+      hash: previous.hash,
+      generation: previous.generation + 1,
+    }));
+    setText(recovery.text);
+    setRecovery(undefined);
+  };
+  const discard = () => {
+    clearLocalDraft(id);
+    setRecovery(undefined);
   };
 
   const onSave = useCallback(() => {
@@ -129,6 +186,7 @@ export function EditorPage() {
     setSave({ kind: "saving" });
     api.saveScenario(id, { yaml: sent, baseHash: saved.hash }).then(
       (result) => {
+        clearLocalDraft(id);
         setSaved({ text: sent, hash: result.hash });
         setSave({
           kind: "saved",
@@ -297,6 +355,29 @@ export function EditorPage() {
             )}
             <Button variant="ghost" size="sm" onClick={() => setCreated(undefined)}>
               {t("editor.created.dismiss")}
+            </Button>
+          </div>
+        </section>
+      )}
+
+      {load.kind === "ready" && recovery !== undefined && (
+        <section
+          aria-labelledby={ids.recovery}
+          className="mx-4 mt-4 flex flex-col gap-2 rounded-md border border-l-4 border-l-warning bg-warning-soft p-4 md:mx-6"
+          data-recovery-notice
+        >
+          <h2 id={ids.recovery} className="flex items-center gap-2 font-semibold">
+            <TriangleAlertIcon aria-hidden className="size-5 shrink-0 text-warning" />
+            {t("editor.recovery.title")}
+          </h2>
+          <p>{t("editor.recovery.body")}</p>
+          {recovery.stale && <p>{t("editor.recovery.stale")}</p>}
+          <div className="flex flex-wrap gap-2">
+            <Button variant="outline" onClick={recover}>
+              {t("editor.recovery.recover")}
+            </Button>
+            <Button variant="ghost" onClick={discard}>
+              {t("editor.recovery.discard")}
             </Button>
           </div>
         </section>
@@ -475,7 +556,13 @@ export function EditorPage() {
             <AlertDialogCancel onClick={() => blocker.reset?.()}>
               {t("editor.leave.stay")}
             </AlertDialogCancel>
-            <AlertDialogAction onClick={() => blocker.proceed?.()}>
+            <AlertDialogAction
+              onClick={() => {
+                // Leaving without saving on purpose: the local copy goes too.
+                clearLocalDraft(id);
+                blocker.proceed?.();
+              }}
+            >
               {t("editor.leave.leave")}
             </AlertDialogAction>
           </AlertDialogFooter>
