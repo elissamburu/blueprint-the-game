@@ -9,6 +9,7 @@ import {
   cursorLine,
   editorContent,
   expectSolidDialog,
+  goToLineEnd,
   openScenario,
   saveState,
   scenarioFile,
@@ -74,10 +75,7 @@ test("Ctrl+S guarda y los archivos generados quedan al día", async ({ page }) =
   const line = yaml.split("\n").findIndex((l) => l.startsWith("title:")) + 1;
   const issueFree = await validationSummary(page).innerText();
 
-  await editorContent(page).click();
-  await page.keyboard.press("Control+Home");
-  for (let i = 1; i < line; i++) await page.keyboard.press("ArrowDown");
-  await page.keyboard.press("End");
+  await goToLineEnd(page, line);
   await page.keyboard.press("ArrowLeft");
   await page.keyboard.type(" (revisado)");
   await expect(validationSummary(page)).toHaveText(issueFree);
