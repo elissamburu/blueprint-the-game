@@ -1,7 +1,8 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Opening a scenario in the editor and reading its text back gives the same bytes (ADR-0025 §2),
-// for the 8 scenarios of content/ (Vite ?raw, no fs), with LF, CRLF and a BOM.
+// for the fixture scenarios of content/ (Vite ?raw, no fs), with LF, CRLF and a BOM.
 import { describe, expect, it } from "vitest";
+import { FIXTURE_SCENARIO_IDS } from "../../shared/testing/fixture-scenarios";
 import { createEditorState, editorText, lineSeparatorOf, offsetOf } from "./editor-state";
 
 const scenarios = import.meta.glob<string>("../../../../content/scenarios/*/scenario.yaml", {
@@ -9,11 +10,14 @@ const scenarios = import.meta.glob<string>("../../../../content/scenarios/*/scen
   import: "default",
   eager: true,
 });
-const real = Object.entries(scenarios).filter(([file]) => !file.includes("/_"));
+const fixtures = new Set(FIXTURE_SCENARIO_IDS);
+const real = Object.entries(scenarios).filter(([file]) =>
+  fixtures.has(file.split("/").at(-2) ?? ""),
+);
 
 describe("editor state", () => {
-  it("covers the 8 scenarios of content/", () => {
-    expect(real).toHaveLength(8);
+  it("finds the fixture scenarios in content/", () => {
+    expect(real.map(([file]) => file.split("/").at(-2)).sort()).toEqual([...FIXTURE_SCENARIO_IDS]);
   });
 
   it.each(real)("round-trips %s byte for byte", (_file, text) => {

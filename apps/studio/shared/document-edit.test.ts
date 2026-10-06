@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Edit commands over the Document (ADR-0025 §2): each one changes the data by its path and only
-// the lines of the edited node, in the 8 scenarios of content/ (read, never written).
-import { readdirSync, readFileSync } from "node:fs";
+// the lines of the edited node, in the fixture scenarios of content/ (read, never written).
+import { readFileSync } from "node:fs";
 import path from "node:path";
 import { parseDocument } from "yaml";
 import { describe, expect, it } from "vitest";
@@ -12,14 +12,13 @@ import {
   type EditCommand,
   type TextChange,
 } from "./document-edit.js";
+import { FIXTURE_SCENARIO_IDS } from "./testing/fixture-scenarios.js";
 
 const SCENARIOS_DIR = path.join(import.meta.dirname, "..", "..", "..", "content", "scenarios");
-const real: [string, string][] = readdirSync(SCENARIOS_DIR, { withFileTypes: true })
-  .filter((entry) => entry.isDirectory() && !entry.name.startsWith("_"))
-  .map((entry) => {
-    const file = path.join(SCENARIOS_DIR, entry.name, "scenario.yaml");
-    return [file, readFileSync(file, "utf8")];
-  });
+const real: [string, string][] = FIXTURE_SCENARIO_IDS.map((id) => {
+  const file = path.join(SCENARIOS_DIR, id, "scenario.yaml");
+  return [file, readFileSync(file, "utf8")];
+});
 
 const apply = (text: string, change: TextChange | undefined): string =>
   change === undefined ? text : text.slice(0, change.from) + change.insert + text.slice(change.to);
@@ -102,10 +101,6 @@ const newValue = (current: unknown): string | number =>
         : `${String(current).trimEnd()} (editado desde el formulario, con "comillas" y: dos puntos)`;
 
 describe("document edit", () => {
-  it("covers the 8 scenarios of content/", () => {
-    expect(real).toHaveLength(8);
-  });
-
   describe.each(real)("%s", (_file, text) => {
     it.each(scalarPaths(text).map((path) => [path.join("."), path] as const))(
       "set %s changes only its lines and its data",
