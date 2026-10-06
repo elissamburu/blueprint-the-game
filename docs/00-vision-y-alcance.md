@@ -51,14 +51,17 @@ La clave pedagógica: **"óptimo" siempre se justifica contra objetivos explíci
 | Término | Definición |
 |---|---|
 | **Escenario** | Caso de uso con contexto, objetivos, diagrama y respuestas. Unidad de contenido. Vive en `content/scenarios/<id>/scenario.yaml`. |
-| **Nivel del escenario** | Dificultad del contenido: 100, 200, 300, 400. |
+| **Nivel del escenario** | Dificultad del contenido: 0, 100, 200, 300, 400. El nivel 0 («La nube en la vida real», en la UI «Ideas básicas de la nube») usa situaciones cotidianas para las ideas de base de la nube ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md)). |
 | **Rango del jugador** | Progresión del jugador basada en XP (distinto del nivel del escenario). |
 | **Objetivo** | Requisito explícito del escenario. Puede ser `hard` (restricción: violarla = rojo) o `soft` (meta: no cumplirla bien = naranja). |
 | **Casillero (slot)** | Nodo del diagrama con el servicio oculto que el jugador debe completar. |
 | **Rol** | Descripción de lo que hace un casillero **sin nombrar el servicio**. |
 | **Grado** | Resultado de colocar un servicio en un casillero: `optimal`, `acceptable`, `incorrect`. |
 | **Paleta** | Lista de servicios disponibles para arrastrar; su amplitud depende del nivel. |
-| **Catálogo** | Lista curada de servicios de AWS con categoría, alias y metadatos (`content/catalog/`). |
+| **Catálogo** | Lista curada de servicios y conceptos de AWS con categoría, alias y metadatos (`content/catalog/`). |
+| **Concepto** | Entrada del catálogo con `type: concept` que no es un servicio sino una idea de la nube (responsabilidad compartida, región, pago por uso, elasticidad…). Se usa en la paleta y en las respuestas como un servicio. |
+| **Nombre simple (`plainName`)** | Nombre en lenguaje cotidiano de una entrada del catálogo (p. ej. «Almacenamiento de archivos»). En el nivel 0 la tarjeta lo muestra primero y el nombre real en chico. |
+| **Dónde se rompe la analogía (`analogyLimit`)** | En una respuesta, el punto en que la analogía cotidiana deja de valer para AWS, con referencia oficial. Obligatorio en el nivel 0. |
 | **Grupo de confusión** | Conjunto de servicios que se suelen confundir entre sí (p. ej. SQS / SNS / EventBridge). Fuente de distractores. |
 | **Studio** | Herramienta local para crear/editar escenarios con IA y preview jugable. |
 | **Filtración (leak)** | Texto del escenario que revela el nombre de un servicio que el jugador debe adivinar. Es un error de validación. |

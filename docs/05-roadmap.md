@@ -65,6 +65,30 @@ L014 (control de `version` contra `main`) no corre en el Studio: queda en `pnpm 
 
 **DoD**: se crea un escenario nuevo sin tocar YAML a mano, se juega en preview, se guarda y pasa `content:validate`; los tests de S1–S12 pasan; el bundle de `apps/web` no incluye `@codemirror/*` ni `elkjs`; pruebas manuales de [accesibilidad](accesibilidad.md#7-protocolo-de-pruebas) completas sobre el Studio.
 
+## F2.1 · Nivel 0: «La nube en la vida real»
+**Estado**: 📝 diseñada ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md)). Empieza después de cerrar F2 y antes de F3; no necesita AWS.
+
+**Objetivo**: que alguien que recién empieza con la nube (por ejemplo, quien se prepara para AWS Certified Cloud Practitioner, CLF-C02) aprenda las ideas de base con situaciones cotidianas y la misma mecánica del juego. En la UI se llama «Ideas básicas de la nube»: el nombre del examen queda solo en la documentación hasta resolver [ADR-0019](adr/0019-nombre-y-marcas.md).
+
+- **Conceptos en el catálogo** (`type: service | concept`), nombre simple (`plainName`) y «dónde se rompe la analogía» (`analogyLimit`) en las respuestas.
+- **Nivel 0**: XP ×0,5, paleta `curated` de hasta 8 tarjetas, 3–5 casilleros, abierto para todas las experiencias, área `fundamentos`.
+- **Onboarding**: opción nueva «Recién empiezo con la nube», que arranca en el nivel 0. «Recién empiezo» sigue aparte y sigue arrancando en 100.
+- RF: RF-ONB-05, RF-NAV-08, RF-PAL-06, RF-PAL-07, RF-EVAL-07, RF-STU-19, RF-CNT-09, RF-CAT-07.
+
+Se implementa en 5 PRs, en este orden. Cada uno deja algo usable:
+
+| PR | Alcance | RF | Dependencias nuevas |
+|---|---|---|---|
+| 1 · `docs` | ADR-0027, RF nuevos en [01](01-requerimientos-funcionales.md), glosario y este plan. | — | — |
+| 2 · `feat(schema)` conceptos | `type`, `plainName`, `glyph`, `analogyLimit` y `kind` de categoría en `scenario-schema`; C011–C013; `icons:fetch` ignora conceptos; [03](03-modelo-de-escenarios.md) actualizado. Todavía sin nivel 0: los conceptos ya se pueden usar en niveles 100 y 200. | RF-CAT-07 | — |
+| 3 · `feat(engine)` nivel 0 | `LEVELS` con 0, `game-rules.yaml` (multiplicador, modo de paleta, `maxSizeByLevel`, `newcomer` y el 0 en todas las experiencias), C008, L009, L021, L022, L005 con `plainName` por frase completa, paleta sin relleno de conceptos, área `fundamentos`, onboarding y progreso guardado. Un escenario de nivel 0 de prueba (fixture) se juega de punta a punta. | RF-ONB-05, RF-NAV-08, RF-PAL-07 | — |
+| 4 · `feat(play,studio)` | Tarjeta con nombre simple y real (paleta, paleta colapsada y tablero), `glyph` en `ServiceIcon` con lucide, bloque «Dónde se rompe la analogía» en el feedback, Studio (selector con conceptos, campo `analogyLimit`, nivel 0). | RF-PAL-06, RF-EVAL-07, RF-STU-19 | — |
+| 5 · `content` | Primeros conceptos (responsabilidad compartida, región, zona de disponibilidad, ubicación de borde, pago por uso, elasticidad, alta disponibilidad…) con fuente oficial verificada y 2 o 3 escenarios de nivel 0 en `beta`. Skill `nuevo-escenario` con las reglas del nivel 0. Plantilla de PR «Nuevo escenario» con el ítem de revisión de analogías (la crea si todavía no existe, RF-CNT-05). | RF-CNT-09 | — |
+
+Todo dato de AWS lleva su referencia oficial; si no se puede verificar, queda como `TODO(verificar)` y el escenario no pasa de `beta`.
+
+**DoD**: un invitado elige «Recién empiezo con la nube», completa los escenarios de nivel 0 y desbloquea el 100; «Recién empiezo» sigue arrancando en 100 y ve el nivel 0 abierto; `content:validate` falla con L021 si una respuesta de nivel 0 no tiene `analogyLimit` y con L005 si un rol repite un `plainName`; el nombre accesible de cada tarjeta del nivel 0 incluye el nombre simple y el real (test e2e); axe sin violaciones `critical` ni `serious` y [pruebas manuales de accesibilidad](accesibilidad.md#7-protocolo-de-pruebas) sobre un escenario de nivel 0; cada analogía revisada por una persona antes de `published`.
+
 ## F3 · Infraestructura y despliegue
 **Objetivo**: el juego (modo invitado) publicado en AWS con CI/CD por OIDC.
 
