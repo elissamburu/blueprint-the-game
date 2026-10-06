@@ -129,6 +129,14 @@ Todo dato de AWS lleva su referencia oficial; si no se puede verificar, queda co
 - `catalog-sync.yml`, métricas de calibración, vista de escenarios mal calibrados, escenario destacado, modo examen, imagen compartible de insignias.
 - **Rutas de certificación** (RF-NAV-07): escenarios etiquetados con los dominios publicados en las guías oficiales de examen, filtros y rutas por certificación. Se combinan con el **modo examen** (RF-PLAY-12): una ruta se puede jugar en modo examen. Solo dominios públicos; nunca preguntas reales de examen.
 
+## F8 · Asistente de arquitectura
+**Estado**: 📝 propuesta ([ADR-0026](adr/0026-asistente-de-arquitectura-con-ia.md)). **Depende de**: F4 (cuentas) y F5 (`packages/ai-generator`).
+
+**Objetivo**: que un usuario registrado describa su caso de uso en un chat, responda las preguntas sobre sus restricciones y obtenga un diagrama recomendado con el porqué de cada servicio, que además puede exportar como borrador de escenario para curar en el Studio.
+
+- RF: RF-AST-01 a RF-AST-07. RNF: RNF-23 a RNF-27.
+- El DoD y el plan de PRs se definen cuando el ADR pase a Aceptado.
+
 ---
 
 ## Contenido (transversal a las fases)
@@ -146,4 +154,4 @@ El contenido se agrega en cualquier fase, por PR, siguiendo [03 · Modelo de esc
 Leaderboards por comunidad (opt-in) · contenido en inglés · casilleros con combinaciones de servicios · Studio hosteado con autenticación y presupuesto · modo taller para meetups (un facilitador proyecta y los equipos responden).
 
 - **Contenido multiidioma**: traducciones por escenario en `locales/<lang>.yaml`, con el idioma original como fuente de verdad y detección de traducciones desactualizadas ([ADR-0023](adr/0023-contenido-multiidioma.md)). En v1 solo se respeta lo que ese ADR pide para no complicar la migración.
-- **Modo "diseño libre"**: el jugador escribe un requerimiento, diagrama la arquitectura con el editor del Studio y la IA la analiza y sugiere mejoras contra objetivos explícitos (como en la evaluación de escenarios, [ADR-0007](adr/0007-evaluacion-por-objetivos.md)). Depende del editor visual de F2 (RF-STU-04) y de la IA de F5; requiere su propio ADR (sale del modelo de respuestas cerradas y necesita IA del lado del jugador, no solo del autor).
+- **Modo "diseño libre"**: el jugador escribe un requerimiento, diagrama la arquitectura con el editor del Studio y la IA la analiza y sugiere mejoras contra objetivos explícitos (como en la evaluación de escenarios, [ADR-0007](adr/0007-evaluacion-por-objetivos.md)). Depende del editor visual de F2 (RF-STU-04) y de la IA de F5; requiere su propio ADR (sale del modelo de respuestas cerradas y necesita IA del lado del jugador, no solo del autor). Variante relacionada: el asistente de arquitectura de F8, donde la IA dibuja y el usuario pregunta ([ADR-0026](adr/0026-asistente-de-arquitectura-con-ia.md)); comparten la conversión a objetivos, la validación y `packages/ai-generator`.
