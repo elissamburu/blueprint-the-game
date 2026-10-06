@@ -56,18 +56,29 @@
 | ID | Requisito | P | Fase |
 |---|---|---|---|
 | RF-ONB-01 | En el primer ingreso, el jugador elige **áreas de interés** (multi-selección) de la lista `content/areas.yaml`. | M | F1 |
-| RF-ONB-02 | El jugador indica su **experiencia** (Recién empiezo / Uso AWS / Diseño arquitecturas / Experto), que define los niveles desbloqueados al inicio en todas las áreas (RF-NAV-03). | M | F1 |
+| RF-ONB-02 | El jugador indica su **experiencia** (Recién empiezo con la nube / Recién empiezo / Uso AWS / Diseño arquitecturas / Experto; la primera desde F2.1, RF-ONB-05), que define los niveles desbloqueados al inicio en todas las áreas (RF-NAV-03). | M | F1 |
 | RF-ONB-03 | El jugador puede **editar áreas e intereses** en cualquier momento desde el perfil. | M | F1 |
 | RF-ONB-04 | Tutorial interactivo de 1 escenario nivel 100 que enseña la mecánica (colocar, colores, pistas, flujo). | S | F1 |
+| RF-ONB-05 | Opción de experiencia **«Recién empiezo con la nube»** (`newcomer`), aparte de «Recién empiezo», que arranca en el **nivel 0** (RF-NAV-08) con el área `fundamentos` preseleccionada ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md)). | M | F2.1 |
 
 **Mapeo experiencia → niveles desbloqueados (inicial, configurable en `content/game-rules.yaml`)**
 
-| Experiencia | Desbloqueados |
-|---|---|
-| Recién empiezo | 100 |
-| Uso AWS | 100, 200 |
-| Diseño arquitecturas | 100, 200, 300 |
-| Experto | 100–400 |
+| Experiencia | Desbloqueados | Desde F2.1 |
+|---|---|---|
+| Recién empiezo con la nube | — | 0 |
+| Recién empiezo | 100 | 0, 100 |
+| Uso AWS | 100, 200 | 0, 100, 200 |
+| Diseño arquitecturas | 100, 200, 300 | 0–300 |
+| Experto | 100–400 | 0–400 |
+
+Desde F2.1 todas las experiencias incluyen el nivel 0, porque no hay un nivel anterior que lo desbloquee. Cada experiencia sigue arrancando en su nivel más alto abierto (RF-NAV-02): «Recién empiezo» en 100 y «Recién empiezo con la nube» en 0.
+
+**CA RF-ONB-05**
+- Título «Recién empiezo con la nube», descripción «Nunca usé la nube; quiero entender las ideas básicas». Es la primera opción del grupo. «Recién empiezo» mantiene su título y su descripción pasa a ser «Conozco la idea de nube y quiero empezar con AWS».
+- Al elegirla, el área `fundamentos` («Fundamentos de la nube») queda marcada; el jugador puede desmarcarla o sumar otras.
+- Al terminar el onboarding, el escenario recomendado (RF-NAV-02) es de nivel 0.
+- La UI no nombra el examen de certificación ([ADR-0019](adr/0019-nombre-y-marcas.md) pendiente); usa «Ideas básicas de la nube».
+- El grupo de radios con cinco opciones se sigue navegando con flechas y cumple [accesibilidad](accesibilidad.md).
 
 ---
 
@@ -82,6 +93,7 @@
 | RF-NAV-05 | Solo se listan escenarios con `status: published` (y `beta` con etiqueta "Beta"). `draft` y `retired` no se listan. | M | F1 |
 | RF-NAV-06 | **Escenario destacado de la semana** (configurable en contenido). | C | F7 |
 | RF-NAV-07 | **Rutas de certificación**: los escenarios se etiquetan con los **dominios publicados** en la guía oficial de cada examen de AWS ([AWS Certification Exam Guides](https://docs.aws.amazon.com/aws-certification/latest/examguides/aws-certification-exam-guides.html)); el listado permite filtrar por certificación y dominio, y cada certificación tiene una ruta ordenada de escenarios. Se vincula con el modo examen (RF-PLAY-12). | C | F7 |
+| RF-NAV-08 | **Nivel 0, «La nube en la vida real»**: escenarios de situaciones cotidianas (una pizzería, una mudanza) cuyos casilleros son roles de la vida real y se completan con servicios o conceptos (RF-CAT-07). Está abierto para todas las experiencias y su desbloqueo hacia el 100 sigue RF-NAV-03 ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md)). | M | F2.1 |
 
 **CA RF-NAV-03**
 - El desbloqueo es por par **(área, nivel)**. XP y rango siguen siendo globales.
@@ -178,15 +190,23 @@
 | RF-PAL-03 | En niveles 100–200 cada servicio muestra una **descripción corta** al pasar el mouse o mantener presionado. En 300–400 no. | S | F1 |
 | RF-PAL-04 | Los servicios ya colocados se marcan visualmente pero **pueden reutilizarse** (un servicio puede ser respuesta de varios casilleros). | M | F1 |
 | RF-PAL-05 | La paleta se genera a partir del **catálogo vigente**. Los servicios `deprecated` no aparecen salvo que el escenario los use. | M | F1 |
+| RF-PAL-06 | En el **nivel 0** cada tarjeta muestra primero el **nombre simple** (`plainName`) y debajo el nombre real, más chico; el nombre accesible incluye los dos y el buscador también busca por el nombre simple ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md)). | M | F2.1 |
+| RF-PAL-07 | Los **conceptos** (RF-CAT-07) no se agregan por relleno en los modos `categories`, `categories-plus` y `full`: aparecen solo si el escenario los usa. En `curated` entran como cualquier entrada (respuestas, `incorrect`, `palette.extra` y grupos de confusión). | M | F2.1 |
 
 **Modos de paleta**
 
 | Modo | Default para nivel | Contenido |
 |---|---|---|
-| `curated` | 100 | Respuestas (todas las gradaciones) + `incorrect` del escenario + distractores de sus grupos de confusión, hasta `palette.maxSize` (default 12). |
+| `curated` | 0 y 100 | Respuestas (todas las gradaciones) + `incorrect` del escenario + distractores de sus grupos de confusión, hasta `palette.maxSize` (default 12; en el nivel 0, 8 con `palette.maxSizeByLevel`, desde F2.1). |
 | `categories` | 200 | Todos los servicios de las categorías de las respuestas. |
 | `categories-plus` | 300 | `categories` + categorías adyacentes (definidas en `categories.yaml`). |
 | `full` | 400 | Catálogo completo, sin resaltar categorías. |
+
+**CA RF-PAL-06**
+- La tarjeta (paleta expandida y casillero del tablero) muestra el nombre simple arriba y el nombre real debajo, con al menos 0,75 rem fuera del tablero (12 px dentro) y contraste ≥ 4,5:1.
+- El nombre accesible es «<nombre simple> (<nombre real>)», p. ej. «Almacenamiento de archivos (Amazon S3)». En la paleta colapsada, el tooltip y el `aria-label` usan el mismo texto.
+- La descripción corta de RF-PAL-03 también se muestra en el nivel 0.
+- Fuera del nivel 0 la tarjeta no cambia.
 
 ---
 
@@ -200,6 +220,7 @@
 | RF-EVAL-04 | Una vez verde, el casillero **revela el servicio** (nombre + ícono) y queda bloqueado. | M | F1 |
 | RF-EVAL-05 | El puntaje se calcula con el **motor de reglas** (`packages/game-engine`) según `content/game-rules.yaml`. | M | F1 |
 | RF-EVAL-06 | Con sesión iniciada, el **servidor re-evalúa** el intento contra la versión publicada del escenario antes de otorgar XP/insignias. | M | F4 |
+| RF-EVAL-07 | La explicación de una respuesta muestra el **nombre completo** del servicio o concepto y, si la respuesta tiene `analogyLimit`, un bloque **«Dónde se rompe la analogía»** con su enlace a la documentación oficial. En el nivel 0 toda respuesta `optimal` y `acceptable` lo tiene (lint L021, [ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md)). | M | F2.1 |
 
 **Reglas de puntaje iniciales (configurables)**
 
@@ -210,7 +231,7 @@
 | Naranja aceptado por el jugador | 50 |
 | Cada pista usada | −15 (mínimo 0) |
 | Casillero con la solución vista (RF-PLAY-14) | 0 (`scoring.revealedSolution` en `game-rules.yaml`; nunca mayor que un naranja aceptado ni que el mínimo de un verde) |
-| XP del escenario | `Σ puntos × multiplicador` (100: ×1 · 200: ×1,5 · 300: ×2 · 400: ×3) |
+| XP del escenario | `Σ puntos × multiplicador` (0: ×0,5, desde F2.1 · 100: ×1 · 200: ×1,5 · 300: ×2 · 400: ×3) |
 
 ---
 
@@ -257,6 +278,7 @@
 | RF-STU-16 | **Proveedor de IA configurable** por variables de entorno: Amazon Bedrock (default, credenciales del perfil local de AWS) o Anthropic API (API key). | M | F5 |
 | RF-STU-17 | Mostrar **costo estimado / tokens** de cada llamada de IA. | C | F5 |
 | RF-STU-18 | El Studio **nunca** se despliega en la infraestructura pública; escucha solo en `127.0.0.1`. | M | F2 |
+| RF-STU-19 | El Studio ofrece el **nivel 0**: el selector de servicio incluye los conceptos (con etiqueta «Concepto» y búsqueda por nombre simple) y el formulario de una respuesta incluye «Dónde se rompe la analogía» (texto y referencias), obligatorio en el nivel 0. | M | F2.1 |
 
 **CA RF-STU-10**
 - Dado "procesar PDFs subidos por clientes, picos a fin de mes, equipo chico", nivel 200, áreas `serverless`: cuando genero, entonces obtengo en menos de 60 s un escenario que pasa `pnpm content:validate` sin errores (advertencias permitidas), con ≥ 1 `optimal` por casillero y cada `optimal`/`acceptable` vinculado a ≥ 1 objetivo.
@@ -277,6 +299,7 @@
 | RF-CNT-06 | CI comenta en el PR un **resumen del escenario** (nivel, áreas, casilleros, advertencias de lint) y el diagrama Mermaid. | S | F3 |
 | RF-CNT-07 | Si cambian respuestas o grados de un escenario publicado, **CI exige** incrementar `version`. | S | F3 |
 | RF-CNT-08 | **Skill de Claude Code** en el repo (`.claude/skills/nuevo-escenario`) para generar escenarios desde Claude Code con las mismas reglas que el Studio. | S | F5 |
+| RF-CNT-09 | Toda **analogía del nivel 0** (la `rationale` y el `analogyLimit` de cada respuesta) pasa por **revisión humana** antes de que el escenario sea `published`. La plantilla de PR de RF-CNT-05 suma, para escenarios de nivel 0, el ítem «Revisé cada analogía y su "dónde se rompe" contra la referencia oficial». | M | F2.1 |
 
 ---
 
@@ -290,6 +313,7 @@
 | RF-CAT-04 | **Workflow programado** (mensual) que consulta los parámetros públicos de SSM (`/aws/service/global-infrastructure/services`), compara con el catálogo y **abre un PR** con altas/bajas detectadas para curación humana. Nunca commitea directo a `main`. | M | F7 |
 | RF-CAT-05 | Script `pnpm icons:fetch` que descarga el paquete oficial de íconos y mapea íconos a ids del catálogo. Los íconos **no se versionan** en el repo ([ADR-0012](adr/0012-iconos.md)). | M | F1 |
 | RF-CAT-06 | Si un servicio pasa a `deprecated`, el lint advierte en los escenarios que lo usan (error si es `optimal`). | M | F0 |
+| RF-CAT-07 | **Conceptos en el catálogo**: las entradas tienen `type` (`service` o `concept`). Un concepto tiene `id`, `name`, `category` (de una categoría `kind: concept`), `leakPatterns`, `short`, `docs` (fuente oficial) y `status`; no tiene `ssmNamespaces` ni `icon` oficial y puede tener un `glyph` de un conjunto cerrado de íconos de lucide. Toda entrada puede tener `plainName`. `icons:fetch` y `catalog-sync` ignoran los conceptos ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md)). | M | F2.1 |
 
 ---
 

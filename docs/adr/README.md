@@ -29,6 +29,7 @@ Formato: [MADR](https://adr.github.io/madr/) simplificado (Contexto · Decisión
 | [0023](0023-contenido-multiidioma.md) | Contenido multiidioma | Propuesto |
 | [0024](0024-comando-revealsolution.md) | Comando `revealSolution`: ver la solución de un casillero o de todo el escenario | Aceptado |
 | [0025](0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md) | Studio: preview con `packages/play` y servidor local endurecido | Aceptado |
+| [0027](0027-nivel-0-y-conceptos-en-el-catalogo.md) | Nivel 0 «La nube en la vida real» y conceptos en el catálogo | Aceptado |
 
 ## Plantilla
 
