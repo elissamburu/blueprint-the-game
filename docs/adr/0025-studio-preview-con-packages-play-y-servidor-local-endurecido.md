@@ -106,6 +106,23 @@ CodeMirror 6 (`@codemirror/*`, editor YAML con diagnósticos) y `elkjs` (auto-la
 - No cambian Zod en la frontera (request y respuesta), el límite de tamaño (S6) ni el control del hash (S8).
 - Un borrador inválido guardado en `content/` hace fallar `pnpm content:validate` y el CI hasta que se corrija, como cualquier otro error: la enmienda solo evita perder trabajo en la copia local del autor.
 
+### 2026-10-07 · `GameHost` guarda la partida en curso (§1, RF-PLAY-18)
+**Motivo.** La partida vivía solo en la memoria de la pantalla: recargar la perdía y, de paso, borraba los errores, las pistas usadas y las soluciones vistas, así que recargar permitía rehacer el escenario con puntaje completo. Guardarla es algo propio de cada app (la web la guarda, el preview del Studio no), así que entra por el puerto.
+
+**Precisión.**
+- `GameHost` suma tres miembros opcionales:
+
+  ```ts
+  loadAttempt?(scenarioId: string): SavedAttempt | null; // web: localStorage, validado con Zod
+  saveAttempt?(attempt: SavedAttempt): void;             // después de cada comando aceptado
+  clearAttempt?(scenarioId: string): void;               // «Finalizar», «Empezar de nuevo»
+  ```
+
+  Sin ellos cada visita empieza de cero: el Studio no los pasa.
+- `SavedAttempt` (`game-engine`) es `{ scenarioId, version, commands }`: la lista de comandos que el motor aceptó, sin `selectSlot` (no es progreso). No se guarda el estado derivado. Al abrir, `resumeAttempt` vuelve a aplicar los comandos con el mismo reductor; si la `version` del escenario cambió, o un comando ya no se aplica, la partida se descarta. Así el puntaje reconstruido sale de las mismas reglas y recargar no lo mejora.
+- `loadAttempt` es **síncrono**: la pantalla arma la sesión antes de su primer render y no muestra un tablero vacío que después cambia. Un almacenamiento remoto (F4) carga la partida antes de montar la pantalla.
+- La validación de lo guardado (Zod) es del host, en la frontera del almacenamiento; el motor sigue sin IO.
+
 ## Referencias
 - Hono — [Node.js (`@hono/node-server`)](https://hono.dev/docs/getting-started/nodejs), [Body Limit](https://hono.dev/docs/middleware/builtin/body-limit), [CSRF Protection](https://hono.dev/docs/middleware/builtin/csrf)
 - OWASP — [Cross-Site Request Forgery Prevention Cheat Sheet](https://cheatsheetseries.owasp.org/cheatsheets/Cross-Site_Request_Forgery_Prevention_Cheat_Sheet.html)

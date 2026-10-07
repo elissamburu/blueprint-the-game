@@ -2,7 +2,8 @@
 // Brief shown when a scenario opens (RF-PLAY-01, layout v2): level, areas, estimated time, the
 // context, restrictions and goals, and a still preview of the diagram with empty slots. A modal
 // dialog: the focus stays inside and "Empezar a diseñar" (or Esc) opens the board. The footer links
-// to the printable version (RF-PLAY-16).
+// to the printable version (RF-PLAY-16). When the game in progress was resumed, or dropped because
+// the scenario changed its version, the brief says so first (RF-PLAY-18).
 // Lovable: ScenarioBrief, .scenario-brief-overlay, .scenario-brief-card, .brief-content,
 // .brief-objectives, .mini-diagram (src/components/blueprint-app.tsx, styles.css), captura 12.
 import { Diagram, type ServiceLookup } from "@blueprint/diagram";
@@ -17,7 +18,14 @@ import {
   DialogTitle,
 } from "@blueprint/ui/components/dialog";
 import { LevelBadge } from "@blueprint/ui/components/level-badge";
-import { ArrowRightIcon, ClockIcon, LightbulbIcon, PrinterIcon } from "lucide-react";
+import {
+  ArrowRightIcon,
+  ClockIcon,
+  HistoryIcon,
+  InfoIcon,
+  LightbulbIcon,
+  PrinterIcon,
+} from "lucide-react";
 import { useId, useRef } from "react";
 import { useTranslation } from "react-i18next";
 import { Link } from "react-router";
@@ -27,6 +35,9 @@ import type { GameHost } from "./host";
 import { Kicker } from "./Kicker";
 import { StatusBadge } from "./StatusBadge";
 
+/** What happened to the saved game in progress, when the player must be told (RF-PLAY-18). */
+export type BriefNotice = "resumed" | "outdated";
+
 export interface ScenarioBriefProps {
   scenario: Scenario;
   areaNames: readonly string[];
@@ -34,6 +45,7 @@ export interface ScenarioBriefProps {
   exit: GameHost["exit"];
   /** Route of the printable version; without it the brief does not offer it. */
   printHref?: string | undefined;
+  notice?: BriefNotice | null;
   open: boolean;
   /** "Empezar a diseñar", Esc or a click outside. */
   onStart: () => void;
@@ -47,6 +59,7 @@ export function ScenarioBrief({
   services,
   exit,
   printHref,
+  notice = null,
   open,
   onStart,
   onClosed,
@@ -90,6 +103,19 @@ export function ScenarioBrief({
         </header>
         <div className="grid gap-10 px-6 py-8 md:px-10 lg:grid-cols-[minmax(0,1.1fr)_minmax(0,0.9fr)]">
           <section className="min-w-0">
+            {notice !== null && (
+              <p
+                role="status"
+                className="mb-6 flex items-start gap-2 rounded-lg border bg-muted p-3 text-base font-semibold"
+              >
+                {notice === "resumed" ? (
+                  <HistoryIcon aria-hidden className="mt-[0.2rem] size-5 shrink-0" />
+                ) : (
+                  <InfoIcon aria-hidden className="mt-[0.2rem] size-5 shrink-0" />
+                )}
+                {t(`brief.${notice}`)}
+              </p>
+            )}
             <Kicker>{t("brief.kicker")}</Kicker>
             <DialogTitle className="mt-2 max-w-[40.625rem] text-[2rem] leading-[1.16] font-normal tracking-normal">
               {scenario.title}

@@ -138,6 +138,7 @@ Desde F2.1 todas las experiencias incluyen el nivel 0, porque no hay un nivel an
 | RF-PLAY-15 | **"Reproducir flujo" visible**: el reproductor de flujo (RF-PLAY-03) se abre con un botón en la barra del juego, no escondido en el menú. "Reportar un problema" (RF-PLAY-13) sigue en el menú y en el resumen. | S | F1 |
 | RF-PLAY-16 | **Versión imprimible** del escenario, con estilos de impresión y "Guardar como PDF" del navegador, sin servidor. Ver CA. | C | F1 |
 | RF-PLAY-17 | **Animaciones**: microinteracciones al colocar un servicio, al mostrar el resultado de un casillero y al subir de rango, diseñadas en la herramienta de diseño como referencia visual ([ADR-0021](adr/0021-ui-shadcn-tailwind-y-referencia-visual.md)) y con alternativa sin movimiento bajo `prefers-reduced-motion` ([accesibilidad](accesibilidad.md#3-preferencias-del-sistema)). | C | F1 |
+| RF-PLAY-18 | **La partida en curso se guarda localmente y se retoma al volver**: recargar, cerrar la pestaña o salir al listado no pierde lo jugado ni borra los errores, las pistas usadas ni las soluciones vistas. Ver CA. | M | F2.1 |
 
 **CA RF-PLAY-01**
 - Al entrar a cada escenario se abre el **brief**: nivel, áreas, duración estimada, contexto, restricciones, metas y una vista previa del diagrama de solo lectura con los casilleros vacíos. "Empezar a diseñar" (o Esc) lo cierra y deja el tablero.
@@ -180,6 +181,17 @@ Desde F2.1 todas las experiencias incluyen el nivel 0, porque no hay un nivel an
 - **Opcional** (casilla "Incluir soluciones" antes de imprimir): una hoja por casillero con el óptimo, los aceptables, los incorrectos típicos, el porqué de cada uno y los enlaces a la documentación oficial.
 - Cada sección empieza en una **página nueva** (`break-before: page`); la barra del juego, la paleta y los controles no se imprimen.
 - Se imprime legible en blanco y negro: los grados de las hojas de solución se distinguen por texto e ícono, no por color.
+
+**CA RF-PLAY-18**
+- Se guarda después de cada acción: colocar, reintentar, aceptar un naranja, usar una pista y ver una solución. Al volver a abrir el escenario (recarga, pestaña nueva o volver desde el listado), el tablero queda igual, con los mismos errores, pistas usadas y soluciones vistas.
+- Recargar nunca mejora el puntaje: las penalidades ya incurridas se conservan.
+- Si el escenario cambió de `version`, la partida guardada se descarta y se avisa con un mensaje de estado («El escenario se actualizó; empezás de nuevo»).
+- Al terminar con «Finalizar», la partida guardada se borra.
+- «Volver a jugar» un escenario completado empieza una partida nueva.
+- El jugador puede descartar la partida en curso («Empezar de nuevo»), con confirmación.
+- Los datos de la partida guardada se validan al leerlos (Zod). Si están corruptos o son de un formato viejo, se descartan sin romper la pantalla.
+- Se borra junto con el resto del progreso local (reiniciar progreso o borrar datos).
+- Se guarda la lista de comandos que el motor aceptó y la partida se reconstruye volviéndolos a aplicar con `game-engine`; la persistencia entra por el puerto `GameHost` ([ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md#enmiendas)). El preview del Studio no guarda nada.
 
 ---
 

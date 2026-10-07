@@ -1,6 +1,6 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import type { PlayerProgress } from "@blueprint/game-engine";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import type { ProgressLoad, ProgressRepository } from "./progress-repository";
 import { createProgressStore } from "./progress-store";
 
@@ -84,5 +84,18 @@ describe("progress store", () => {
     const store = createProgressStore(fakeRepository({ status: "empty" }, true).repository);
     await store.getState().replace(progress);
     expect(store.getState()).toMatchObject({ progress, notice: "save-failed" });
+  });
+});
+
+describe("progress store reset", () => {
+  it("forgets every game in progress with the progress (RF-PLAY-18)", async () => {
+    const attempts = { clearAll: vi.fn() };
+    const store = createProgressStore(
+      fakeRepository({ status: "loaded", progress }).repository,
+      attempts,
+    );
+    await store.getState().hydrate();
+    await store.getState().reset();
+    expect(attempts.clearAll).toHaveBeenCalledOnce();
   });
 });

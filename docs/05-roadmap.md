@@ -94,6 +94,9 @@ Se implementa en 6 PRs, en este orden (el PR 4 se partió en 4a, juego, y 4b, St
 - Protocolo manual de accesibilidad ([docs/accesibilidad.md §7](accesibilidad.md#7-protocolo-de-pruebas)) sobre un escenario de nivel 0: lo hace el mantenedor.
 - Tamaño de casillero por nivel: NODE_SIZE por nivel o alto según contenido en el nivel 0, con L007, layout de elk y docs/03 actualizados; decidir con un diseño previo en Lovable.
 
+**Agregado durante la fase**:
+- ✅ Partida en curso guardada en el navegador (RF-PLAY-18, hecho el 2026-10-07): se guarda la lista de comandos aceptados y se reconstruye con `game-engine` al volver a abrir el escenario, con los mismos errores, pistas y soluciones vistas; se descarta si cambió la `version` del escenario (con aviso), al «Finalizar», con «Empezar de nuevo» (con confirmación) y al reiniciar el progreso. Entra por `GameHost` ([enmienda de ADR-0025](adr/0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md#enmiendas)); el preview del Studio no guarda nada. Sin dependencias nuevas.
+
 Todo dato de AWS lleva su referencia oficial; si no se puede verificar, queda como `TODO(verificar)` y el escenario no pasa de `beta`.
 
 **DoD**: un invitado elige «Recién empiezo con la nube», completa los escenarios de nivel 0 y desbloquea el 100; «Recién empiezo» sigue arrancando en 100 y ve el nivel 0 abierto; `content:validate` falla con L021 si una respuesta de nivel 0 no tiene `analogyLimit` y con L005 si un rol repite un `plainName`; el nombre accesible de cada tarjeta del nivel 0 incluye el nombre simple y el real (test e2e); axe sin violaciones `critical` ni `serious` y [pruebas manuales de accesibilidad](accesibilidad.md#7-protocolo-de-pruebas) sobre un escenario de nivel 0; cada analogía revisada por una persona antes de `published`.

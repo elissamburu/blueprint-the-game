@@ -1,12 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Game screen (RF-PLAY-01..08, RF-PLAY-13..15), in its own chunk with React Flow and @dnd-kit
+// Game screen (RF-PLAY-01..08, RF-PLAY-13..18), in its own chunk with React Flow and @dnd-kit
 // (ADR-0004, RNF-03). Layout v2 (docs/design, capturas 12–17): the brief when it opens, then a
 // single bar instead of the global header, the board over the whole space with the feedback card
 // floating on it, and the collapsible palette. "Ver caso" shows the case on demand and focus mode
 // hides the bar. Fixed height, no page scroll. Every gesture goes through the adapters of
 // src/interaction (ADR-0008) and every grade, score, completion and unlock comes from game-engine.
-// What belongs to the app that mounts it (progress, routes, layout, icons) comes through the
-// GameHost port (ADR-0025).
+// What belongs to the app that mounts it (progress, routes, layout, icons, the saved game in
+// progress) comes through the GameHost port (ADR-0025).
 // Lovable: GameScreen, .game-shell, .game-redesign, .game-layout (src/components/blueprint-app.tsx,
 // styles.css).
 import {
@@ -16,10 +16,12 @@ import {
   type SlotHintContext,
 } from "@blueprint/diagram";
 import {
+  attemptOf,
   buildPalette,
   canApply,
   commands,
   isSlotResolved,
+  resumeAttempt,
   revealedHints,
   scenarioResult,
   slotNodes,
@@ -40,6 +42,7 @@ import {
   type KeyboardEvent,
 } from "react";
 import { useTranslation } from "react-i18next";
+import { useStore } from "zustand";
 import { createServiceLookup, slotViews } from "./board";
 import { cardAccessibleName, cardPlainName, entryIcon, showsPlainNames } from "./catalog-entry";
 import { CaseDrawer } from "./CaseDrawer";
@@ -49,6 +52,7 @@ import { HintAction, showsHintAction } from "./HintAction";
 import type { GameBundle, GameHost } from "./host";
 import { ServiceDndContext } from "./interaction/drag";
 import { Palette } from "./Palette";
+import { RestartDialog } from "./RestartDialog";
 import { ScenarioBrief } from "./ScenarioBrief";
 import { createSessionStore } from "./session-store";
 import { SolutionDialog, type SolutionChoice, type SolutionRequest } from "./SolutionDialog";
@@ -74,11 +78,30 @@ export default function GameScreen({ scenario, bundle, host }: GameScreenProps) 
   const useLayout = host.useLayout ?? noLayout;
   useLayout();
   const { rules, catalog } = bundle;
-  const [store] = useState(() => {
+  // The game in progress the host saved, if any, is rebuilt by game-engine (RF-PLAY-18).
+  const [{ store, resumed }] = useState(() => {
     const created = createSessionStore();
-    created.getState().start(scenario, rules);
-    return created;
+    const attempt = resumeAttempt(scenario, rules, host.loadAttempt?.(scenario.id) ?? null);
+    created.getState().resume(attempt.session, attempt.commands);
+    return { store: created, resumed: attempt.kind };
   });
+  const played = useStore(store, (s) => s.commands.length > 0);
+
+  // The host keeps the game after every command that changes it and forgets it when it is
+  // restarted, or when the saved one could not be resumed.
+  const { saveAttempt, clearAttempt } = host;
+  useEffect(() => {
+    if (resumed === "outdated" || resumed === "invalid") clearAttempt?.(scenario.id);
+  }, [resumed, clearAttempt, scenario.id]);
+  useEffect(
+    () =>
+      store.subscribe((state, previous) => {
+        if (state.commands === previous.commands) return;
+        if (state.commands.length === 0) clearAttempt?.(scenario.id);
+        else saveAttempt?.(attemptOf(scenario, state.commands));
+      }),
+    [store, scenario, saveAttempt, clearAttempt],
+  );
 
   const services = useMemo(
     () => new Map<string, Service>(catalog.services.map((s) => [s.id, s])),
@@ -334,12 +357,21 @@ export default function GameScreen({ scenario, bundle, host }: GameScreenProps) 
     } else focusSlot(request.slotId);
   };
 
+  // "Empezar de nuevo" (RF-PLAY-18), after a confirmation.
+  const [restartOpen, setRestartOpen] = useState(false);
+  const restartAction = { available: played, onRestart: () => setRestartOpen(true) };
+  const onRestartClosed = (confirmed: boolean) => {
+    if (confirmed) diagramRef.current?.element()?.focus();
+    else moreRef.current?.focus();
+  };
+
   const [finishing, setFinishing] = useState(false);
   const onFinish = async () => {
     setFinishing(true);
     await focus.exit();
-    // Web: saves the result and goes to the summary.
+    // Web: saves the result and goes to the summary. The game is over: nothing to resume.
     await host.onFinish(session);
+    host.clearAttempt?.(scenario.id);
   };
 
   const areaNames = scenario.areas.map(
@@ -376,6 +408,7 @@ export default function GameScreen({ scenario, bundle, host }: GameScreenProps) 
           onFocusMode={() => toggleFocus(true)}
           onPlayFlow={() => diagramRef.current?.playFlow()}
           solution={solutionActions}
+          restart={restartAction}
           exit={host.exit}
           printHref={printHref}
           reportUrl={reportUrl}
@@ -484,6 +517,7 @@ export default function GameScreen({ scenario, bundle, host }: GameScreenProps) 
         services={serviceLookup}
         exit={host.exit}
         printHref={printHref}
+        notice={resumed === "resumed" || resumed === "outdated" ? resumed : null}
         open={briefOpen}
         onStart={() => setBriefOpen(false)}
         onClosed={() => diagramRef.current?.element()?.focus()}
@@ -495,6 +529,12 @@ export default function GameScreen({ scenario, bundle, host }: GameScreenProps) 
         onUseHint={game.revealHint}
         onReveal={(request) => game.revealSolution(request.kind === "slot" ? request.slotId : null)}
         onClosed={onSolutionClosed}
+      />
+      <RestartDialog
+        open={restartOpen}
+        onOpenChange={setRestartOpen}
+        onConfirm={game.restart}
+        onClosed={onRestartClosed}
       />
       <CaseDrawer
         scenario={scenario}

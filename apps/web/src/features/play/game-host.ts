@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The web game's GameHost (ADR-0025): what the game screen of @blueprint/play needs from this app.
 // The first move marks the scenario "en curso" and "Terminar" saves the result and goes to the
-// summary, both in the local progress; the screen takes the immersive layout, the icons of
-// public/icons and the routes of this router.
+// summary, both in the local progress. The game in progress is kept in this browser after every
+// move and resumed when the scenario opens again (RF-PLAY-18). The screen takes the immersive
+// layout, the icons of public/icons and the routes of this router.
 import { markScenarioStarted } from "@blueprint/game-engine";
 import type { GameHost } from "@blueprint/play";
 import type { Scenario } from "@blueprint/scenario-schema";
@@ -11,12 +12,19 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { useImmersiveLayout } from "../../app/immersive";
 import type { ContentBundle } from "../../content/load-bundle";
+import { attemptRepository } from "../../progress/local-storage-attempt-repository";
 import { useProgressStore } from "../../progress/progress-store";
 import { serviceIconSrc } from "../../service-icons";
 import { finishScenario, summaryState } from "./finish";
 import { repositoryUrl, reportIssueUrl } from "./report-issue";
 
 const REPOSITORY = repositoryUrl(import.meta.env.VITE_REPO_URL);
+
+/** Games in progress are kept only with a progress to keep them with, as the result. */
+const keepsGames = () => {
+  const { progress, incompatible } = useProgressStore.getState();
+  return progress !== null && !incompatible;
+};
 
 export const useWebGameHost = (scenario: Scenario, bundle: ContentBundle): GameHost => {
   const { t } = useTranslation(["translation", "play"]);
@@ -44,6 +52,11 @@ export const useWebGameHost = (scenario: Scenario, bundle: ContentBundle): GameH
         // nothing was saved): toasts on top of it would be read twice.
         void navigate(`/escenarios/${scenario.id}/resumen`, { state: summaryState(outcome) });
       },
+      loadAttempt: (scenarioId) => (keepsGames() ? attemptRepository.load(scenarioId) : null),
+      saveAttempt: (attempt) => {
+        if (keepsGames()) attemptRepository.save(attempt);
+      },
+      clearAttempt: (scenarioId) => attemptRepository.clear(scenarioId),
       exit: { label: t("play:back"), href: "/escenarios" },
       reportIssueUrl: (slotId) =>
         reportIssueUrl(REPOSITORY, {
