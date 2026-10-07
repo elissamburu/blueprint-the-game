@@ -105,6 +105,13 @@ test.describe("tarjeta del nivel 0 (RF-PAL-06) y analogía (RF-EVAL-07)", () => 
     const muted = await mutedForeground(page);
 
     await test.step("paleta expandida: el simple arriba, el real abajo, chico y atenuado", async () => {
+      // With concepts, the palette speaks of cards (ADR-0027 §6).
+      await expect(palette(page).getByRole("heading", { level: 2 })).toHaveText(
+        /^Servicios y conceptos/,
+      );
+      await expect(palette(page)).toContainText(
+        "Arrastrá una tarjeta a un casillero, o elegí un casillero y después una tarjeta.",
+      );
       const cards = palette(page).locator("[data-palette-service]");
       await expect(cards).toHaveCount(PAIRS.length);
       for (const pair of PAIRS) {
@@ -151,6 +158,31 @@ test.describe("tarjeta del nivel 0 (RF-PAL-06) y analogía (RF-EVAL-07)", () => 
       const { size, color } = await typeOf(real);
       expect(size).toBeGreaterThanOrEqual(12);
       expect(color).toBe(muted);
+      await page.getByRole("button", { name: "Cerrar explicación" }).click();
+    });
+
+    await test.step("ningún nombre se sale de su recuadro, ni en el tablero ni en la paleta", async () => {
+      // «Almacenamiento de archivos» is the longest word of the fixture: it has to hyphenate.
+      const { recipes } = PIZZERIA.slots;
+      await place(page, recipes.role, recipes.optimal);
+      await page.getByRole("button", { name: "Cerrar explicación" }).click();
+      const spills = await page.evaluate(() =>
+        [
+          ...document.querySelectorAll(
+            '[data-slot="service-name-plain"], [data-slot="service-name-real"]',
+          ),
+        ].flatMap((name) => {
+          const box = name.closest('[data-slot="architecture-slot-service"], button');
+          if (box === null) return [];
+          const outer = box.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(name);
+          return [...range.getClientRects()]
+            .filter((line) => line.right > outer.right + 0.5 || line.left < outer.left - 0.5)
+            .map(() => name.textContent ?? "");
+        }),
+      );
+      expect(spills).toEqual([]);
     });
   });
 

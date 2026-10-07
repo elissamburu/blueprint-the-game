@@ -61,11 +61,10 @@ for (const entry of bundle.scenarios) {
       page.getByRole("heading", { level: 1, name: "Escenario completado" }),
     ).toBeVisible();
     const max = numbers.format(total * bundle.rules.scoring.firstTryGreen);
-    await expect(summaryFigures(page), `${entry.id}: el resumen no da el puntaje máximo`).toContainText(
-      `${max}de ${max}`,
-    );
-    await expect(summaryFigures(page)).toContainText(
-      total === 1 ? "1 óptimo" : `${total} óptimos`,
-    );
+    await expect(
+      summaryFigures(page),
+      `${entry.id}: el resumen no da el puntaje máximo`,
+    ).toContainText(`${max}de ${max}`);
+    await expect(summaryFigures(page)).toContainText(total === 1 ? "1 óptimo" : `${total} óptimos`);
   });
 }

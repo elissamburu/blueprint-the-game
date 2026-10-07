@@ -6,16 +6,16 @@
 
 Los socios suben fotos y el sistema genera miniaturas.
 
-| Campo | Valor |
-|---|---|
-| Id | `club-photos` |
-| Versión | 1 |
-| Estado | published |
-| Nivel | 100 |
-| Áreas | `serverless`, `storage` |
-| Duración estimada | 5 min |
-| Autores | @blueprint-e2e |
-| Paleta | auto · extra: Amazon SQS |
+| Campo             | Valor                    |
+| ----------------- | ------------------------ |
+| Id                | `club-photos`            |
+| Versión           | 1                        |
+| Estado            | published                |
+| Nivel             | 100                      |
+| Áreas             | `serverless`, `storage`  |
+| Duración estimada | 5 min                    |
+| Autores           | @blueprint-e2e           |
+| Paleta            | auto · extra: Amazon SQS |
 
 ## Contexto
 
@@ -24,10 +24,10 @@ El uso es esporádico.
 
 ## Objetivos
 
-| Id | Tipo | Categoría | Objetivo |
-|---|---|---|---|
-| `no-servers` | Restricción | operations | No administrar servidores. |
-| `low-cost` | Meta | cost | Pagar poco cuando no hay uso. |
+| Id           | Tipo        | Categoría  | Objetivo                      |
+| ------------ | ----------- | ---------- | ----------------------------- |
+| `no-servers` | Restricción | operations | No administrar servidores.    |
+| `low-cost`   | Meta        | cost       | Pagar poco cuando no hay uso. |
 
 ## Diagrama con las respuestas óptimas
 
@@ -56,20 +56,20 @@ flowchart LR
 
 > Almacenamiento durable donde quedan las fotos originales.
 
-| Servicio | Grado | Objetivos | Justificación | Referencias |
-|---|---|---|---|---|
-| Amazon S3 (`s3`) | 🟢 Óptimo | `no-servers`, `low-cost` | Almacenamiento de objetos durable con pago por uso. | [1](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html) |
-| Amazon EFS (`efs`) | 🔴 Incorrecto | — | Se monta desde cómputo; no recibe subidas. |  |
+| Servicio           | Grado         | Objetivos                | Justificación                                       | Referencias                                                             |
+| ------------------ | ------------- | ------------------------ | --------------------------------------------------- | ----------------------------------------------------------------------- |
+| Amazon S3 (`s3`)   | 🟢 Óptimo     | `no-servers`, `low-cost` | Almacenamiento de objetos durable con pago por uso. | [1](https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html) |
+| Amazon EFS (`efs`) | 🔴 Incorrecto | —                        | Se monta desde cómputo; no recibe subidas.          |                                                                         |
 
 ### Casillero `thumbnailer`
 
 > Lógica breve que genera la miniatura cuando llega una foto.
 
-| Servicio | Grado | Objetivos | Justificación | Referencias |
-|---|---|---|---|---|
-| AWS Lambda (`lambda`) | 🟢 Óptimo | `no-servers`, `low-cost` | Cómputo por evento que no cobra sin uso. | [1](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html) |
-| AWS Fargate (`fargate`) | 🟠 Aceptable | `low-cost` | Contenedores sin servidores, pero con arranque más lento. |  |
-| Amazon EC2 (`ec2`) | 🔴 Incorrecto | viola `no-servers` | Hay que administrar instancias. |  |
+| Servicio                | Grado         | Objetivos                | Justificación                                             | Referencias                                                    |
+| ----------------------- | ------------- | ------------------------ | --------------------------------------------------------- | -------------------------------------------------------------- |
+| AWS Lambda (`lambda`)   | 🟢 Óptimo     | `no-servers`, `low-cost` | Cómputo por evento que no cobra sin uso.                  | [1](https://docs.aws.amazon.com/lambda/latest/dg/welcome.html) |
+| AWS Fargate (`fargate`) | 🟠 Aceptable  | `low-cost`               | Contenedores sin servidores, pero con arranque más lento. |                                                                |
+| Amazon EC2 (`ec2`)      | 🔴 Incorrecto | viola `no-servers`       | Hay que administrar instancias.                           |                                                                |
 
 Pistas:
 
@@ -80,10 +80,10 @@ Pistas:
 
 > Tabla que registra qué miniatura corresponde a cada foto.
 
-| Servicio | Grado | Objetivos | Justificación | Referencias |
-|---|---|---|---|---|
-| Amazon DynamoDB (`dynamodb`) | 🟢 Óptimo | `no-servers`, `low-cost` | Tabla clave-valor sin servidores, con cobro por pedido. | [1](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html) |
-| Amazon EFS (`efs`) | 🔴 Incorrecto | — | Es un sistema de archivos: no consulta registros por clave. |  |
+| Servicio                     | Grado         | Objetivos                | Justificación                                               | Referencias                                                                             |
+| ---------------------------- | ------------- | ------------------------ | ----------------------------------------------------------- | --------------------------------------------------------------------------------------- |
+| Amazon DynamoDB (`dynamodb`) | 🟢 Óptimo     | `no-servers`, `low-cost` | Tabla clave-valor sin servidores, con cobro por pedido.     | [1](https://docs.aws.amazon.com/amazondynamodb/latest/developerguide/Introduction.html) |
+| Amazon EFS (`efs`)           | 🔴 Incorrecto | —                        | Es un sistema de archivos: no consulta registros por clave. |                                                                                         |
 
 Pistas:
 
