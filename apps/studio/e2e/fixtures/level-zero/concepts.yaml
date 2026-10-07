@@ -1,0 +1,44 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# Concepts of the level 0 fixture of the Studio e2e (ADR-0027): appended to the catalog of the
+# temporary copy of content/ while level-zero.spec.ts runs. The real catalog gets its concepts in
+# F2.1 PR 5; these are the ones of the game's e2e fixture (apps/web/e2e/fixtures).
+- id: region
+  type: concept
+  name: Región de AWS
+  plainName: Lugar del mundo
+  category: concept-global-infrastructure
+  leakPatterns: ["Región de AWS", "AWS Region"]
+  short: "Área geográfica con varias zonas de disponibilidad aisladas entre sí."
+  docs: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html
+  glyph: region
+  status: active
+- id: availability-zone
+  type: concept
+  name: Zona de disponibilidad
+  plainName: Centro de datos aparte
+  category: concept-global-infrastructure
+  leakPatterns: ["zona de disponibilidad", "zonas de disponibilidad", "Availability Zone"]
+  short: "Uno o más centros de datos con energía y red propias dentro de una región."
+  docs: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html
+  glyph: availability-zone
+  status: active
+- id: edge-location
+  type: concept
+  name: Ubicación de borde
+  plainName: Punto de entrega cercano
+  category: concept-global-infrastructure
+  leakPatterns: ["ubicación de borde", "edge location"]
+  short: "Sitio cercano a los usuarios que entrega contenido con baja latencia."
+  docs: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html
+  glyph: edge-location
+  status: active
+- id: pay-as-you-go
+  type: concept
+  name: Pago por uso
+  plainName: Pagar solo lo que usás
+  category: concept-cloud-economics
+  leakPatterns: ["pago por uso", "pay-as-you-go"]
+  short: "Se paga por los recursos que se consumen, sin compromisos a largo plazo."
+  docs: https://aws.amazon.com/pricing/
+  glyph: pay-as-you-go
+  status: active

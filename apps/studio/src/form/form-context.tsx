@@ -56,6 +56,8 @@ export interface FormContextValue {
   findingsAt: (path: EditPath) => readonly StudioFinding[];
   confirm: (request: ConfirmRequest) => void;
   focusLater: (id: string) => void;
+  /** Says a message in the status region of the form (the only one, for every field). */
+  announce: (message: string) => void;
   /** Ids of the fields of this provider (fieldId and errorId in its scope). */
   fieldId: (path: EditPath) => string;
   errorId: (path: EditPath) => string;
@@ -142,6 +144,7 @@ export function FormProvider({
         setRequest(next);
       },
       focusLater,
+      announce: setMessage,
       fieldId: (path) => fieldId(path, idScope),
       errorId: (path) => errorId(path, idScope),
     }),

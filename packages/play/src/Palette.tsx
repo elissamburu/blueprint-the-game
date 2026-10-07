@@ -136,7 +136,8 @@ export function Palette({
     <aside
       data-palette
       data-collapsed={collapsed ? "" : undefined}
-      aria-label={t("palette.label")}
+      // Its name follows the visible title: «… y conceptos» only when it has concepts (level 0).
+      aria-label={t(cards ? "palette.labelCards" : "palette.label")}
       className={cn(
         "relative z-10 flex min-h-0 flex-col border-l bg-background transition-[width] duration-200 motion-reduce:transition-none",
         collapsed ? "w-[4.125rem]" : "w-[17.875rem]",

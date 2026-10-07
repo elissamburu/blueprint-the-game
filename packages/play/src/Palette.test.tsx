@@ -89,6 +89,7 @@ describe("Palette at level 0", () => {
 
   it("calls the palette «Servicios y conceptos» and its cards «tarjetas» when it has concepts", () => {
     renderPalette({ plainNames: true });
+    screen.getByRole("complementary", { name: "Paleta de servicios y conceptos" });
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Servicios y conceptos4");
     screen.getByText(
       "Arrastrá una tarjeta a un casillero, o elegí un casillero y después una tarjeta.",
@@ -97,6 +98,7 @@ describe("Palette at level 0", () => {
 
   it("keeps «Servicios» at level 0 when the palette has no concepts", () => {
     renderPalette({ plainNames: true, ids: ["s3", "lambda"] });
+    screen.getByRole("complementary", { name: "Paleta de servicios" });
     expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Servicios2");
     screen.getByText(
       "Arrastrá un servicio a un casillero, o elegí un casillero y después un servicio.",

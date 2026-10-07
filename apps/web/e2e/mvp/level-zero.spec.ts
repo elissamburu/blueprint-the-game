@@ -105,7 +105,8 @@ test.describe("tarjeta del nivel 0 (RF-PAL-06) y analogía (RF-EVAL-07)", () => 
     const muted = await mutedForeground(page);
 
     await test.step("paleta expandida: el simple arriba, el real abajo, chico y atenuado", async () => {
-      // With concepts, the palette speaks of cards (ADR-0027 §6).
+      // With concepts, the palette speaks of cards (ADR-0027 §6), in its name too.
+      await expect(palette(page, "concepts")).toBeVisible();
       await expect(palette(page).getByRole("heading", { level: 2 })).toHaveText(
         /^Servicios y conceptos/,
       );

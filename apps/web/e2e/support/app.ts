@@ -43,8 +43,22 @@ export const startDesigning = async (page: Page, title: string) => {
 
 export const board = (page: Page): Locator => page.getByRole("group", { name: /^Diagrama de «/ });
 
-export const palette = (page: Page): Locator =>
-  page.getByRole("complementary", { name: "Paleta de servicios" });
+/**
+ * Accessible names of the palette: «Paleta de servicios», or «Paleta de servicios y conceptos» at
+ * level 0 when it has concepts, as its visible title.
+ */
+export const PALETTE_NAMES = {
+  services: "Paleta de servicios",
+  concepts: "Paleta de servicios y conceptos",
+} as const;
+
+/** The palette by its exact name: either form, or only the one of `kind`. */
+export const palette = (page: Page, kind?: keyof typeof PALETTE_NAMES): Locator =>
+  kind === undefined
+    ? page.getByRole("complementary", {
+        name: new RegExp(`^(${PALETTE_NAMES.services}|${PALETTE_NAMES.concepts})$`),
+      })
+    : page.getByRole("complementary", { name: PALETTE_NAMES[kind], exact: true });
 
 /**
  * A slot of the board, whatever its state, by the role it shows. The role is its accessible

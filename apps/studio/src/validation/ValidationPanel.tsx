@@ -2,6 +2,7 @@
 // Validation panel (RF-STU-07). Each finding is a button that takes the cursor to its line.
 // Severity goes with an icon and a word, never only color (docs/accesibilidad.md §2), and the
 // polite live region announces only the summary ("2 errores, 1 advertencia"), not every item.
+// A finding the Studio cannot fix (L022: a plain name of the catalog) says how to fix it.
 import { cn } from "@blueprint/ui/lib/utils";
 import { CircleCheckIcon, CircleXIcon, TriangleAlertIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
@@ -15,6 +16,19 @@ export interface ValidationPanelProps {
   onJump: (finding: StudioFinding) => void;
   headingId: string;
   className?: string;
+}
+
+/** Findings that the Studio cannot fix, with what to do instead (ADR-0027 §6). */
+const NOTES: Readonly<Record<string, "validation.notes.L022">> = {
+  L022: "validation.notes.L022",
+};
+
+/** How to fix a finding the Studio cannot fix, or nothing. */
+export function FindingNote({ code }: { code: string }) {
+  const { t } = useTranslation();
+  const note = NOTES[code];
+  if (note === undefined) return null;
+  return <span className="block text-muted-foreground">{t(note)}</span>;
 }
 
 export function useSummary(findings: readonly StudioFinding[] | undefined): string {
@@ -106,7 +120,10 @@ function FindingButton({
           {t("validation.line", { line: finding.line })}
         </span>
       </span>
-      <span className="text-foreground">{finding.message}</span>
+      <span className="text-foreground">
+        {finding.message}
+        <FindingNote code={finding.code} />
+      </span>
       {finding.where !== "" && (
         <span className="font-mono text-sm break-all text-muted-foreground">{finding.where}</span>
       )}

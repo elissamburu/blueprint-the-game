@@ -86,4 +86,16 @@ describe("ValidationPanel", () => {
     );
     expect(screen.getByRole("status").textContent).toBe("No se pudo validar.");
   });
+
+  it("says that the plain name of L022 is added to the catalog by PR, not in the Studio", () => {
+    renderPanel([
+      finding({ code: "L022", message: "Falta el plainName.", path: ["palette"] }),
+      finding({}),
+    ]);
+    const [l022, l005] = screen.getAllByRole("button");
+    expect(l022?.textContent).toContain(
+      "El Studio no edita el catálogo: el plainName se agrega con un PR que cambie content/catalog/services.yaml.",
+    );
+    expect(l005?.textContent).not.toContain("El Studio no edita el catálogo");
+  });
 });

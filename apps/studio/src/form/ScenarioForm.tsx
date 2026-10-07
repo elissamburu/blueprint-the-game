@@ -4,10 +4,13 @@
 // YAML stays the source of truth: every change is a transaction of the YAML editor, with its
 // single undo history (Ctrl+Z and Ctrl+Y work here too). While the text does not parse, the form
 // shows the last version that did, read-only, with the line of the error. The validation panel
-// takes you to the field of an issue with `focusPath` (RF-STU-07).
+// takes you to the field of an issue with `focusPath` (RF-STU-07). Level 0 (ADR-0027, RF-STU-19):
+// choosing it in a scenario without areas checks «fundamentos», which can be unchecked; every answer
+// has «Dónde se rompe la analogía», required at level 0.
 import { Button } from "@blueprint/ui/components/button";
 import {
   GRADES,
+  LEVELS,
   OBJECTIVE_CATEGORIES,
   OBJECTIVE_KINDS,
   SCENARIO_STATUSES,
@@ -46,6 +49,7 @@ import { isRecord, listOf, recordOf, textOf, uniqueId, useFormDocument } from ".
 import { anchorOf, fieldId, findingsByAnchor, isSlotOf, type SectionKey } from "./form-paths";
 import { EdgesFields, GroupsFields, NodesFields } from "./DiagramFields";
 import { ServicePicker } from "./ServicePicker";
+import { AnalogyLimitFields } from "./AnalogyLimitFields";
 
 export interface ScenarioFormHandle {
   /** Opens the sections of the field of `path` and focuses it; false if the form has no field. */
@@ -64,7 +68,8 @@ export interface ScenarioFormProps {
   ref?: Ref<ScenarioFormHandle>;
 }
 
-const LEVELS = [100, 200, 300, 400] as const;
+/** The area of every level 0 scenario (ADR-0027 §3). */
+const LEVEL_ZERO_AREA = "fundamentos";
 
 export function ScenarioForm({
   text,
@@ -279,8 +284,18 @@ export function ScenarioForm({
 
 function MetadataFields({ shared }: { shared: SharedContent }) {
   const { t } = useTranslation();
-  const { raw } = useForm();
+  const { raw, edit } = useForm();
   const authors = listOf(recordOf(raw).authors);
+  // A scenario without areas that becomes level 0 gets «fundamentos», an undo step of its own.
+  const onLevel = (level: string) => {
+    if (level !== "0" || listOf(recordOf(raw).areas).length > 0) return;
+    const area = shared.areas.find((candidate) => candidate.id === LEVEL_ZERO_AREA);
+    if (area === undefined) return;
+    edit([{ op: "append", path: ["areas"], value: area.id }], {
+      isolate: true,
+      announce: t("form.metadata.levelZeroArea", { area: area.name }),
+    });
+  };
   return (
     <>
       <TextField
@@ -305,7 +320,11 @@ function MetadataFields({ shared }: { shared: SharedContent }) {
           path={["level"]}
           label={t("form.metadata.level")}
           numeric
-          options={LEVELS.map((level) => ({ value: String(level), label: String(level) }))}
+          options={LEVELS.map((level) => ({
+            value: String(level),
+            label: level === 0 ? t("form.metadata.levelZero") : String(level),
+          }))}
+          onChosen={onLevel}
         />
         <SelectField
           path={["status"]}
@@ -495,6 +514,7 @@ function SlotFields({
   const answers = listOf(slot.answers);
   const incorrect = listOf(slot.incorrect);
   const slotContext = t("form.slots.context", { slot: number });
+  const levelZero = recordOf(raw).level === 0;
 
   return (
     <Disclosure
@@ -660,6 +680,14 @@ function SlotFields({
                   focus={fieldId([...path, "references", references.length])}
                 />
               </ListSection>
+              <AnalogyLimitFields
+                answerPath={path}
+                answer={item + 1}
+                slot={number}
+                required={
+                  levelZero && (GRADES as readonly unknown[]).includes(recordOf(answer).grade)
+                }
+              />
             </ItemGroup>
           );
         })}

@@ -5,7 +5,8 @@
 // list of answers, the node); a path the form does not edit (`palette`, `references`, the canvas)
 // has no anchor and the panel takes the cursor to the YAML, as before. The fields of a slot that
 // make it a slot (role, hints, answers) are in "Casilleros"; its id, place and group, as the ones
-// of every node, in "Nodos".
+// of every node, in "Nodos". L021 points to the answer that lacks `analogyLimit`; its field is the
+// group «Dónde se rompe la analogía» of that answer (issuePath).
 import type { StudioFinding } from "../../shared/validation";
 import type { EditPath } from "../../shared/document-edit";
 import { listOf, recordOf } from "./form-data";
@@ -40,7 +41,14 @@ const METADATA = new Set([
   "authors",
 ]);
 const OBJECTIVE_FIELDS = new Set(["id", "kind", "category", "text"]);
-const ANSWER_FIELDS = new Set(["service", "grade", "objectives", "rationale", "references"]);
+const ANSWER_FIELDS = new Set([
+  "service",
+  "grade",
+  "objectives",
+  "rationale",
+  "references",
+  "analogyLimit",
+]);
 const INCORRECT_FIELDS = new Set(["service", "violates", "rationale"]);
 const SLOT_FIELDS = new Set(["role", "hints", "answers", "incorrect"]);
 const GROUP_FIELDS = new Set(["id", "kind", "label", "parent"]);
@@ -56,15 +64,30 @@ export type IsSlot = (index: number) => boolean;
 /** The field of a slot in "Casilleros", or `undefined` for the fields of every node. */
 const anchorOfSlot = (index: number, rest: EditPath): EditPath | undefined => {
   const slot: EditPath = ["diagram", "nodes", index];
-  const [list, item, field, sub] = rest;
+  const [list, item, field, sub, subItem] = rest;
   if (typeof list !== "string" || !SLOT_FIELDS.has(list)) return undefined;
   if (list === "role" || !isIndex(item)) return [...slot, list];
   if (list === "hints") return [...slot, list, item];
   const fields = list === "answers" ? ANSWER_FIELDS : INCORRECT_FIELDS;
   if (typeof field !== "string" || !fields.has(field)) return [...slot, list, item];
   if (field === "references" && isIndex(sub)) return [...slot, list, item, field, sub];
+  if (field === "analogyLimit") return [...slot, list, item, ...analogyLimitField(sub, subItem)];
   return [...slot, list, item, field];
 };
+
+/** «Dónde se rompe la analogía» of an answer: its text, its references or one of them, or the group. */
+const analogyLimitField = (sub: unknown, index: unknown): EditPath => {
+  if (sub === "text") return ["analogyLimit", "text"];
+  if (sub !== "references") return ["analogyLimit"];
+  return isIndex(index) ? ["analogyLimit", "references", index] : ["analogyLimit", "references"];
+};
+
+/**
+ * The path of the document a finding belongs to in the form. L021 says that an answer has no
+ * `analogyLimit` (ADR-0027 §2), so it belongs to the group of the answer that adds it.
+ */
+export const issuePath = (finding: Pick<StudioFinding, "code" | "path">): EditPath =>
+  finding.code === "L021" ? [...finding.path, "analogyLimit"] : finding.path;
 
 /** The field or group of the form that shows `path`, or `undefined` if the form does not edit it. */
 export const anchorOf = (path: EditPath, isSlot: IsSlot): Anchor | undefined => {
@@ -133,7 +156,7 @@ export const findingsByAnchor = (
 ): Map<string, StudioFinding[]> => {
   const map = new Map<string, StudioFinding[]>();
   for (const finding of findings) {
-    const anchor = anchorOf(finding.path, isSlot);
+    const anchor = anchorOf(issuePath(finding), isSlot);
     if (anchor === undefined) continue;
     const key = pathKey(anchor.path);
     map.set(key, [...(map.get(key) ?? []), finding]);

@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Where an issue of the validation goes in the form (RF-STU-07): its field, or the closest group.
 import { describe, expect, it } from "vitest";
-import { anchorOf, errorId, fieldId } from "./form-paths";
+import { anchorOf, errorId, fieldId, issuePath } from "./form-paths";
 
 const slots = new Set([2, 4]);
 const isSlot = (index: number) => slots.has(index);
@@ -62,6 +62,26 @@ describe("form paths", () => {
       ["slots", "slot-4"],
     ],
     [
+      ["diagram", "nodes", 4, "answers", 1, "analogyLimit", "text"],
+      ["diagram", "nodes", 4, "answers", 1, "analogyLimit", "text"],
+      ["slots", "slot-4"],
+    ],
+    [
+      ["diagram", "nodes", 4, "answers", 1, "analogyLimit", "references", 0],
+      ["diagram", "nodes", 4, "answers", 1, "analogyLimit", "references", 0],
+      ["slots", "slot-4"],
+    ],
+    [
+      ["diagram", "nodes", 4, "answers", 1, "analogyLimit", "references"],
+      ["diagram", "nodes", 4, "answers", 1, "analogyLimit", "references"],
+      ["slots", "slot-4"],
+    ],
+    [
+      ["diagram", "nodes", 4, "answers", 1, "analogyLimit", "other"],
+      ["diagram", "nodes", 4, "answers", 1, "analogyLimit"],
+      ["slots", "slot-4"],
+    ],
+    [
       ["diagram", "nodes", 4, "answers", 1, "x"],
       ["diagram", "nodes", 4, "answers", 1],
       ["slots", "slot-4"],
@@ -76,4 +96,14 @@ describe("form paths", () => {
       expect(anchorOf(path, isSlot)).toBeUndefined();
     },
   );
+
+  it("takes L021 to «Dónde se rompe la analogía» of its answer, and the rest to their path", () => {
+    const answer = ["diagram", "nodes", 4, "answers", 1];
+    expect(issuePath({ code: "L021", path: answer })).toEqual([...answer, "analogyLimit"]);
+    expect(issuePath({ code: "L005", path: ["title"] })).toEqual(["title"]);
+    expect(anchorOf(issuePath({ code: "L021", path: answer }), isSlot)).toEqual({
+      path: [...answer, "analogyLimit"],
+      sections: ["slots", "slot-4"],
+    });
+  });
 });

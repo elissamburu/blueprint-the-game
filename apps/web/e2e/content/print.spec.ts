@@ -4,7 +4,7 @@
 // pages with and without solutions (page.pdf only exists in Chromium), and axe on the screen view.
 import { AxeBuilder } from "@axe-core/playwright";
 import { expect, test, type Page } from "@playwright/test";
-import { board, onboard, playFromListing } from "../support/app";
+import { board, onboard, palette, playFromListing } from "../support/app";
 import { loadDevBundle } from "../support/dev-bundle";
 
 const bundle = loadDevBundle();
@@ -61,7 +61,7 @@ test.describe("versión imprimible", () => {
     await expect(page.getByRole("region", { name: "Aviso de versión beta" })).toBeHidden();
     // Nothing of the game screen is on the page: neither its bar, nor the palette, nor the board.
     await expect(page.getByRole("button", { name: "Más acciones" })).toHaveCount(0);
-    await expect(page.getByRole("complementary", { name: "Paleta de servicios" })).toHaveCount(0);
+    await expect(palette(page)).toHaveCount(0);
     await expect(page.getByRole("group", { name: "Zoom" })).toHaveCount(0);
 
     const sheets = page.locator("[data-print-sheet]");
