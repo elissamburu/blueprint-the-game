@@ -82,7 +82,7 @@ flowchart LR
 
 | Servicio | Grado | Objetivos | Justificación | Referencias |
 |---|---|---|---|---|
-| Ubicación de borde (`edge-location`) | 🟢 Óptimo | `fast-everywhere` | Guarda copias de las fotos cerca de quien las pide: cada pedido se atiende desde la ubicación más cercana y las fotos cargan más rápido en cualquier provincia. | [1](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/HowCloudFrontWorks.html) |
+| Ubicación de borde (`edge-location`) | 🟢 Óptimo | `fast-everywhere` | Guarda copias de las fotos cerca de quien las pide: cada pedido va a la ubicación que mejor puede atenderlo, normalmente la más cercana, y las fotos cargan más rápido en cualquier provincia. | [1](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/HowCloudFrontWorks.html) |
 | Amazon S3 (`s3`) | 🔴 Incorrecto | — | Guarda las fotos, pero en un solo lugar: no las acerca a cada provincia. |  |
 
 ### Casillero `scaling`

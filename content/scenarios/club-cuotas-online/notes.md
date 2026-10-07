@@ -18,13 +18,14 @@ Calculada con `buildPalette` (nivel 0: `curated`, hasta 8 tarjetas):
 
 ## Decisiones de calibración
 - **Pago por uso como naranja en `later-years`**: cumple a medias `steady-savings` (paga más que con un compromiso).
-- **Savings Plans cubre cómputo, no almacenamiento**: el descuento aplica al uso de EC2, Fargate y Lambda (y SageMaker AI), no a lo guardado en S3. Por eso la `rationale` habla del «cómputo que usa el sistema». El diagrama no muestra ese cómputo; ver el PR.
-- El `analogyLimit` de `why-cheaper` dice «precios más bajos de pago por uso», que nombra la respuesta de `first-year` después de colocar. Se dejó tal como lo revisó el mantenedor; ver el PR.
+- **Savings Plans cubre solo ciertos servicios**: el descuento aplica a cómputo y bases de datos, no a lo guardado en S3. Por eso el contexto dice que las cuotas se cobran «con un sistema que corre en la nube», la `rationale` habla del «cómputo donde corre el sistema de cobro» y el `analogyLimit` aclara que el compromiso vale «solo en ciertos servicios, como cómputo y bases de datos» (con la referencia de tipos de plan).
+- **`analogyLimit` de `why-cheaper` sin «pago por uso»**: se ve después de colocar y nombraba la respuesta de `first-year`. Ahora termina en «precios más bajos».
 - Sin pistas.
 
 ## Fuentes verificadas
 - Pago por uso (sin contratos de largo plazo; almacenamiento y transferencia de datos salientes se cobran): https://docs.aws.amazon.com/whitepapers/latest/how-aws-pricing-works/key-principles.html
 - Savings Plans (compromiso de gasto por hora durante 1 o 3 años): https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html
+- Tipos de Savings Plans y servicios que cubre cada uno: https://docs.aws.amazon.com/savingsplans/latest/userguide/plan-types.html
 - Cómo se aplica el compromiso por hora (lo no usado no se acumula; el excedente va a precio normal): https://docs.aws.amazon.com/savingsplans/latest/userguide/sp-applying.html
 - Economías de escala: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
 - Amazon S3: https://docs.aws.amazon.com/s3/

@@ -23,7 +23,7 @@ Calculada con `buildPalette` (nivel 0: `curated`, hasta 8 tarjetas):
 
 ## Fuentes verificadas
 - Regiones y zonas de disponibilidad (aislamiento entre regiones, zonas con energía y red propias, separadas físicamente): https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html
-- Cómo funcionan las ubicaciones de borde y la caché (lo que no está se busca en el origen): https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/HowCloudFrontWorks.html
+- Cómo funcionan las ubicaciones de borde y la caché (cada pedido va a la ubicación que mejor puede atenderlo, normalmente la más cercana; lo que no está se busca en el origen): https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/HowCloudFrontWorks.html
 - Elasticidad («Stop guessing capacity», escalar con pocos minutos de aviso): https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
 - Escalado automático con reglas: https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_adapt_to_changes_autoscale_adapt.html
 

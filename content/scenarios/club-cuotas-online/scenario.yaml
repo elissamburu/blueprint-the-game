@@ -14,8 +14,9 @@ authors:
   - github: elissamburu
 
 context: |
-  Un club de barrio va a cobrar las cuotas online y guardar los comprobantes. El primer año no
-  sabe cuántos socios lo van a usar. Después, el uso va a ser parejo todo el año.
+  Un club de barrio va a cobrar las cuotas con un sistema que corre en la nube y guardar los
+  comprobantes. El primer año no sabe cuántos socios lo van a usar. Después, el uso va a ser
+  parejo todo el año.
 
 objectives:
   - id: no-fixed-commitment
@@ -92,14 +93,15 @@ diagram:
           objectives: [steady-savings]
           rationale: >
             Con el uso ya parejo, el club puede comprometerse a un gasto por hora durante 1 o 3
-            años a cambio de precios más bajos en el cómputo que usa el sistema.
+            años a cambio de precios más bajos en el cómputo donde corre el sistema de cobro.
           references:
             - https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html
           analogyLimit:
-            text: "Te comprometés a un gasto por hora durante 1 o 3 años. Lo que no usás en una hora se pierde, no se acumula, y lo que pasás del compromiso se paga a precio normal."
+            text: "Te comprometés a un gasto por hora durante 1 o 3 años, y solo en ciertos servicios, como cómputo y bases de datos. Lo que no usás en una hora se pierde, y lo que pasás del compromiso se paga a precio normal."
             references:
               - https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html
               - https://docs.aws.amazon.com/savingsplans/latest/userguide/sp-applying.html
+              - https://docs.aws.amazon.com/savingsplans/latest/userguide/plan-types.html
         - service: pay-as-you-go
           grade: acceptable
           objectives: [steady-savings]
@@ -126,7 +128,7 @@ diagram:
           references:
             - https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
           analogyLimit:
-            text: "El club no compra nada al por mayor: AWS junta el uso de cientos de miles de clientes y por eso puede ofrecer precios más bajos de pago por uso."
+            text: "El club no compra nada al por mayor: AWS junta el uso de cientos de miles de clientes y por eso puede ofrecer precios más bajos."
             references:
               - https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
       incorrect:

@@ -19,8 +19,9 @@ Un club de barrio cobra las cuotas online: el primer año no sabe cuánto lo van
 
 ## Contexto
 
-Un club de barrio va a cobrar las cuotas online y guardar los comprobantes. El primer año no
-sabe cuántos socios lo van a usar. Después, el uso va a ser parejo todo el año.
+Un club de barrio va a cobrar las cuotas con un sistema que corre en la nube y guardar los
+comprobantes. El primer año no sabe cuántos socios lo van a usar. Después, el uso va a ser
+parejo todo el año.
 
 ## Objetivos
 
@@ -71,7 +72,7 @@ flowchart LR
 
 | Servicio | Grado | Objetivos | Justificación | Referencias |
 |---|---|---|---|---|
-| Savings Plans (`savings-plans`) | 🟢 Óptimo | `steady-savings` | Con el uso ya parejo, el club puede comprometerse a un gasto por hora durante 1 o 3 años a cambio de precios más bajos en el cómputo que usa el sistema. | [1](https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html) |
+| Savings Plans (`savings-plans`) | 🟢 Óptimo | `steady-savings` | Con el uso ya parejo, el club puede comprometerse a un gasto por hora durante 1 o 3 años a cambio de precios más bajos en el cómputo donde corre el sistema de cobro. | [1](https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html) |
 | Pago por uso (`pay-as-you-go`) | 🟠 Aceptable | `steady-savings` | Sigue funcionando, pero con el uso ya estable paga más que con un compromiso. | [1](https://docs.aws.amazon.com/whitepapers/latest/how-aws-pricing-works/key-principles.html) |
 
 ### Casillero `why-cheaper`
