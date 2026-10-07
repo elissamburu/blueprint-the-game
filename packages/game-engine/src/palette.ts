@@ -15,7 +15,7 @@ import {
 } from "@blueprint/scenario-schema";
 
 export interface PaletteContent {
-  readonly catalog: readonly Pick<Service, "id" | "category" | "status">[];
+  readonly catalog: readonly Pick<Service, "id" | "type" | "category" | "status">[];
   readonly categories: readonly Pick<Category, "id" | "adjacent">[];
   readonly confusionGroups: readonly Pick<ConfusionGroup, "services">[];
   readonly rules: Pick<GameRules, "palette">;
@@ -33,7 +33,8 @@ export interface ScenarioPalette {
  * - `categories-plus`: `categories` plus the adjacent categories.
  * - `full`: the whole catalog.
  * The last three also include the services the scenario uses (answers, `incorrect`,
- * `palette.extra`); `deprecated` services appear only if the scenario uses them (RF-PAL-05).
+ * `palette.extra`); `deprecated` services (RF-PAL-05) and concepts (RF-PAL-07) appear only if
+ * the scenario uses them: concepts never fill these modes.
  */
 export const buildPalette = (
   scenario: Pick<Scenario, "level" | "diagram" | "palette">,
@@ -71,7 +72,9 @@ export const buildPalette = (
   return {
     mode,
     services: content.catalog
-      .filter((s) => used.has(s.id) || (s.status !== "deprecated" && inMode(s)))
+      .filter(
+        (s) => used.has(s.id) || (s.status !== "deprecated" && s.type !== "concept" && inMode(s)),
+      )
       .map((s) => s.id),
   };
 };

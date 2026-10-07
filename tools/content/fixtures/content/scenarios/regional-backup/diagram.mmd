@@ -1,0 +1,12 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: regional-backup v1
+flowchart LR
+  n_accountant(["Contadora"])
+  subgraph g_cloud["Nube"]
+    n_store["Amazon S3"]
+    n_copy_site["Región de AWS"]
+  end
+  n_accountant ==>|"1. Sube el balance"| n_store
+  n_store -.->|"2. Copia el balance"| n_copy_site
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_store,n_copy_site slot

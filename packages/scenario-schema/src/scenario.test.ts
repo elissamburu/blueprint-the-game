@@ -293,3 +293,69 @@ describe("formatIssues", () => {
     ]);
   });
 });
+
+describe("parseScenario: analogyLimit", () => {
+  const DOC = "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html";
+  const withLimit = (analogyLimit: unknown): Json => {
+    const scenario = example();
+    const [answer] = nodeById(scenario, "upload-store")["answers"] as Json[];
+    answer!["analogyLimit"] = analogyLimit;
+    return scenario;
+  };
+  const messagesOf = (input: unknown): string[] =>
+    issuesOf(input).map((issue) => `${issue.path.slice(-2).join(".")}: ${issue.message}`);
+
+  it("is optional and accepts text with official references", () => {
+    const result = parseScenario(
+      withLimit({ text: "Una caja no tiene versiones.", references: [DOC] }),
+    );
+    if (!result.success) throw new Error(formatIssues(result.issues));
+    const slot = result.data.diagram.nodes.find((n) => n.id === "upload-store");
+    expect(slot?.type === "slot" && slot.answers[0]?.analogyLimit).toEqual({
+      text: "Una caja no tiene versiones.",
+      references: [DOC],
+    });
+    expect(parseScenario(example()).success).toBe(true);
+  });
+
+  it("accepts up to 300 characters and rejects 301", () => {
+    expect(parseScenario(withLimit({ text: "x".repeat(300), references: [DOC] })).success).toBe(
+      true,
+    );
+    expect(messagesOf(withLimit({ text: "x".repeat(301), references: [DOC] }))).toEqual([
+      "analogyLimit.text: Puede tener como máximo 300 caracteres (tiene 301)",
+    ]);
+  });
+
+  it("needs at least one reference", () => {
+    expect(messagesOf(withLimit({ text: "Límite." }))).toEqual([
+      'analogyLimit.references: Falta el campo obligatorio "references"',
+    ]);
+    expect(messagesOf(withLimit({ text: "Límite.", references: [] }))).toEqual([
+      "analogyLimit.references: Dónde se rompe la analogía necesita al menos una referencia oficial",
+    ]);
+  });
+
+  it("only accepts official documentation (the domains of L011)", () => {
+    expect(
+      messagesOf(withLimit({ text: "Límite.", references: [DOC, "https://repost.aws/x"] })),
+    ).toEqual([
+      'references.1: "https://repost.aws/x" no es documentación oficial: usá docs.aws.amazon.com o aws.amazon.com',
+    ]);
+    expect(
+      parseScenario(
+        withLimit({
+          text: "Límite.",
+          references: ["https://aws.amazon.com/what-is-cloud-computing/"],
+        }),
+      ).success,
+    ).toBe(true);
+  });
+
+  it("rejects an empty text and unknown keys", () => {
+    expect(messagesOf(withLimit({ text: " ", references: [DOC], url: DOC }))).toEqual([
+      "analogyLimit.text: No puede estar vacío",
+      '0.analogyLimit: Campo desconocido: "url" (¿está bien escrito?)',
+    ]);
+  });
+});

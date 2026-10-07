@@ -5,6 +5,10 @@
 #
 # `adjacent`: categorías que se suman a la paleta en el modo categories-plus (nivel 300).
 # Son relaciones de diseño frecuentes, no una jerarquía; revisarlas con las métricas de juego.
+#
+# `kind`: `service` (default) o `concept`. Las categorías de conceptos (ADR-0027 §1) son la
+# única excepción a la alineación con el paquete de íconos: llevan el prefijo `concept-` para
+# no chocar con las de servicios y no tienen adyacencias.
 
 - id: analytics
   name: Analítica
@@ -75,3 +79,21 @@
 - id: storage
   name: Almacenamiento
   adjacent: [databases, compute]
+
+# ── Conceptos (ADR-0027) ─────────────────────────────────────────────────────────────────────
+- id: concept-global-infrastructure
+  name: Infraestructura global
+  kind: concept
+  adjacent: []
+- id: concept-cloud-economics
+  name: Economía de la nube
+  kind: concept
+  adjacent: []
+- id: concept-cloud-principles
+  name: Beneficios y principios de la nube
+  kind: concept
+  adjacent: []
+- id: concept-security-compliance
+  name: Seguridad y cumplimiento
+  kind: concept
+  adjacent: []

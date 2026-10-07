@@ -1,14 +1,10 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
+import { OFFICIAL_DOC_HOSTS, isOfficialReference } from "@blueprint/scenario-schema";
 import { slotsOf } from "../scenario-helpers.js";
 import type { Issue, Rule } from "../types.js";
 
-export const OFFICIAL_DOC_HOSTS: readonly string[] = ["docs.aws.amazon.com", "aws.amazon.com"];
-
-/** Exact hostname match; the schema already guarantees an https URL. */
-export const isOfficialReference = (url: string): boolean => {
-  const host = /^https:\/\/([^/?#:]+)/i.exec(url)?.[1]?.toLowerCase();
-  return host !== undefined && OFFICIAL_DOC_HOSTS.includes(host);
-};
+// The hosts live in scenario-schema, which also checks `analogyLimit.references` with them.
+export { OFFICIAL_DOC_HOSTS, isOfficialReference };
 
 export const l011: Rule = {
   code: "L011",

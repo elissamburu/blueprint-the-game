@@ -63,3 +63,24 @@
   docs: https://docs.aws.amazon.com/sqs/
   icon: Arch_Amazon-Simple-Queue-Service_48
   status: active
+# Conceptos (ADR-0027): ideas de la nube que no son servicios. Sin icon ni ssmNamespaces.
+- id: region
+  type: concept
+  name: Región de AWS
+  plainName: Lugar del mundo
+  category: concept-global-infrastructure
+  leakPatterns: ["Región de AWS", "AWS Region"]
+  short: "Ubicación geográfica con varias zonas de disponibilidad aisladas entre sí."
+  docs: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html
+  glyph: region
+  status: active
+- id: availability-zone
+  type: concept
+  name: Zona de disponibilidad
+  plainName: Edificio separado
+  category: concept-global-infrastructure
+  leakPatterns: ["Zona de disponibilidad", "Availability Zone"]
+  short: "Uno o más centros de datos aislados dentro de una región."
+  docs: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html
+  glyph: availability-zone
+  status: active

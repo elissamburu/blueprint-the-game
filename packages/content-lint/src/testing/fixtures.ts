@@ -2,8 +2,10 @@
 // Minimal typed fixtures for rule tests. The base scenario passes every rule.
 import type {
   Area,
+  AwsService,
   Badge,
   Category,
+  Concept,
   ConfusionGroup,
   GameRules,
   Scenario,
@@ -17,8 +19,9 @@ export const service = (
   id: string,
   name: string,
   leakPatterns: string[],
-  overrides: Partial<Service> = {},
-): Service => ({
+  overrides: Partial<AwsService> = {},
+): AwsService => ({
+  type: "service",
   id,
   name,
   category: "test",
@@ -28,6 +31,24 @@ export const service = (
   docs: `https://docs.aws.amazon.com/${id}/`,
   ssmNamespaces: [],
   icon: `Arch_${id}_48`,
+  status: "active",
+  ...overrides,
+});
+
+export const concept = (
+  id: string,
+  name: string,
+  leakPatterns: string[],
+  overrides: Partial<Concept> = {},
+): Concept => ({
+  type: "concept",
+  id,
+  name,
+  category: "concept-test",
+  aliases: [],
+  leakPatterns,
+  short: `Descripción corta de ${name}.`,
+  docs: `https://docs.aws.amazon.com/whitepapers/latest/${id}/`,
   status: "active",
   ...overrides,
 });
@@ -42,6 +63,10 @@ export const catalog: Service[] = [
   service("cloudwatch", "Amazon CloudWatch", ["CloudWatch"]),
   service("sqs", "Amazon SQS", ["SQS", "Simple Queue Service"]),
   service("simpledb", "Amazon SimpleDB", ["SimpleDB"], { status: "deprecated" }),
+  concept("region", "Región de AWS", ["Región de AWS", "AWS Region"], {
+    plainName: "Lugar del mundo",
+    glyph: "region",
+  }),
 ];
 
 export const confusionGroups: ConfusionGroup[] = [
@@ -49,8 +74,9 @@ export const confusionGroups: ConfusionGroup[] = [
 ];
 
 export const categories: Category[] = [
-  { id: "test", name: "Prueba", adjacent: ["other"] },
-  { id: "other", name: "Otra", adjacent: [] },
+  { id: "test", name: "Prueba", kind: "service", adjacent: ["other"] },
+  { id: "other", name: "Otra", kind: "service", adjacent: [] },
+  { id: "concept-test", name: "Conceptos de prueba", kind: "concept", adjacent: [] },
 ];
 
 export const areas: Area[] = [

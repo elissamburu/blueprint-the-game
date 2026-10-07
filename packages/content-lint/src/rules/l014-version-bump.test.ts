@@ -47,6 +47,25 @@ describe("L014 version bump", () => {
     expect(checkVersionBump(base, head)).toEqual([]);
   });
 
+  it("does not require a bump for analogyLimit, which is text (ADR-0027 §2)", () => {
+    const limit = (text: string) => ({
+      text,
+      references: ["https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html"],
+    });
+    const base = published();
+    const added = changed(
+      base,
+      (s) => (slotById(s, "store").answers[0]!.analogyLimit = limit("A.")),
+    );
+    expect(checkVersionBump(base, added)).toEqual([]);
+    const edited = changed(added, (s) => {
+      slotById(s, "store").answers[0]!.analogyLimit = limit("Otro límite.");
+    });
+    expect(checkVersionBump(added, edited)).toEqual([]);
+    const removed = changed(added, (s) => delete slotById(s, "store").answers[0]!.analogyLimit);
+    expect(checkVersionBump(added, removed)).toEqual([]);
+  });
+
   it("treats a missing palette as auto without extras", () => {
     const base = changed(published(), (s) => (s.palette = { mode: "auto", extra: [] }));
     const head = changed(base, (s) => delete s.palette);

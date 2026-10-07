@@ -41,7 +41,8 @@ const paletteFingerprint = (scenario: Scenario): string => {
 
 /**
  * Changes that alter the result of an attempt (grades) or the conditions of play (level,
- * resulting palette). Texts, order, hints, references and positions do not count.
+ * resulting palette). Texts, order, hints, references, `analogyLimit` (ADR-0027 §2) and
+ * positions do not count.
  */
 export const gameplayChanges = (base: Scenario, head: Scenario): string[] => {
   const changes: string[] = [];

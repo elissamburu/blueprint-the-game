@@ -18,7 +18,7 @@ Este paquete es el punto de partida del repositorio: se copia en la raíz del re
 | [docs/03-modelo-de-escenarios.md](docs/03-modelo-de-escenarios.md) | Formato de escenario, carpetas de contenido, reglas de lint |
 | [docs/04-estructura-monorepo.md](docs/04-estructura-monorepo.md) | Árbol del monorepo, dependencias entre paquetes, scripts |
 | [docs/05-roadmap.md](docs/05-roadmap.md) | Fases F0–F8 con definición de terminado |
-| [docs/adr/](docs/adr/README.md) | 21 ADRs |
+| [docs/adr/](docs/adr/README.md) | 27 ADRs |
 | [docs/design/](docs/design/README.md) | Referencia visual: pantallas, tokens y estilos de referencia (ADR-0021) |
 | [docs/guias/configurar-aws-en-tu-fork.md](docs/guias/configurar-aws-en-tu-fork.md) | Guía de OIDC + Terraform para forks |
 | [docs/guias/deploy-manual-beta.md](docs/guias/deploy-manual-beta.md) | Deploy manual de la beta pública (temporal, lo reemplaza F3) |

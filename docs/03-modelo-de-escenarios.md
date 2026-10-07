@@ -115,6 +115,10 @@ diagram:
           rationale: "…"                          # markdown corto, sin nombrar OTROS servicios ocultos
           references:
             - https://docs.aws.amazon.com/...
+          analogyLimit:                           # opcional: dónde se rompe la analogía (ADR-0027 §2)
+            text: "…"                             # ≤ 300 caracteres, markdown corto; se muestra después de colocar
+            references:                           # ≥ 1, solo docs.aws.amazon.com o aws.amazon.com
+              - https://docs.aws.amazon.com/...
       incorrect:                 # confusiones típicas con explicación específica (también son distractores);
                                  # la rationale es obligatoria: sin explicación específica ⇒ palette.extra
         - service: ebs
@@ -211,7 +215,7 @@ Un `acceptable` referencia **solo** objetivos `soft` (L020): una restricción `h
 | L011 | warning | Cada `optimal` tiene ≥ 1 `reference` a documentación oficial (dominios permitidos, por coincidencia exacta del host: `docs.aws.amazon.com`, `aws.amazon.com`). |
 | L012 | error | `diagram.mmd` y `README.md` sincronizados (`content:gen --check`). `content-lint` exporta la comparación pura (`checkGeneratedFiles`, ignora finales de línea CRLF); el CLI lee los archivos y corre el generador. |
 | L013 | error | Límites de longitud (title 80, summary 200, role 140, label 40, rationale 600). `label` aplica a todos los `label` (grupos, actores/externos y aristas) y `rationale` a `answers` e `incorrect`. **Se aplica en el schema** (`packages/scenario-schema`), no en `content-lint`. |
-| L014 | error (CI) | Si el escenario existe en `main` con `status` distinto de `draft` (`beta` y `published` otorgan XP; `retired` conserva progreso histórico), todo cambio que altere el resultado de un intento o las condiciones de juego exige incrementar `version`: por casillero (`id`), el conjunto de (`service`, `grade`) de `answers` y el de servicios de `incorrect`; casilleros agregados o quitados; `level`; `palette` (`mode`, `maxSize`, `extra`). No lo exigen los cambios de texto (`rationale`, `references`, `hints`, `context`, objetivos, labels), de orden ni de posiciones del diagrama. Escenarios nuevos o en `draft` en `main`: no aplica. `content-lint` exporta la comparación pura (`checkVersionBump`); el CLI lee `main` con git. |
+| L014 | error (CI) | Si el escenario existe en `main` con `status` distinto de `draft` (`beta` y `published` otorgan XP; `retired` conserva progreso histórico), todo cambio que altere el resultado de un intento o las condiciones de juego exige incrementar `version`: por casillero (`id`), el conjunto de (`service`, `grade`) de `answers` y el de servicios de `incorrect`; casilleros agregados o quitados; `level`; `palette` (`mode`, `maxSize`, `extra`). No lo exigen los cambios de texto (`rationale`, `references`, `analogyLimit`, `hints`, `context`, objetivos, labels), de orden ni de posiciones del diagrama. Escenarios nuevos o en `draft` en `main`: no aplica. `content-lint` exporta la comparación pura (`checkVersionBump`); el CLI lee `main` con git. |
 | L015 | error | `violates` solo se permite en `incorrect` (lo valida el schema) y referencia objetivos existentes (lo valida el lint). Si la rationale de un `acceptable` menciona que viola una restricción `hard`, el servicio debe moverse a `incorrect` (la revisión crítica de IA y el reviewer lo verifican; el lint valida la estructura). |
 | L016 | error / warning | Si el modo de paleta **resuelto** es `curated` (sea cual sea el nivel; ver "Paleta curated" en §2): **error** si las respuestas solas superan `maxSize` (la paleta no puede contenerlas); **warning** si la paleta armada tiene < 3 distractores. Se cuentan los distractores que efectivamente entran, después del recorte por `maxSize`. |
 | L017 | warning | Enlaces en `references` responden 200 (job de CI semanal, no bloqueante en PR). |
@@ -235,6 +239,9 @@ Un `acceptable` referencia **solo** objetivos `soft` (L020): una restricción `h
 | C008 | error | En `unlock.byExperience` de `game-rules.yaml`, cada experiencia incluye el nivel 100 y sus niveles son contiguos, sin saltos (p. ej. `[100, 300]` falla). El orden dentro de la lista no importa. |
 | C009 | warning | Un grupo de confusión incluye un servicio `deprecated`. La paleta curated no lo agrega como compañero de grupo (paso 4 de "Paleta curated"), así que el grupo pierde ese distractor salvo que el escenario lo nombre explícitamente. |
 | C010 | warning | El mismo `leakPattern`, comparado sin distinguir mayúsculas, aparece en más de un servicio: L005 no puede distinguir cuál de los dos filtra. Las repeticiones dentro de un mismo servicio no se reportan. |
+| C011 | error | Un concepto (`type: concept`) va en una categoría `kind: concept` y un servicio en una `kind: service`. Si la categoría no existe, lo reporta C001. |
+| C012 | error | El `docs` de un concepto apunta a `docs.aws.amazon.com` o `aws.amazon.com` (los mismos dominios que L011): es su fuente oficial. |
+| C013 | warning | El mismo `plainName` aparece en más de una entrada, comparado sin distinguir mayúsculas ni tildes (y con los espacios normalizados): en el nivel 0 las dos tarjetas se verían igual. |
 
 > **Nota sobre L005:** muchos nombres de servicios son palabras comunes (*Config*, *Glue*, *Batch*, *Shield*, *Connect*). Por eso el catálogo define `leakPatterns` explícitos por servicio (p. ej. `["AWS Config", "Config rules"]`) en vez de usar el nombre a secas. Los falsos positivos se resuelven ajustando patrones en el catálogo, no silenciando la regla en el escenario.
 
@@ -260,6 +267,39 @@ Un `acceptable` referencia **solo** objetivos `soft` (L020): una restricción `h
 `icon` es el nombre base (sin carpeta ni extensión) de un ícono de 48 px del paquete oficial de íconos de arquitectura de AWS: `Arch_…_48` para servicios y `Res_…_48` para recursos que no son servicios (Internet Gateway, NAT Gateway, endpoints de VPC, ALB). `pnpm icons:fetch` lo resuelve contra el paquete descargado y genera `apps/web/public/icons/<id>.svg`, que no se versiona ([ADR-0012](adr/0012-iconos.md)). Si falta, la UI muestra las iniciales del servicio sobre el color de su categoría.
 
 `ssmNamespaces` existe porque los parámetros públicos de SSM listan **namespaces de API** (p. ej. `apigateway`, `apigatewayv2`, `apigatewaymanagementapi`), no productos 1:1. El mapeo producto ↔ namespaces es curación humana.
+
+`plainName` (opcional, ≤ 40 caracteres) es el nombre simple de la entrada para quien recién empieza (p. ej. «Almacenamiento de archivos»). Vive en el catálogo y no en el escenario, así que es el mismo en todos los escenarios ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md) §1).
+
+### Conceptos
+
+El catálogo también tiene **conceptos**: ideas de la nube que no son servicios (región, zona de disponibilidad, responsabilidad compartida, pago por uso…). Comparten el espacio de ids con los servicios, así que se usan igual en `answers`, `incorrect`, `palette.extra` y nodos `fixed`, y L002 y C005 funcionan sin cambios ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md)).
+
+```yaml
+- id: region
+  type: concept                           # obligatorio en conceptos; en servicios es opcional y vale `service`
+  name: Región de AWS
+  plainName: Lugar del mundo              # opcional, ≤ 40 caracteres
+  category: concept-global-infrastructure # una categoría `kind: concept` (C011)
+  leakPatterns: ["Región de AWS", "AWS Region"]
+  short: "…"
+  docs: https://docs.aws.amazon.com/...   # fuente oficial: docs.aws.amazon.com o aws.amazon.com (C012)
+  glyph: region                           # opcional, de CONCEPT_GLYPHS
+  status: active
+```
+
+El schema es una unión discriminada por `type`, con objetos estrictos:
+
+| Campo | `service` | `concept` |
+|---|---|---|
+| `id`, `name`, `category`, `leakPatterns`, `short`, `docs`, `status` | obligatorios | obligatorios |
+| `fullName`, `aliases`, `whenToUse`, `whenNotToUse`, `since` | opcionales | opcionales |
+| `plainName` (≤ 40 caracteres) | opcional | opcional |
+| `ssmNamespaces`, `icon` | como arriba | **no permitidos** (error de schema) |
+| `glyph` | **no permitido** | opcional |
+
+`glyph` toma un valor del conjunto cerrado `CONCEPT_GLYPHS` de `@blueprint/scenario-schema`: `region`, `availability-zone`, `edge-location`, `global-network`, `shared-responsibility`, `pay-as-you-go`, `savings`, `elasticity`, `high-availability`, `fault-tolerance`, `security`, `compliance`. La UI lo dibuja con un ícono de lucide-react; sin `glyph`, muestra las iniciales, como un servicio sin ícono. Los conceptos no usan íconos oficiales de AWS ([ADR-0012](adr/0012-iconos.md)): `pnpm icons:fetch` los ignora y no los reporta como sin mapear.
+
+Los modos de paleta `categories`, `categories-plus` y `full` **no agregan conceptos por relleno**: aparecen solo si el escenario los usa (respuesta, `incorrect` o `palette.extra`), como los servicios `deprecated` (RF-PAL-07). En `curated` entran como cualquier entrada, incluidos los compañeros de un grupo de confusión.
 
 ## 5. Grupos de confusión (`confusion-groups.yaml`)
 
@@ -290,8 +330,11 @@ Formatos validados por `packages/scenario-schema`. Los valores de ejemplo son lo
 ```yaml
 - id: storage                     # kebab-case; lo que usa `category` en services.yaml
   name: Almacenamiento
+  kind: service                   # opcional: service (default) | concept (C011)
   adjacent: [database]            # opcional: categorías adyacentes para el modo categories-plus
 ```
+
+Las categorías de conceptos (`kind: concept`) son cuatro: `concept-global-infrastructure` (Infraestructura global), `concept-cloud-economics` (Economía de la nube), `concept-cloud-principles` (Beneficios y principios de la nube) y `concept-security-compliance` (Seguridad y cumplimiento). Llevan el prefijo `concept-` para no chocar con las de servicios, no se alinean con el paquete de íconos y no tienen adyacencias.
 
 La adyacencia es **simétrica por definición**: si `storage` lista a `database`, también `database` es adyacente a `storage`, aunque no lo liste. Alcanza con declarar cada par de un solo lado. Donde se usa (modo `categories-plus`), se resuelve en ambos sentidos con `adjacentCategories` de `@blueprint/scenario-schema`; no hay regla de lint que exija declararla en los dos archivos.
 

@@ -6,16 +6,19 @@ import { gameRules, scenario, slot } from "./testing/fixtures.js";
 
 const content: PaletteContent = {
   catalog: [
-    { id: "lambda", category: "compute", status: "active" },
-    { id: "fargate", category: "containers", status: "active" },
-    { id: "ec2", category: "compute", status: "active" },
-    { id: "batch", category: "compute", status: "active" },
-    { id: "old-compute", category: "compute", status: "deprecated" },
-    { id: "route53", category: "networking", status: "active" },
-    { id: "s3", category: "storage", status: "active" },
-    { id: "old-storage", category: "storage", status: "deprecated" },
-    { id: "sqs", category: "integration", status: "active" },
-    { id: "cloudwatch", category: "management", status: "active" },
+    { id: "lambda", type: "service", category: "compute", status: "active" },
+    { id: "fargate", type: "service", category: "containers", status: "active" },
+    { id: "ec2", type: "service", category: "compute", status: "active" },
+    { id: "batch", type: "service", category: "compute", status: "active" },
+    { id: "old-compute", type: "service", category: "compute", status: "deprecated" },
+    { id: "route53", type: "service", category: "networking", status: "active" },
+    { id: "s3", type: "service", category: "storage", status: "active" },
+    { id: "old-storage", type: "service", category: "storage", status: "deprecated" },
+    { id: "sqs", type: "service", category: "integration", status: "active" },
+    { id: "cloudwatch", type: "service", category: "management", status: "active" },
+    { id: "region", type: "concept", category: "concept-infra", status: "active" },
+    { id: "availability-zone", type: "concept", category: "concept-infra", status: "active" },
+    { id: "edge-location", type: "concept", category: "concept-infra", status: "active" },
   ],
   categories: [
     { id: "compute", adjacent: ["containers"] },
@@ -24,8 +27,12 @@ const content: PaletteContent = {
     { id: "storage", adjacent: ["compute"] },
     { id: "integration", adjacent: [] },
     { id: "management", adjacent: [] },
+    { id: "concept-infra", adjacent: [] },
   ],
-  confusionGroups: [{ services: ["lambda", "batch"] }],
+  confusionGroups: [
+    { services: ["lambda", "batch"] },
+    { services: ["region", "availability-zone", "edge-location"] },
+  ],
   rules: gameRules,
 };
 
@@ -81,5 +88,51 @@ describe("buildPalette", () => {
       "categories-plus",
     );
     expect(buildPalette(scenario([slot("a")], { level: 400 }), content).mode).toBe("full");
+  });
+
+  describe("concepts (RF-PAL-07)", () => {
+    // Slot "b": the concept "region" is the answer; "edge-location" is a palette.extra.
+    const conceptSlot = slot("b", {
+      answers: [
+        {
+          service: "region",
+          grade: "optimal",
+          objectives: ["no-servers"],
+          rationale: "Óptimo.",
+          references: [],
+        },
+      ],
+      incorrect: [],
+    });
+    const withConcepts = (mode: "categories" | "categories-plus" | "full") =>
+      scenario([slot("a"), conceptSlot], { palette: { mode, extra: ["edge-location"] } });
+
+    it.each(["categories", "categories-plus", "full"] as const)(
+      "%s: never fills with concepts, only shows the ones the scenario uses",
+      (mode) => {
+        const services = buildPalette(withConcepts(mode), content).services;
+        expect(services).toContain("region");
+        expect(services).toContain("edge-location");
+        expect(services).not.toContain("availability-zone");
+      },
+    );
+
+    it("full: a scenario without concepts gets none", () => {
+      expect(buildPalette(withMode("full"), content).services).not.toContain("region");
+    });
+
+    it("curated: concepts enter like any entry, confusion-group mates included", () => {
+      const s = scenario([slot("a"), conceptSlot], { level: 100 });
+      expect(buildPalette(s, content).services).toEqual([
+        "lambda",
+        "fargate",
+        "region",
+        "ec2",
+        "route53",
+        "batch",
+        "availability-zone",
+        "edge-location",
+      ]);
+    });
   });
 });

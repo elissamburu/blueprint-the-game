@@ -10,3 +10,6 @@
   name: Gestión
 - id: integration
   name: Integración
+- id: concept-global-infrastructure
+  name: Infraestructura global
+  kind: concept

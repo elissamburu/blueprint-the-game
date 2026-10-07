@@ -62,4 +62,28 @@ describe("parseBundleCatalog", () => {
     );
     expect(parseBundleCatalog({ services: [] }).success).toBe(false);
   });
+
+  it("still parses a catalog.json written before concepts (no type, no kind)", () => {
+    const result = parseBundleCatalog({
+      services: [
+        {
+          id: "s3",
+          name: "Amazon S3",
+          category: "storage",
+          aliases: [],
+          leakPatterns: ["S3"],
+          short: "Almacenamiento de objetos.",
+          docs: "https://docs.aws.amazon.com/s3/",
+          ssmNamespaces: ["s3"],
+          icon: "Arch_Amazon-Simple-Storage-Service_48",
+          status: "active",
+        },
+      ],
+      categories: [{ id: "storage", name: "Almacenamiento", adjacent: [] }],
+      confusionGroups: [],
+    });
+    if (!result.success) throw new Error(messages(result).join("\n"));
+    expect(result.data.services[0]?.type).toBe("service");
+    expect(result.data.categories[0]?.kind).toBe("service");
+  });
 });

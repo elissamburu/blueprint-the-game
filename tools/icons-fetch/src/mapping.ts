@@ -8,6 +8,8 @@
 
 export interface ServiceIconRef {
   id: string;
+  /** Concepts have no official icon (ADR-0027 §1): they are skipped, never `unmapped`. */
+  type?: "service" | "concept" | undefined;
   icon?: string | undefined;
 }
 
@@ -62,7 +64,8 @@ export const resolveIcons = (
 ): IconResolution => {
   const index = indexIcons(entries);
   const resolution: IconResolution = { resolved: [], unmapped: [], missing: [], ambiguous: [] };
-  for (const { id, icon } of services) {
+  for (const { id, type, icon } of services) {
+    if (type === "concept") continue;
     if (icon === undefined) {
       resolution.unmapped.push(id);
       continue;

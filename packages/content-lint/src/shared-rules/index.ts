@@ -11,6 +11,9 @@ import { c007 } from "./c007-rank-thresholds.js";
 import { c008 } from "./c008-unlock-levels.js";
 import { c009 } from "./c009-deprecated-in-confusion-group.js";
 import { c010 } from "./c010-shared-leak-patterns.js";
+import { c011 } from "./c011-entry-category-kind.js";
+import { c012 } from "./c012-concept-official-docs.js";
+import { c013 } from "./c013-shared-plain-names.js";
 
 export const sharedRules: readonly SharedRule[] = [
   c001,
@@ -23,6 +26,9 @@ export const sharedRules: readonly SharedRule[] = [
   c008,
   c009,
   c010,
+  c011,
+  c012,
+  c013,
 ];
 
-export { c001, c002, c003, c004, c005, c006, c007, c008, c009, c010 };
+export { c001, c002, c003, c004, c005, c006, c007, c008, c009, c010, c011, c012, c013 };
