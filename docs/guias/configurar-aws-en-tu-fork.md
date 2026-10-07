@@ -26,7 +26,7 @@ Ningún rol se puede asumir desde otro repo, otra rama sin environment ni un PR 
 
 ## 0. Requisitos
 
-- Una cuenta de AWS. Lo ideal es una **dedicada** a este proyecto (p. ej. una cuenta nueva dentro de tu AWS Organization), pero el bootstrap funciona también en una cuenta **compartida** con otros proyectos: todos los nombres llevan un prefijo, todos los recursos la etiqueta `Project` y los roles solo pueden tocar lo que tiene ese prefijo o esa etiqueta (ver [3.6](#36-qué-quedó-creado)).
+- Una cuenta de AWS. Lo ideal es una **dedicada** a este proyecto (p. ej. una cuenta nueva dentro de tu AWS Organization), pero el bootstrap funciona también en una cuenta **compartida** con otros proyectos: todos los nombres llevan un prefijo, todos los recursos la etiqueta `Project` y los roles solo pueden tocar lo que tiene ese prefijo o esa etiqueta (ver [3.7](#37-qué-quedó-creado)).
 - Acceso administrativo **temporal** a esa cuenta (recomendado: IAM Identity Center + `aws sso login`). No crees usuarios IAM con access keys.
 - Herramientas: AWS CLI v2, Terraform (la versión exacta de `required_version` en [infra/bootstrap/versions.tf](../../infra/bootstrap/versions.tf)), GitHub CLI (`gh`) y PowerShell 7 (`pwsh`). Los comandos de esta guía son de PowerShell.
 - Tu fork creado en GitHub.
@@ -80,14 +80,19 @@ En tu fork: **Settings → Environments**:
 
 | Environment | Reviewers obligatorios | Ramas de despliegue | Para qué |
 |---|---|---|---|
-| `prod-plan` | No | Solo `main` | `terraform plan` (rol `gh-plan`) |
+| `prod-plan` | No | **Todas** (el plan corre en las ramas de los PR) | `terraform plan` (rol `gh-plan`) |
 | `prod` | **Sí (vos, y quien más apruebe despliegues)** | Solo `main` | `terraform apply` y subida de la web y el contenido (roles `gh-apply` y `gh-deploy-content`) |
 
 En `prod`:
 
 - **Required reviewers**: agregá al menos una persona. El job que asume `gh-apply` se pausa hasta que alguien lo apruebe.
-- **Deployment branches and tags**: *Selected branches and tags* → `main`. Hacé lo mismo en `prod-plan`.
+- **Deployment branches and tags**: *Selected branches and tags* → `main`.
 - Si hay más de una persona con permisos, activá **Prevent self-review** para que quien dispara el despliegue no se lo apruebe a sí misma.
+
+En `prod-plan`, ni reviewers ni restricción de ramas: el `plan` de un PR corre en la rama del PR. Eso quiere decir que un workflow de **cualquier rama de tu repo** puede asumir `gh-plan`, que solo lee (los recursos del proyecto y el state) y toma el lock del state. Por eso:
+
+- El workflow de plan (llega en el PR 2 de F3) **no corre en PR de forks**: su job lleva la condición `github.event.pull_request.head.repo.full_name == github.repository`, además de que los PR de forks corren sin acceso a AWS ([ADR-0015](../adr/0015-ci-para-prs-de-forks.md)).
+- Quien puede crear ramas en tu repo puede leer el state y la configuración del proyecto: dale permiso de escritura solo a personas de confianza.
 
 Los nombres tienen que ser exactamente `prod-plan` y `prod`: son parte del `sub` que la trust policy compara.
 
@@ -175,25 +180,83 @@ terraform output
 Remove-Item bootstrap.tfplan             # el plan guardado contiene los valores de las variables
 ```
 
-### 3.5 Resguardá el state del bootstrap
+### 3.5 Verificá los permisos
+
+Antes de cargar nada en GitHub, comprobá que las políticas hacen lo que dicen. `aws iam simulate-principal-policy` **solo simula**: evalúa las políticas del rol (incluido su permissions boundary) contra una acción y un ARN, no cambia nada y no necesita que el recurso exista ([referencia del AWS CLI v2](https://docs.aws.amazon.com/cli/latest/reference/iam/simulate-principal-policy.html)).
+
+El simulador **no lee las etiquetas ni la cuenta de los recursos**: las claves de contexto (`aws:ResourceTag/Project`, `aws:ResourceAccount`, `iam:PermissionsBoundary`) se le pasan con `--context-entries`, en la sintaxis abreviada `ContextKeyName=…,ContextKeyValues=…,ContextKeyType=string`. Una clave que no se pasa queda ausente: así se simula un recurso **sin** la etiqueta.
+
+Desde `infra/bootstrap`, con la sesión de administrador del paso 3.1:
+
+```powershell
+$AccountId   = aws sts get-caller-identity --query Account --output text
+$Prefix      = "<name_prefix>"     # el de terraform.tfvars
+$ProjectTag  = "<project_tag>"     # el de terraform.tfvars
+$RolePlan    = terraform output -raw role_plan_arn
+$RoleApply   = terraform output -raw role_apply_arn
+$RoleDeploy  = terraform output -raw role_deploy_content_arn
+$StateBucket = terraform output -raw state_bucket
+$Boundary    = terraform output -raw permissions_boundary_arn
+
+# ARN de prueba: no hace falta que existan.
+$Distribution = "arn:aws:cloudfront::${AccountId}:distribution/EDFDVBD6EXAMPLE"
+$Certificate  = "arn:aws:acm:us-east-1:${AccountId}:certificate/00000000-0000-0000-0000-000000000000"
+$Budget       = "arn:aws:budgets::${AccountId}:budget/$Prefix-prueba"
+$SiteObject   = "arn:aws:s3:::$Prefix-sitio-prueba/index.html"
+$StateObject  = "arn:aws:s3:::$StateBucket/envs/prod/terraform.tfstate"
+$TestRole     = "arn:aws:iam::${AccountId}:role/$Prefix-prueba"
+
+# Claves de contexto.
+$Tagged       = "ContextKeyName=aws:ResourceTag/Project,ContextKeyValues=$ProjectTag,ContextKeyType=string"
+$InAccount    = "ContextKeyName=aws:ResourceAccount,ContextKeyValues=$AccountId,ContextKeyType=string"
+$WithBoundary = "ContextKeyName=iam:PermissionsBoundary,ContextKeyValues=$Boundary,ContextKeyType=string"
+
+function Test-Permission([string]$Role, [string]$Action, [string]$Resource, [string[]]$Context = @()) {
+  $contextArgs = if ($Context.Count) { @("--context-entries") + $Context } else { @() }
+  aws iam simulate-principal-policy --policy-source-arn $Role --action-names $Action `
+    --resource-arns $Resource @contextArgs --query "EvaluationResults[0].EvalDecision" --output text
+}
+
+Test-Permission $RoleDeploy "cloudfront:CreateInvalidation"     $Distribution @($Tagged)                  # allowed
+Test-Permission $RoleApply  "cloudfront:CreateInvalidation"     $Distribution @($Tagged)                  # allowed
+Test-Permission $RoleDeploy "cloudfront:CreateInvalidation"     $Distribution                             # explicitDeny
+Test-Permission $RoleApply  "acm:DeleteCertificate"             $Certificate                              # explicitDeny
+Test-Permission $RoleApply  "budgets:ModifyBudget"              $Budget                                   # allowed
+Test-Permission $RolePlan   "budgets:ModifyBudget"              $Budget                                   # implicitDeny
+Test-Permission $RoleApply  "s3:PutBucketPolicy"                "arn:aws:s3:::$StateBucket" @($InAccount) # explicitDeny
+Test-Permission $RoleDeploy "s3:PutObject"                      $SiteObject @($InAccount)                 # allowed
+Test-Permission $RoleDeploy "s3:PutObject"                      $StateObject @($InAccount)                # explicitDeny
+Test-Permission $RoleApply  "iam:DeleteRole"                    $TestRole @($Tagged, $WithBoundary)       # allowed
+Test-Permission $RoleApply  "iam:DeleteRolePermissionsBoundary" $TestRole @($Tagged, $WithBoundary)       # explicitDeny
+```
+
+| Rol | Acción | Recurso | Esperado | Por qué |
+|---|---|---|---|---|
+| `gh-deploy-content` y `gh-apply` | `cloudfront:CreateInvalidation` | distribución **con** `Project` | `allowed` | Su política lo permite con la etiqueta. |
+| `gh-deploy-content` | `cloudfront:CreateInvalidation` | distribución **sin** `Project` | `explicitDeny` | El boundary niega cambiar recursos sin la etiqueta. |
+| `gh-apply` | `acm:DeleteCertificate` | certificado **sin** `Project` | `explicitDeny` | Ídem. |
+| `gh-apply` | `budgets:ModifyBudget` | `budget/<prefijo>-prueba` | `allowed` | Presupuestos acotados por nombre. |
+| `gh-plan` | `budgets:ModifyBudget` | `budget/<prefijo>-prueba` | `implicitDeny` | `gh-plan` solo lee. |
+| `gh-apply` | `s3:PutBucketPolicy` | bucket de state | `explicitDeny` | El boundary solo deja tocar objetos del state. |
+| `gh-deploy-content` | `s3:PutObject` | `<prefijo>-sitio-prueba/index.html` | `allowed` | Buckets `<prefijo>-*` de la cuenta. |
+| `gh-deploy-content` | `s3:PutObject` | objeto del bucket de state | `explicitDeny` | Deny explícito del state en su política. |
+| `gh-apply` | `iam:DeleteRole` | `role/<prefijo>-prueba` con `Project` y el boundary | `allowed` | Roles del proyecto que llevan el boundary. |
+| `gh-apply` | `iam:DeleteRolePermissionsBoundary` | el mismo rol | `explicitDeny` | Nadie puede quitar un boundary. |
+
+`explicitDeny` e `implicitDeny` son las dos formas de «denegado»: la primera viene de un `Deny` (del boundary o de la política), la segunda de que nada lo permite. Sin `$InAccount`, las acciones de S3 dan `implicitDeny`, porque las políticas exigen que el bucket sea de la cuenta (`aws:ResourceAccount`). Si algún resultado no coincide con la tabla, no sigas: revisá la política con `aws iam get-role-policy --role-name <rol> --policy-name <rol>-permissions`.
+
+### 3.6 Resguardá el state del bootstrap
 
 El state del bootstrap **queda local**, en `infra/bootstrap/terraform.tfstate`: no se migra al bucket que el mismo bootstrap crea (si ese bucket se rompiera, perderías justo lo que hace falta para arreglarlo). Está en `.gitignore`: **nunca** lo subas al repo. No tiene secretos, pero sí el account ID y los ARN.
 
 Después de **cada** `apply` del bootstrap:
 
-1. Guardá una copia de `terraform.tfstate` fuera de tu máquina y cifrada: por ejemplo, como adjunto en tu gestor de contraseñas o en un almacenamiento cifrado tuyo.
-2. Opcional, como segunda copia: subila al bucket de state, en una clave aparte. El bucket está versionado y cifrado, y los roles de GitHub no pueden borrar su historial:
-
-   ```powershell
-   $StateBucket = terraform output -raw state_bucket
-   aws s3 cp terraform.tfstate "s3://$StateBucket/bootstrap/terraform.tfstate"
-   ```
-
-3. Guardá también tu `terraform.tfvars` en el mismo lugar que el state (el paso 1 te deja reconstruirlo, pero ahorra tiempo).
+1. Guardá una copia de `terraform.tfstate` **fuera de AWS** y cifrada: por ejemplo, como adjunto en tu gestor de contraseñas o en un almacenamiento cifrado tuyo. No la subas al bucket de state ni a otro bucket de la cuenta: si perdés el acceso a la cuenta o al bucket, la copia se pierde con ellos.
+2. Guardá también tu `terraform.tfvars` en el mismo lugar (el paso 1 te deja reconstruirlo, pero ahorra tiempo).
 
 Si perdés el state, los recursos siguen funcionando. Para volver a administrarlos, se importan con bloques `import` de Terraform (el bucket por su nombre, los roles y el boundary por nombre o ARN y el proveedor OIDC por ARN) antes del próximo `apply`.
 
-### 3.6 Qué quedó creado
+### 3.7 Qué quedó creado
 
 **Trust policy** de `gh-apply` (formato inmutable):
 
@@ -244,7 +307,7 @@ Dónde no alcanza la etiqueta (AWS no ofrece condiciones por etiqueta para esos 
 
 - **S3**: se acota por nombre de bucket (`<prefijo>-*`) y cuenta.
 - **Route 53**: se acota por zona y por nombre y tipo de registro.
-- ***Origin access controls* y *response headers policies* de CloudFront**: no tienen etiquetas ni nombre en el ARN; `gh-apply` puede crearlos, cambiarlos o borrarlos en toda la cuenta.
+- ***Origin access controls* y *response headers policies* de CloudFront**: no tienen etiquetas ni nombre en el ARN; `gh-apply` puede crearlos, cambiarlos o borrarlos en **toda la cuenta**. En una cuenta con distribuciones de otros proyectos es un riesgo real: un `apply` equivocado, o un workflow comprometido que pase la aprobación de `prod`, podría cambiar el OAC o la política de headers de otro sitio. Se acota en el PR 2 de F3: una variable del bootstrap con los IDs importados de la beta, y se re-aplica el bootstrap.
 - **Adopción de recursos sin etiqueta**: crear una distribución o un certificado con etiquetas usa el mismo permiso que etiquetar uno existente, así que `gh-apply` podría ponerle `Project` a una distribución o un certificado **sin** esa etiqueta. Si la cuenta es compartida, etiquetá los recursos de los otros proyectos con su propio `Project`: el boundary impide cambiarlo.
 
 Además: duración máxima de sesión de 1 hora, y `StringEquals` (nunca `StringLike`) sobre `aud` y `sub`.
@@ -304,8 +367,9 @@ Al terminar, la URL del sitio aparece en el resumen del job (`terraform output s
 
 | Prueba | Resultado esperado |
 |---|---|
-| Correr `deploy.yml` desde una rama que no es `main` | El environment la rechaza (regla de ramas) y no se asume ningún rol. |
-| Abrir un PR desde otro fork | `ci.yml` corre sin `id-token` y no tiene acceso a AWS. |
+| Correr `deploy.yml` desde una rama que no es `main` | `prod` la rechaza (regla de ramas): no se asumen `gh-apply` ni `gh-deploy-content`. |
+| Correr el plan desde la rama de un PR de tu repo | Corre con `prod-plan` y asume `gh-plan`, que solo lee y toma el lock. |
+| Abrir un PR desde otro fork | El job de plan no corre (condición sobre `head.repo.full_name`) y `ci.yml` corre sin `id-token`: sin acceso a AWS. |
 | Asumir `gh-apply` desde un job sin `environment: prod` | `Not authorized to perform sts:AssumeRoleWithWebIdentity`. |
 
 ## 7. Problemas frecuentes
@@ -327,7 +391,7 @@ Al terminar, la URL del sitio aparece en el resumen del job (`terraform output s
 - [ ] Sin usuarios IAM con access keys (todo por Identity Center u OIDC).
 - [ ] CloudTrail habilitado (a nivel de Organization si tenés una).
 - [ ] Alarma de presupuesto activa (la crea `infra/envs/prod`) y la etiqueta `Project` activada como *cost allocation tag* (paso 3.2).
-- [ ] Copia cifrada del state del bootstrap fuera de tu máquina (paso 3.5).
+- [ ] Copia cifrada del state del bootstrap fuera de AWS (paso 3.6).
 - [ ] Revisar periódicamente el Access Analyzer de IAM.
 
 ## 9. Desmontar todo
@@ -348,6 +412,7 @@ cd ../../bootstrap; terraform destroy
 - GitHub Docs — [Configuring OpenID Connect in Amazon Web Services](https://docs.github.com/en/actions/security-for-github-actions/security-hardening-your-deployments/configuring-openid-connect-in-amazon-web-services)
 - GitHub Docs — [OpenID Connect reference (formatos de `sub` y subject inmutable)](https://docs.github.com/en/actions/reference/security/oidc)
 - AWS IAM API — [CreateOpenIDConnectProvider (thumbprint opcional)](https://docs.aws.amazon.com/IAM/latest/APIReference/API_CreateOpenIDConnectProvider.html)
+- AWS CLI v2 — [iam simulate-principal-policy](https://docs.aws.amazon.com/cli/latest/reference/iam/simulate-principal-policy.html)
 - AWS Billing — [Budget filters](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-create-filters.html) y [Activating user-defined cost allocation tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/activating-tags.html)
 - Amazon Route 53 — [Using IAM policy conditions for fine-grained access control](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html)
 - AWS — [Service Authorization Reference](https://docs.aws.amazon.com/service-authorization/latest/reference/reference.html) (qué tipos de recurso admiten `aws:ResourceTag`)
