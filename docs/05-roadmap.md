@@ -29,6 +29,9 @@ Fases pensadas para implementarse con Claude Code **en orden**. Cada fase termin
 
 **DoD**: un invitado completa los 3 escenarios, ve colores + explicaciones, sube de rango y desbloquea el nivel siguiente; e2e en Playwright; axe sin violaciones críticas.
 
+**Pendiente de F1**:
+- RF-PAL-03: descripción corta en 0, 100 y 200, con diseño previo en Lovable y cumpliendo 1.4.13.
+
 ## F1.1 · Pulido del MVP
 **Estado**: ✅ terminada el 2026-10-04 (#36, #50 y #51).
 
@@ -75,14 +78,15 @@ L014 (control de `version` contra `main`) no corre en el Studio: queda en `pnpm 
 - **Onboarding**: opción nueva «Recién empiezo con la nube», que arranca en el nivel 0. «Recién empiezo» sigue aparte y sigue arrancando en 100.
 - RF: RF-ONB-05, RF-NAV-08, RF-PAL-06, RF-PAL-07, RF-EVAL-07, RF-STU-19, RF-CNT-09, RF-CAT-07.
 
-Se implementa en 5 PRs, en este orden. Cada uno deja algo usable:
+Se implementa en 6 PRs, en este orden (el PR 4 se partió en 4a, juego, y 4b, Studio). Cada uno deja algo usable:
 
 | PR | Alcance | RF | Dependencias nuevas |
 |---|---|---|---|
 | 1 · `docs` | ADR-0027, RF nuevos en [01](01-requerimientos-funcionales.md), glosario y este plan. | — | — |
 | 2 · `feat(schema)` conceptos (✅ hecho el 2026-10-06) | `type`, `plainName`, `glyph`, `analogyLimit` y `kind` de categoría en `scenario-schema`; las cuatro categorías de conceptos; C011–C013; paleta sin relleno de conceptos en `categories`, `categories-plus` y `full`; `icons:fetch` ignora conceptos; [03](03-modelo-de-escenarios.md) actualizado. Todavía sin nivel 0: los conceptos ya se pueden usar en niveles 100 y 200. | RF-CAT-07, RF-PAL-07 | — |
 | 3 · `feat(engine)` nivel 0 (✅ hecho el 2026-10-06) | `LEVELS` con 0, `game-rules.yaml` (multiplicador, modo de paleta, `maxSizeByLevel`, `newcomer` y el 0 en todas las experiencias), C008, L009, L021, L022, L005 con `plainName` por frase completa, área `fundamentos`, onboarding y progreso guardado. Un escenario de nivel 0 de prueba (fixture) se juega de punta a punta. | RF-ONB-05, RF-NAV-08 | — |
-| 4 · `feat(play,studio)` | Tarjeta con nombre simple y real (paleta, paleta colapsada y tablero), `glyph` en `ServiceIcon` con lucide, bloque «Dónde se rompe la analogía» en el feedback, Studio (selector con conceptos, campo `analogyLimit`, nivel 0). | RF-PAL-06, RF-EVAL-07, RF-STU-19 | — |
+| 4a · `feat(play)` tarjeta del nivel 0 (✅ hecho el 2026-10-07) | Tarjeta con nombre simple y real (paleta, paleta colapsada y casillero revelado), nombre accesible «nombre simple (nombre real)», buscador por nombre simple, `glyph` en `ServiceIcon` con lucide (los conceptos ya no piden `icons/<id>.svg`), encabezado del feedback con `fullName` y bloque «Dónde se rompe la analogía» en el feedback y en las hojas de solución imprimibles. La descripción corta del nivel 0 queda para RF-PAL-03 (ver F1). | RF-PAL-06, RF-EVAL-07 | — |
+| 4b · `feat(studio)` (pendiente) | Studio: selector con conceptos y búsqueda por `plainName`, campo `analogyLimit` (obligatorio en el nivel 0) y nivel 0 en el selector de nivel. | RF-STU-19 | — |
 | 5 · `content` | Primeros conceptos (responsabilidad compartida, región, zona de disponibilidad, ubicación de borde, pago por uso, elasticidad, alta disponibilidad…) con fuente oficial verificada y 2 o 3 escenarios de nivel 0 en `beta`. Skill `nuevo-escenario` con las reglas del nivel 0. Usa la [plantilla de PR «Nuevo escenario»](../.github/PULL_REQUEST_TEMPLATE/nuevo-escenario.md), que ya trae el ítem de revisión de analogías. | RF-CNT-09 | — |
 
 Todo dato de AWS lleva su referencia oficial; si no se puede verificar, queda como `TODO(verificar)` y el escenario no pasa de `beta`.
