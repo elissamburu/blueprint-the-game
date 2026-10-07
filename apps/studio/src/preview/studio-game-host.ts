@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // The Studio's GameHost (ADR-0025 §1): the game screen of @blueprint/play as it is, with what the
 // preview needs. It saves no progress (no onStarted, and "Finalizar" only hands the session to the
-// preview, which shows the summary in the same panel), reports no issues, offers no printable
-// version and keeps the Studio's layout. The icons come from /icons of the local server, which
+// preview, which shows the summary in the same panel), keeps no game in progress (no loadAttempt
+// nor saveAttempt, RF-PLAY-18), reports no issues, offers no printable version and keeps the
+// Studio's layout. The icons come from /icons of the local server, which
 // serves them from apps/web/public/icons (ADR-0025 §4).
 import type { SessionState } from "@blueprint/game-engine";
 import type { GameBundle, GameHost } from "@blueprint/play";

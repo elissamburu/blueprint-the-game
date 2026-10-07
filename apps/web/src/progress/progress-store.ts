@@ -1,8 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Player progress in memory, persisted through a ProgressRepository. The store only holds and
-// saves what game-engine computes: XP, ranks and unlocks are never calculated here.
+// saves what game-engine computes: XP, ranks and unlocks are never calculated here. "Reiniciar
+// progreso" also forgets the games in progress (RF-PLAY-18).
 import type { PlayerProgress } from "@blueprint/game-engine";
 import { create } from "zustand";
+import {
+  attemptRepository,
+  type LocalStorageAttemptRepository,
+} from "./local-storage-attempt-repository";
 import { LocalStorageProgressRepository } from "./local-storage-progress-repository";
 import type { ProgressRepository } from "./progress-repository";
 
@@ -23,11 +28,15 @@ export interface ProgressState {
   hydrate: () => Promise<void>;
   /** Replaces the progress with one computed by game-engine and saves it. */
   replace: (progress: PlayerProgress) => Promise<void>;
+  /** Removes the progress and every game in progress. */
   reset: () => Promise<void>;
   dismissNotice: () => void;
 }
 
-export const createProgressStore = (repository: ProgressRepository) =>
+export const createProgressStore = (
+  repository: ProgressRepository,
+  attempts?: Pick<LocalStorageAttemptRepository, "clearAll">,
+) =>
   create<ProgressState>()((set, get) => ({
     status: "idle",
     progress: null,
@@ -59,8 +68,12 @@ export const createProgressStore = (repository: ProgressRepository) =>
       set({ progress: null });
       if (get().incompatible) return;
       await repository.clear();
+      attempts?.clearAll();
     },
     dismissNotice: () => set({ notice: null }),
   }));
 
-export const useProgressStore = createProgressStore(new LocalStorageProgressRepository());
+export const useProgressStore = createProgressStore(
+  new LocalStorageProgressRepository(),
+  attemptRepository,
+);

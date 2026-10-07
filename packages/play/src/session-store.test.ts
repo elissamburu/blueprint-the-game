@@ -1,5 +1,11 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-import { applyCommand, commands, createSession, slotNodes } from "@blueprint/game-engine";
+import {
+  applyCommand,
+  commands,
+  createSession,
+  resumeAttempt,
+  slotNodes,
+} from "@blueprint/game-engine";
 import type { GameRules, Scenario } from "@blueprint/scenario-schema";
 import { describe, expect, it } from "vitest";
 import { createSessionStore } from "./session-store";
@@ -37,6 +43,40 @@ describe("session store", () => {
     const outcome = store.getState().dispatch(commands.placeService(slot.id, "ec2"));
     expect(outcome).toMatchObject({ type: "rejected", reason: "slot-locked" });
     expect(store.getState().session).toBe(before);
+  });
+
+  it("keeps the accepted commands that change the game, for the host to save (RF-PLAY-18)", () => {
+    const store = createSessionStore();
+    store.getState().start(scenario, rules);
+    store.getState().dispatch(commands.selectSlot(slot.id));
+    store.getState().dispatch(commands.placeService(slot.id, optimal));
+    store.getState().dispatch(commands.placeService(slot.id, "ec2"));
+    expect(store.getState().commands).toEqual([commands.placeService(slot.id, optimal)]);
+  });
+
+  it("resumes a rebuilt session and restarts it with nothing played", () => {
+    const played = [commands.placeService(slot.id, optimal)];
+    const resumed = resumeAttempt(scenario, rules, {
+      scenarioId: scenario.id,
+      version: scenario.version,
+      commands: played,
+    });
+    const store = createSessionStore();
+    store.getState().resume(resumed.session, resumed.commands);
+    expect(store.getState()).toMatchObject({ session: resumed.session, commands: played });
+
+    store.getState().restart();
+    expect(store.getState()).toMatchObject({
+      session: createSession(scenario, rules),
+      commands: [],
+      lastOutcome: null,
+    });
+  });
+
+  it("does nothing on restart without a session", () => {
+    const store = createSessionStore();
+    store.getState().restart();
+    expect(store.getState().session).toBeNull();
   });
 
   it("ends the session", () => {

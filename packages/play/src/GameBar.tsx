@@ -2,7 +2,8 @@
 // The single bar of the game screen (layout v2; it replaces the global header): back, level and
 // title, progress, score, "Ver caso", "Reproducir flujo" (RF-PLAY-03, RF-PLAY-15), "Modo foco",
 // "Finalizar" and the "⋯" menu with "Ver solución de este casillero", "Ver solución completa"
-// (RF-PLAY-14), "Versión imprimible" (RF-PLAY-16) and "Reportar un problema" (RF-PLAY-13). In focus mode, a minimal
+// (RF-PLAY-14), "Empezar de nuevo" (RF-PLAY-18), "Versión imprimible" (RF-PLAY-16) and "Reportar un
+// problema" (RF-PLAY-13). In focus mode, a minimal
 // floating bar: progress, "Ver caso", "Finalizar" and "Salir del foco". On narrow screens (or a
 // large browser zoom) the bar wraps, the progress bar goes first and then "Ver caso" and "Modo
 // foco" keep only their icon, with the same accessible name; "Reproducir flujo" always keeps its
@@ -31,6 +32,7 @@ import {
   Minimize2Icon,
   PlayIcon,
   PrinterIcon,
+  RotateCcwIcon,
   StarIcon,
 } from "lucide-react";
 import {
@@ -69,12 +71,20 @@ export interface SolutionActions {
   onAll: () => void;
 }
 
+/** "Empezar de nuevo" of the "⋯" menu (RF-PLAY-18). */
+export interface RestartAction {
+  /** Some command was played: there is a game to discard. */
+  available: boolean;
+  onRestart: () => void;
+}
+
 export interface GameBarProps extends Actions {
   scenario: Scenario;
   progress: GameProgress;
   onFocusMode: () => void;
   onPlayFlow: () => void;
   solution: SolutionActions;
+  restart: RestartAction;
   exit: GameHost["exit"];
   /** Route of the printable version; without it the menu does not offer it. */
   printHref?: string | undefined;
@@ -100,6 +110,7 @@ export function GameBar({
   onFinish,
   onPlayFlow,
   solution,
+  restart,
   exit,
   printHref,
   reportUrl,
@@ -177,10 +188,26 @@ export function GameBar({
               <EyeOffIcon aria-hidden />
               {t("top.solutionAll")}
             </DropdownMenuItem>
+            <DropdownMenuSeparator />
+            <DropdownMenuItem
+              disabled={!restart.available}
+              onSelect={restart.onRestart}
+              className="items-start"
+            >
+              <RotateCcwIcon aria-hidden className="mt-[0.2rem]" />
+              <span className="flex flex-col">
+                {t("top.restart")}
+                {!restart.available && (
+                  <span className="text-sm text-muted-foreground">
+                    {t("top.restartUnavailable")}
+                  </span>
+                )}
+              </span>
+            </DropdownMenuItem>
             {(printHref !== undefined || reportUrl !== undefined) && <DropdownMenuSeparator />}
             {printHref !== undefined && (
               <DropdownMenuItem asChild>
-                {/* In another tab, so the game in progress is not lost (the session is not saved). */}
+                {/* In another tab, so the game stays open next to it. */}
                 <Link to={printHref} target="_blank" rel="noreferrer">
                   <PrinterIcon aria-hidden />
                   {t("top.print")}

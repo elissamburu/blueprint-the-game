@@ -19,7 +19,15 @@
     "solutionSlot": "Ver solución de este casillero",
     "solutionSlotUnavailable": "Elegí un casillero sin resolver",
     "solutionAll": "Ver solución completa",
-    "print": "Versión imprimible"
+    "print": "Versión imprimible",
+    "restart": "Empezar de nuevo",
+    "restartUnavailable": "Todavía no hiciste ninguna jugada"
+  },
+  "restart": {
+    "title": "¿Empezar de nuevo?",
+    "text": "Se borra lo que colocaste en este escenario, con sus errores, pistas y soluciones vistas, y el tablero queda vacío. Tu mejor resultado y tu XP no cambian.",
+    "cancel": "Cancelar",
+    "confirm": "Sí, empezar de nuevo"
   },
   "case": {
     "kicker": "El caso",
@@ -115,7 +123,8 @@
     },
     "solutionRevealed": "Solución de «{{role}}»: {{service}}. No suma puntos.",
     "solutionsRevealed_one": "Se muestra la solución de {{count}} casillero. Ya podés finalizar.",
-    "solutionsRevealed_other": "Se muestra la solución de {{count}} casilleros. Ya podés finalizar."
+    "solutionsRevealed_other": "Se muestra la solución de {{count}} casilleros. Ya podés finalizar.",
+    "restarted": "Empezás de nuevo: el tablero quedó vacío."
   },
   "brief": {
     "kicker": "Nuevo desafío",
@@ -125,7 +134,9 @@
     "start": "Empezar a diseñar",
     "preview": "Vista previa",
     "previewLabel": "Vista previa del diagrama con los casilleros vacíos",
-    "print": "Versión imprimible"
+    "print": "Versión imprimible",
+    "resumed": "Retomás tu partida en curso: el tablero quedó como lo dejaste.",
+    "outdated": "El escenario se actualizó; empezás de nuevo."
   },
   "status": {
     "draft": "Borrador",

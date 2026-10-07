@@ -2,7 +2,7 @@
 // The port of the game screen (ADR-0025 §1): what each app that mounts it (the web game, the
 // Studio preview) provides. The screen never imports an app: progress, routes, layout, icons and
 // the issue link come in through here.
-import type { SessionState } from "@blueprint/game-engine";
+import type { SavedAttempt, SessionState } from "@blueprint/game-engine";
 import type { BundleCatalog, BundleIndex, GameRules } from "@blueprint/scenario-schema";
 
 export interface GameHost {
@@ -12,6 +12,16 @@ export interface GameHost {
   onStarted?: (scenarioId: string) => void;
   /** "Terminar". Web: saves the result and goes to the summary. */
   onFinish: (session: SessionState) => Promise<void>;
+  /**
+   * The game in progress of the scenario, saved by `saveAttempt` (RF-PLAY-18); the screen rebuilds
+   * it with game-engine. Null when there is none or it was unreadable. Without these three, every
+   * visit starts anew (the Studio preview). Added to ADR-0025 (see its amendment of 2026-10-07).
+   */
+  loadAttempt?: (scenarioId: string) => SavedAttempt | null;
+  /** After every accepted command that changes the game. */
+  saveAttempt?: (attempt: SavedAttempt) => void;
+  /** "Finalizar", "Empezar de nuevo", or a saved game that could not be resumed. */
+  clearAttempt?: (scenarioId: string) => void;
   /**
    * The back arrow of the bar and the brief: a link to `href` (a route of the app's router) or,
    * without it, a button that calls `onExit`.

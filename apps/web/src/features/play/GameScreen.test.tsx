@@ -13,6 +13,7 @@ import { AppRoutes } from "../../app/App";
 import { useContentStore } from "../../content/content-store";
 import { bundleFiles, fetchFrom } from "../../content/testing/bundle-fixture";
 import "../../i18n";
+import { ATTEMPT_STORAGE_PREFIX } from "../../progress/local-storage-attempt-repository";
 import { PROGRESS_STORAGE_KEY } from "../../progress/local-storage-progress-repository";
 import { PROGRESS_SCHEMA_VERSION } from "../../progress/progress-schema";
 import { storedProgress } from "../../testing/progress-fixture";
@@ -1042,5 +1043,155 @@ describe("feedback card position", () => {
     await press(user, within(feedback()).getByRole("button", { name: "Cerrar explicación" }));
     expect(screen.queryByRole("region", { name: /Aceptable/ })).toBeNull();
     expect(document.activeElement).toBe(slotButton("url-signer"));
+  });
+});
+
+describe("game in progress (RF-PLAY-18)", () => {
+  const key = ATTEMPT_STORAGE_PREFIX + staticWebsiteScenario.id;
+  const score = () => screen.getByText("Puntaje").nextElementSibling?.textContent;
+  const stored = () => localStorage.getItem(key);
+  /** A reload: the screen and every store start again from what the browser kept. */
+  const reload = () => {
+    cleanup();
+    useContentStore.setState(useContentStore.getInitialState(), true);
+    useProgressStore.setState(useProgressStore.getInitialState(), true);
+  };
+  const saveAttempt = (attempt: unknown) => localStorage.setItem(key, JSON.stringify(attempt));
+  /** dns green at the first attempt, certificate green after an error: 100 + 75. */
+  const playTwoSlots = async (user: ReturnType<typeof userEvent.setup>) => {
+    await user.click(paletteButton("route53"));
+    await press(user, slotButton("dns"));
+    await press(user, slotButton("certificate"));
+    await user.click(paletteButton("kms"));
+    expect(slotButton("certificate").getAttribute("aria-label")).toContain("Incorrecto");
+    await user.click(within(feedback()).getByRole("button", { name: "Probar otra" }));
+  };
+  const openMenuItem = async (user: ReturnType<typeof userEvent.setup>, name: RegExp) => {
+    await user.click(screen.getByRole("button", { name: "Más acciones" }));
+    return within(await screen.findByRole("menu")).getByRole("menuitem", { name });
+  };
+
+  it("comes back after a reload with the same board, errors and score, and says so", async () => {
+    withProgress();
+    let user = await open(staticWebsiteScenario.id);
+    await playTwoSlots(user);
+    const before = { dns: slotButton("dns").getAttribute("aria-label"), score: score() };
+    expect(before.score).toBe("100");
+    expect(stored()).not.toBeNull();
+
+    reload();
+    user = await open(staticWebsiteScenario.id, { closeBrief: false });
+    const brief = screen.getByRole("dialog", { name: staticWebsiteScenario.title });
+    expect(within(brief).getByRole("status").textContent).toBe(
+      "Retomás tu partida en curso: el tablero quedó como lo dejaste.",
+    );
+    await user.click(within(brief).getByRole("button", { name: /Empezar a diseñar/ }));
+    expect(score()).toBe(before.score);
+    expect(slotButton("dns").getAttribute("aria-label")).toBe(before.dns);
+    // The error is still counted: the certificate is no longer worth 100 (CA: never improves).
+    await press(user, slotButton("certificate"));
+    await user.click(paletteButton("acm"));
+    expect(score()).toBe("175");
+  });
+
+  it("starts anew and says so when the scenario changed its version", async () => {
+    withProgress();
+    saveAttempt({
+      schemaVersion: 1,
+      attempt: {
+        scenarioId: staticWebsiteScenario.id,
+        version: staticWebsiteScenario.version + 1,
+        commands: [{ type: "placeService", slotId: "dns", serviceId: "route53" }],
+      },
+    });
+    await open(staticWebsiteScenario.id, { closeBrief: false });
+    const brief = screen.getByRole("dialog", { name: staticWebsiteScenario.title });
+    expect(within(brief).getByRole("status").textContent).toBe(
+      "El escenario se actualizó; empezás de nuevo.",
+    );
+    expect(score()).toBe("0");
+    await waitFor(() => expect(stored()).toBeNull());
+  });
+
+  it.each([
+    ["not JSON", "{not json"],
+    ["an older format", JSON.stringify({ schemaVersion: 0, commands: [] })],
+    [
+      "a command of another scenario",
+      JSON.stringify({
+        schemaVersion: 1,
+        attempt: {
+          scenarioId: staticWebsiteScenario.id,
+          version: staticWebsiteScenario.version,
+          commands: [{ type: "useHint", slotId: "missing" }],
+        },
+      }),
+    ],
+  ])("drops a saved game that is %s without breaking the screen", async (_, text) => {
+    withProgress();
+    vi.spyOn(console, "warn").mockImplementation(() => undefined);
+    localStorage.setItem(key, text);
+    await open(staticWebsiteScenario.id, { closeBrief: false });
+    const brief = screen.getByRole("dialog", { name: staticWebsiteScenario.title });
+    expect(within(brief).queryByRole("status")).toBeNull();
+    expect(score()).toBe("0");
+    await waitFor(() => expect(stored()).toBeNull());
+  });
+
+  it("«Finalizar» forgets the game, and «Volver a jugar» starts a new one", async () => {
+    withProgress();
+    const user = await open(staticWebsiteScenario.id);
+    for (const node of slotNodes(staticWebsiteScenario)) {
+      const optimal = node.answers.find((a) => a.grade === "optimal");
+      if (optimal === undefined) throw new Error("slot without optimal");
+      await press(user, slotButton(node.id));
+      await user.click(paletteButton(optimal.service));
+    }
+    expect(stored()).not.toBeNull();
+    await act(() => user.click(screen.getByRole("button", { name: "Finalizar" })));
+    await screen.findByRole("heading", { level: 1, name: "Escenario completado" });
+    expect(stored()).toBeNull();
+
+    await user.click(screen.getAllByRole("link", { name: "Volver a jugar" })[0] as HTMLElement);
+    const brief = await screen.findByRole("dialog", { name: staticWebsiteScenario.title });
+    expect(within(brief).queryByRole("status")).toBeNull();
+    expect(score()).toBe("0");
+  });
+
+  it("«Empezar de nuevo» asks first, then empties the board and forgets the game", async () => {
+    withProgress();
+    const user = await open(staticWebsiteScenario.id);
+    const restart = await openMenuItem(user, /^Empezar de nuevo/);
+    expect(restart.getAttribute("aria-disabled")).toBe("true");
+    expect(restart.textContent).toContain("Todavía no hiciste ninguna jugada");
+    await user.keyboard("{Escape}");
+    await playTwoSlots(user);
+
+    await user.click(await openMenuItem(user, /^Empezar de nuevo$/));
+    let dialog = await screen.findByRole("alertdialog", { name: "¿Empezar de nuevo?" });
+    const results = await axe.run(document.body, {
+      resultTypes: ["violations"],
+      rules: { "color-contrast": { enabled: false } },
+    });
+    expect(results.violations).toEqual([]);
+    await user.click(within(dialog).getByRole("button", { name: "Cancelar" }));
+    await waitFor(() =>
+      expect(document.activeElement?.getAttribute("aria-label")).toBe("Más acciones"),
+    );
+    expect(score()).toBe("100");
+
+    await user.click(await openMenuItem(user, /^Empezar de nuevo$/));
+    dialog = await screen.findByRole("alertdialog", { name: "¿Empezar de nuevo?" });
+    await user.click(within(dialog).getByRole("button", { name: "Sí, empezar de nuevo" }));
+    expect(score()).toBe("0");
+    expect(slotButton("dns").getAttribute("aria-label")).not.toContain("Óptimo");
+    expect(stored()).toBeNull();
+    expect(live().textContent).toContain("Empezás de nuevo: el tablero quedó vacío.");
+  });
+
+  it("keeps nothing without progress, as the result", async () => {
+    const user = await open(staticWebsiteScenario.id);
+    await playTwoSlots(user);
+    expect(stored()).toBeNull();
   });
 });

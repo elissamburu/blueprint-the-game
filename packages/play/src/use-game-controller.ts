@@ -83,6 +83,8 @@ export interface GameController {
   revealHint: (slotId: string) => void;
   /** "Ver solución" of one slot, or of every unresolved slot with null (RF-PLAY-14). */
   revealSolution: (slotId: string | null) => void;
+  /** "Empezar de nuevo" (RF-PLAY-18): the board empties and nothing stays selected. */
+  restart: () => void;
   closeFeedback: () => void;
 }
 
@@ -175,6 +177,12 @@ export const useGameController = (
     revealSolution: (slotId) => {
       setPendingServiceId(null);
       run([commands.revealSolution(slotId)]);
+    },
+    restart: () => {
+      setPendingServiceId(null);
+      setFeedbackSlotId(null);
+      store.getState().restart();
+      announce(t("announce.restarted"));
     },
     closeFeedback: () => setFeedbackSlotId(null),
   };
