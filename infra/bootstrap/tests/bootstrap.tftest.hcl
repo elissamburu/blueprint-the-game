@@ -163,6 +163,52 @@ run "deploy_content_cannot_touch_state" {
   }
 }
 
+# Which role actions carry the iam:PermissionsBoundary condition. The key is only in the request
+# context of the actions listed by the Service Authorization Reference for IAM (action condition
+# keys): with StringNotEquals, an action without the key would always be denied, and with
+# StringEquals, never allowed. TagRole and UntagRole do not have it, so they go without it.
+run "boundary_condition_actions" {
+  assert {
+    condition = toset(one([
+      for s in jsondecode(aws_iam_policy.boundary.policy).Statement : s.Action if s.Sid == "RolesNeedBoundary"
+      ])) == toset([
+      "iam:CreateRole",
+      "iam:DeleteRole",
+      "iam:UpdateRole",
+      "iam:UpdateRoleDescription",
+      "iam:UpdateAssumeRolePolicy",
+      "iam:AttachRolePolicy",
+      "iam:DetachRolePolicy",
+      "iam:PutRolePolicy",
+      "iam:DeleteRolePolicy",
+      "iam:PutRolePermissionsBoundary",
+    ])
+    error_message = "RolesNeedBoundary must list exactly the role actions that carry iam:PermissionsBoundary."
+  }
+
+  assert {
+    condition = alltrue([
+      for s in jsondecode(aws_iam_role_policy.github["apply"].policy).Statement :
+      contains(keys(try(s.Condition.StringEquals, {})), "iam:PermissionsBoundary")
+      if contains(["RolesCreate", "RolesManage"], s.Sid)
+    ])
+    error_message = "gh-apply creates and changes roles only with the boundary."
+  }
+
+  assert {
+    condition = alltrue(flatten([
+      for s in concat(
+        jsondecode(aws_iam_role_policy.github["apply"].policy).Statement,
+        jsondecode(aws_iam_policy.boundary.policy).Statement,
+        ) : [
+        for a in flatten([try(s.Action, [])]) :
+        !contains(["iam:TagRole", "iam:UntagRole"], a) || !contains(keys(try(s.Condition.StringEquals, {})), "iam:PermissionsBoundary") && !contains(keys(try(s.Condition.StringNotEquals, {})), "iam:PermissionsBoundary")
+      ]
+    ]))
+    error_message = "TagRole and UntagRole never take the iam:PermissionsBoundary condition (the key is not in their request context)."
+  }
+}
+
 run "rejects_bad_account_id" {
   command = plan
 

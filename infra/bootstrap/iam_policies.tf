@@ -233,6 +233,11 @@ locals {
       },
       # IAM: roles and policies of the project, always with the boundary (the boundary enforces it
       # again with explicit denies). No iam:PassRole until a phase needs it.
+      # iam:PermissionsBoundary is in the request context of every role action listed with it here
+      # (CreateRole, DeleteRole, UpdateRole, UpdateRoleDescription, UpdateAssumeRolePolicy,
+      # Attach/DetachRolePolicy, Put/DeleteRolePolicy, PutRolePermissionsBoundary), but not of
+      # TagRole/UntagRole: Service Authorization Reference for IAM, action condition keys
+      # (https://servicereference.us-east-1.amazonaws.com/v1/iam/iam.json). tests/ checks the lists.
       {
         Sid      = "RolesCreate"
         Effect   = "Allow"
@@ -251,6 +256,7 @@ locals {
         Action = [
           "iam:DeleteRole",
           "iam:UpdateRole",
+          "iam:UpdateRoleDescription",
           "iam:UpdateAssumeRolePolicy",
           "iam:AttachRolePolicy",
           "iam:DetachRolePolicy",
@@ -425,6 +431,7 @@ locals {
           "iam:CreateRole",
           "iam:DeleteRole",
           "iam:UpdateRole",
+          "iam:UpdateRoleDescription",
           "iam:UpdateAssumeRolePolicy",
           "iam:AttachRolePolicy",
           "iam:DetachRolePolicy",
@@ -462,6 +469,7 @@ locals {
           "acm:RevokeCertificate",
           "iam:DeleteRole",
           "iam:UpdateRole",
+          "iam:UpdateRoleDescription",
           "iam:UpdateAssumeRolePolicy",
           "iam:AttachRolePolicy",
           "iam:DetachRolePolicy",
