@@ -229,6 +229,13 @@ describe("content validate", () => {
 });
 
 describe("content validate --base (L014)", () => {
+  /**
+   * The runs that compare with the base read it with git and build its scenarios for real, on top
+   * of the current ones: alone they take 4–5 s, and about 10 s when the whole suite runs in
+   * parallel, past the 5 s default. Only they get more time; the global timeout stays as it is.
+   */
+  const readsBase = { timeout: 30_000 };
+
   beforeEach(() => {
     ws.git("init", "--quiet", "-b", "main");
     ws.git("add", "-A");
@@ -243,7 +250,7 @@ describe("content validate --base (L014)", () => {
       "        - service: fargate\n          grade: optimal",
     );
 
-  it("fails when a beta scenario changes grades without bumping version", async () => {
+  it("fails when a beta scenario changes grades without bumping version", readsBase, async () => {
     await promoteFargate();
     const report = await validateJson("--base", "main");
     expect(report.skipped).toEqual([]);
@@ -252,24 +259,28 @@ describe("content validate --base (L014)", () => {
     expect(l014?.message).toContain('answers o grados de "thumbnailer"');
   });
 
-  it("passes when version is bumped", async () => {
+  it("passes when version is bumped", readsBase, async () => {
     await promoteFargate();
     await ws.edit(CLUB, "version: 1", "version: 2");
     const report = await validateJson("--base", "main");
     expect(codesOf(report, "club-photos")).not.toContain("L014");
   });
 
-  it("ignores text-only changes and scenarios that are new or draft on the base", async () => {
-    await ws.edit(CLUB, "Hay que administrar instancias.", "Hay que parchear instancias.");
-    await ws.edit(
-      ["scenarios", "photo-queue", "scenario.yaml"],
-      "        - service: dynamodb\n",
-      "        - service: s3\n",
-    );
-    const report = await validateJson("--base", "main");
-    expect(codesOf(report, "club-photos")).not.toContain("L014");
-    expect(codesOf(report, "photo-queue")).not.toContain("L014");
-  });
+  it(
+    "ignores text-only changes and scenarios that are new or draft on the base",
+    readsBase,
+    async () => {
+      await ws.edit(CLUB, "Hay que administrar instancias.", "Hay que parchear instancias.");
+      await ws.edit(
+        ["scenarios", "photo-queue", "scenario.yaml"],
+        "        - service: dynamodb\n",
+        "        - service: s3\n",
+      );
+      const report = await validateJson("--base", "main");
+      expect(codesOf(report, "club-photos")).not.toContain("L014");
+      expect(codesOf(report, "photo-queue")).not.toContain("L014");
+    },
+  );
 
   it("fails when the base ref does not exist", async () => {
     const { code, stdout } = await ws.cli("validate", "--base", "origin/nope");
