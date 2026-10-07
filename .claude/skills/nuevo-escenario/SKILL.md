@@ -45,4 +45,4 @@ Una situación cotidiana (una panadería, un club, una escuela) donde cada casil
 - No edites `diagram.mmd` ni `README.md` a mano.
 
 ## Al abrir el PR
-Usá la plantilla de escenarios: `gh pr create --template nuevo-escenario.md`. Completá el checklist y, en el nivel 0, la sección «Solo nivel 0».
+Los PR de escenarios siguen `.github/PULL_REQUEST_TEMPLATE/nuevo-escenario.md`: el cuerpo se arma copiando la plantilla sección por sección en un archivo y se pasa con `gh pr create --body-file` (gh no combina `--template` con `--body-file`). Desde la web, se puede usar `?template=nuevo-escenario.md`. Completá el checklist y, en el nivel 0, la sección «Solo nivel 0».
