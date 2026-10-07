@@ -134,8 +134,8 @@ test.describe("tarjeta del nivel 0 (RF-PAL-06) y analogía (RF-EVAL-07)", () => 
         const card = palette(page).getByRole("button", { name: doubleName(pair), exact: true });
         await card.hover();
         await expect(page.getByRole("tooltip")).toHaveText(doubleName(pair));
-        // Away from the card, so the next tooltip is not this one still closing.
-        await page.mouse.move(0, 0);
+        // Closed (Esc, WCAG 1.4.13), so the next tooltip is not this one still open.
+        await page.keyboard.press("Escape");
         await expect(page.getByRole("tooltip")).toHaveCount(0);
       }
       await palette(page).getByRole("button", { name: "Expandir la paleta" }).click();
