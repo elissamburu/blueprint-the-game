@@ -63,6 +63,40 @@ describe("ArchitectureSlot", () => {
     expect(onActivate).toHaveBeenCalledOnce();
   });
 
+  it("shows a plain name on top of the real name and names the slot with both (level 0)", () => {
+    const { container } = render(
+      <ArchitectureSlot
+        grade="optimal"
+        role="Rol"
+        number={1}
+        service={{
+          name: "Región de AWS",
+          category: "concept-global-infrastructure",
+          plainName: "Lugar del mundo",
+          glyph: "region",
+        }}
+        onActivate={() => {}}
+      />,
+    );
+    screen.getByRole("button", { name: "Óptimo: Lugar del mundo (Región de AWS), casillero 1" });
+    const chip = container.querySelector<HTMLElement>("[data-slot=architecture-slot-service]");
+    expect(chip?.querySelector('[data-slot="service-name-plain"]')?.textContent).toBe(
+      "Lugar del mundo",
+    );
+    const real = chip?.querySelector<HTMLElement>('[data-slot="service-name-real"]');
+    expect(real?.textContent).toBe("Región de AWS");
+    expect(real?.classList).toContain("text-[12px]");
+    expect(real?.classList).toContain("text-muted-foreground");
+    expect(chip?.querySelector("[data-glyph=region] svg")).not.toBeNull();
+  });
+
+  it("without a plain name shows only the name, as always", () => {
+    const { container } = render(<ArchitectureSlot grade="optimal" role="r" service={service} />);
+    const chip = container.querySelector<HTMLElement>("[data-slot=architecture-slot-service]");
+    expect(chip?.querySelector('[data-slot="service-name"]')).toBeNull();
+    expect(chip?.querySelector("strong")?.textContent).toBe("Amazon S3");
+  });
+
   it("is not focusable without onActivate", () => {
     render(<ArchitectureSlot grade="empty" role="Rol" hints={{ used: 1, total: 2 }} />);
     expect(screen.queryByRole("button")).toBeNull();

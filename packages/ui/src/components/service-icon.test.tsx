@@ -63,6 +63,45 @@ describe("ServiceIcon", () => {
     expect(icon.hasAttribute("role")).toBe(false);
   });
 
+  it("draws the glyph of a concept in currentColor, in the same box as the initials", () => {
+    const { container } = render(
+      <ServiceIcon glyph="region" name="Región de AWS" category="concept-global-infrastructure" />,
+    );
+    const icon = slot(container);
+    const svg = icon.querySelector("svg");
+    expect(icon.querySelector("img")).toBeNull();
+    expect(icon.textContent).toBe("");
+    expect(icon.getAttribute("data-glyph")).toBe("region");
+    expect(icon.hasAttribute("data-fallback")).toBe(false);
+    expect(icon.classList).toContain("size-8");
+    expect(svg?.getAttribute("aria-hidden")).toBe("true");
+    expect(svg?.getAttribute("stroke")).toBe("currentColor");
+    expect(icon.getAttribute("role")).toBe("img");
+    expect(icon.getAttribute("aria-label")).toBe("Región de AWS");
+  });
+
+  it("ignores src when there is a glyph", () => {
+    const { container } = render(
+      <ServiceIcon src="/icons/region.svg" glyph="region" name="Región de AWS" category="x" />,
+    );
+    expect(slot(container).querySelector("img")).toBeNull();
+    expect(slot(container).querySelector("svg")).not.toBeNull();
+  });
+
+  it("hides the glyph from screen readers when decorative", () => {
+    const { container } = render(
+      <ServiceIcon glyph="savings" name="Ahorro" category="x" decorative />,
+    );
+    expect(slot(container).getAttribute("aria-hidden")).toBe("true");
+    expect(slot(container).hasAttribute("role")).toBe(false);
+  });
+
+  it("shows the initials of a concept without a glyph", () => {
+    const { container } = render(<ServiceIcon name="Pago por uso" category="x" decorative />);
+    expect(slot(container).textContent).toBe("PPU");
+    expect(slot(container).hasAttribute("data-fallback")).toBe(true);
+  });
+
   it("tries a new src again after a failure", () => {
     const { container, rerender } = render(
       <ServiceIcon src="/icons/a.svg" name="Amazon S3" category="storage" />,

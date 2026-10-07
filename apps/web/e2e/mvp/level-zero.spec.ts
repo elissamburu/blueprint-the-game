@@ -1,13 +1,21 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // RF-ONB-05, RF-NAV-08 (ADR-0027 §3): «Recién empiezo con la nube» starts at level 0, plays it
 // end to end with XP ×0.5 and opens level 100; «Recién empiezo» still starts at 100 and has
-// level 0 open.
-import { expect, test } from "@playwright/test";
+// level 0 open. RF-PAL-06, RF-EVAL-07 (ADR-0027 §6): the level 0 card, the analogy limit in the
+// feedback and in the solution sheets.
+import { expect, test, type Locator, type Page } from "@playwright/test";
 import {
+  feedback,
   finish,
   onboard,
+  palette,
+  paletteService,
+  place,
   placeAll,
+  playFromListing,
   scenarioCard,
+  slot,
+  slotName,
   startDesigning,
   summaryFigures,
 } from "../support/app";
@@ -63,4 +71,150 @@ test("«Recién empiezo» sigue arrancando en 100 y ve el nivel 0 abierto", asyn
   await expect(
     scenarioCard(page, PIZZERIA.title).getByRole("link", { name: /^Jugar «/ }),
   ).toBeVisible();
+});
+
+/** Font size and color of an element, in CSS px and as computed by the browser. */
+const typeOf = (locator: Locator) =>
+  locator.evaluate((el) => {
+    const style = getComputedStyle(el);
+    return { size: Number.parseFloat(style.fontSize), color: style.color };
+  });
+
+/** The computed color of --muted-foreground on the page. */
+const mutedForeground = (page: Page) =>
+  page.evaluate(() => {
+    const probe = document.createElement("span");
+    probe.style.color = "var(--muted-foreground)";
+    document.body.append(probe);
+    const color = getComputedStyle(probe).color;
+    probe.remove();
+    return color;
+  });
+
+const PAIRS = Object.values(PIZZERIA.names);
+const doubleName = ([plain, real]: readonly [string, string]) => `${plain} (${real})`;
+
+test.describe("tarjeta del nivel 0 (RF-PAL-06) y analogía (RF-EVAL-07)", () => {
+  test.beforeEach(async ({ page }) => {
+    // «Recién empiezo con la nube» already marks «Fundamentos de la nube».
+    await onboard(page, { areas: [], experience: EXPERIENCE.newcomer });
+    await playFromListing(page, PIZZERIA.title);
+  });
+
+  test("el nombre accesible de cada tarjeta tiene el nombre simple y el real", async ({ page }) => {
+    const muted = await mutedForeground(page);
+
+    await test.step("paleta expandida: el simple arriba, el real abajo, chico y atenuado", async () => {
+      // With concepts, the palette speaks of cards (ADR-0027 §6).
+      await expect(palette(page).getByRole("heading", { level: 2 })).toHaveText(
+        /^Servicios y conceptos/,
+      );
+      await expect(palette(page)).toContainText(
+        "Arrastrá una tarjeta a un casillero, o elegí un casillero y después una tarjeta.",
+      );
+      const cards = palette(page).locator("[data-palette-service]");
+      await expect(cards).toHaveCount(PAIRS.length);
+      for (const pair of PAIRS) {
+        const card = paletteService(page, doubleName(pair));
+        await expect(card).toHaveAccessibleName(doubleName(pair));
+        const real = card.locator('[data-slot="service-name-real"]');
+        await expect(card.locator('[data-slot="service-name-plain"]')).toHaveText(pair[0]);
+        await expect(real).toHaveText(pair[1]);
+        const { size, color } = await typeOf(real);
+        expect(size).toBeGreaterThanOrEqual(12);
+        expect(color).toBe(muted);
+      }
+    });
+
+    await test.step("el buscador encuentra la tarjeta por el nombre simple", async () => {
+      await palette(page).getByRole("searchbox").fill("CENTRO de datos");
+      await expect(palette(page).locator("[data-palette-service]")).toHaveCount(1);
+      await expect(
+        paletteService(page, "Centro de datos aparte (Zona de disponibilidad)"),
+      ).toBeVisible();
+      await palette(page).getByRole("searchbox").fill("");
+    });
+
+    await test.step("paleta colapsada: el tooltip y el nombre accesible son el mismo texto", async () => {
+      await palette(page).getByRole("button", { name: "Colapsar la paleta" }).click();
+      for (const pair of PAIRS) {
+        const card = palette(page).getByRole("button", { name: doubleName(pair), exact: true });
+        await card.hover();
+        await expect(page.getByRole("tooltip")).toHaveText(doubleName(pair));
+        // Closed (Esc, WCAG 1.4.13), so the next tooltip is not this one still open.
+        await page.keyboard.press("Escape");
+        await expect(page.getByRole("tooltip")).toHaveCount(0);
+      }
+      await palette(page).getByRole("button", { name: "Expandir la paleta" }).click();
+    });
+
+    await test.step("casillero revelado: los dos nombres, el real con 12 px o más", async () => {
+      const { city } = PIZZERIA.slots;
+      await place(page, city.role, city.optimal);
+      const placed = slot(page, city.role);
+      await expect(placed).toHaveAccessibleName(slotName(city.number, "Óptimo", city.optimal));
+      const real = placed.locator('[data-slot="service-name-real"]');
+      await expect(real).toHaveText("Región de AWS");
+      const { size, color } = await typeOf(real);
+      expect(size).toBeGreaterThanOrEqual(12);
+      expect(color).toBe(muted);
+      await page.getByRole("button", { name: "Cerrar explicación" }).click();
+    });
+
+    await test.step("ningún nombre se sale de su recuadro, ni en el tablero ni en la paleta", async () => {
+      // «Almacenamiento de archivos» is the longest word of the fixture: it has to hyphenate.
+      const { recipes } = PIZZERIA.slots;
+      await place(page, recipes.role, recipes.optimal);
+      await page.getByRole("button", { name: "Cerrar explicación" }).click();
+      const spills = await page.evaluate(() =>
+        [
+          ...document.querySelectorAll(
+            '[data-slot="service-name-plain"], [data-slot="service-name-real"]',
+          ),
+        ].flatMap((name) => {
+          const box = name.closest('[data-slot="architecture-slot-service"], button');
+          if (box === null) return [];
+          const outer = box.getBoundingClientRect();
+          const range = document.createRange();
+          range.selectNodeContents(name);
+          return [...range.getClientRects()]
+            .filter((line) => line.right > outer.right + 0.5 || line.left < outer.left - 0.5)
+            .map(() => name.textContent ?? "");
+        }),
+      );
+      expect(spills).toEqual([]);
+    });
+  });
+
+  test("después de colocar, el feedback dice dónde se rompe la analogía", async ({ page }) => {
+    const { recipes } = PIZZERIA.slots;
+    await place(page, recipes.role, recipes.optimal);
+    const card = feedback(page, "Óptimo");
+    // The title names the service by its full name (the fixture has none: its name).
+    await expect(card.getByRole("heading", { level: 2 })).toHaveText("ÓptimoAmazon S3");
+    const analogy = card.getByRole("group", { name: "Dónde se rompe la analogía" });
+    await expect(analogy).toContainText(recipes.analogyLimit);
+    await expect(
+      analogy.getByRole("link", { name: /^Documentación sobre la analogía/ }),
+    ).toHaveAttribute("href", "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html");
+  });
+
+  test("las hojas de solución imprimen los dos nombres y la analogía, con 6,5 pt o más", async ({
+    page,
+  }) => {
+    await page.goto(`/escenarios/${PIZZERIA.id}/imprimir`);
+    await page.getByRole("checkbox", { name: "Incluir soluciones" }).check();
+    await page.emulateMedia({ media: "print" });
+    for (const { optimal, analogyLimit } of Object.values(PIZZERIA.slots)) {
+      const answer = page.locator("li[data-grade]").filter({ hasText: optimal });
+      await expect(answer.getByText(optimal, { exact: true })).toBeVisible();
+      const analogy = answer.locator("[data-analogy-limit]");
+      await expect(analogy).toContainText(`Dónde se rompe la analogía: ${analogyLimit}`);
+      const sizes = await analogy
+        .locator("p, a")
+        .evaluateAll((els) => els.map((el) => Number.parseFloat(getComputedStyle(el).fontSize)));
+      // 6.5 pt = 8.67 CSS px.
+      for (const size of sizes) expect(size).toBeGreaterThanOrEqual((6.5 * 96) / 72);
+    }
+  });
 });

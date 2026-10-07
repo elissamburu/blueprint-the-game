@@ -59,18 +59,38 @@ export const PIZZERIA = {
     city: {
       number: 1,
       role: "La ciudad donde la pizzería abre, elegida por estar cerca de sus clientes.",
-      optimal: "Región de AWS",
+      // Level 0 names each card «<plainName> (<name>)» (RF-PAL-06).
+      optimal: "Lugar del mundo (Región de AWS)",
+      analogyLimit:
+        "Una ciudad es un solo lugar; una región agrupa varias zonas de disponibilidad aisladas entre sí.",
     },
     kitchens: {
       number: 2,
       role: "Dos cocinas en edificios distintos de la misma ciudad, con luz propia cada una.",
-      optimal: "Zona de disponibilidad",
+      optimal: "Centro de datos aparte (Zona de disponibilidad)",
+      analogyLimit:
+        "Las cocinas se ven desde la calle; las zonas de disponibilidad no muestran su ubicación exacta.",
     },
     recipes: {
       number: 3,
       role: "El lugar donde se guardan las recetas y las fotos del menú.",
-      optimal: "Amazon S3",
+      optimal: "Almacenamiento de archivos (Amazon S3)",
+      analogyLimit:
+        "Un archivo de papel tiene carpetas; acá cada receta es un objeto con su clave, sin carpetas reales.",
     },
+  },
+  /**
+   * Plain and real name of every catalog entry its palette can show (curated, up to 8): the
+   * answers, the incorrect ones, `palette.extra` and their confusion groups.
+   */
+  names: {
+    s3: ["Almacenamiento de archivos", "Amazon S3"],
+    efs: ["Disco compartido", "Amazon EFS"],
+    ec2: ["Computadora alquilada", "Amazon EC2"],
+    region: ["Lugar del mundo", "Región de AWS"],
+    "availability-zone": ["Centro de datos aparte", "Zona de disponibilidad"],
+    "edge-location": ["Punto de entrega cercano", "Ubicación de borde"],
+    "pay-as-you-go": ["Pagar solo lo que usás", "Pago por uso"],
   },
 } as const;
 

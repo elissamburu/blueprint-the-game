@@ -771,6 +771,9 @@ importers:
 
   packages/ui:
     dependencies:
+      '@blueprint/scenario-schema':
+        specifier: workspace:*
+        version: link:../scenario-schema
       class-variance-authority:
         specifier: ^0.7.1
         version: 0.7.1

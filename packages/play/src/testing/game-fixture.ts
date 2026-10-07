@@ -54,3 +54,88 @@ export const slotOf = (scenario: Scenario, id: string): SlotNode => {
 
 export const newSession = (scenario: Scenario = pdfScenario): SessionState =>
   createSession(scenario, bundle.rules);
+
+/**
+ * Plain names for the level 0 tests: the real catalog has none yet (F2.1 PR 5). Entries without
+ * one here get a made-up plain name.
+ */
+const PLAIN_NAMES: Readonly<Record<string, string>> = {
+  s3: "Almacenamiento de archivos",
+  lambda: "Función que corre sola",
+};
+
+/** Two concepts (ADR-0027 §1): one with a glyph and one without, which shows its initials. */
+const CONCEPTS: readonly Service[] = [
+  {
+    type: "concept",
+    id: "region",
+    name: "Región de AWS",
+    plainName: "Lugar del mundo",
+    category: "concept-global-infrastructure",
+    aliases: [],
+    leakPatterns: ["Región de AWS"],
+    short: "Área geográfica con varias zonas de disponibilidad.",
+    docs: "https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html",
+    status: "active",
+    glyph: "region",
+  },
+  {
+    type: "concept",
+    id: "pay-as-you-go",
+    name: "Pago por uso",
+    plainName: "Pagar solo lo que usás",
+    category: "concept-cloud-economics",
+    aliases: [],
+    leakPatterns: ["pago por uso"],
+    short: "Se paga por lo que se consume.",
+    docs: "https://aws.amazon.com/pricing/",
+    status: "active",
+  },
+];
+
+/** The catalog of the level 0 tests: every entry with a plain name, and two concepts. */
+export const levelZeroServices = new Map<string, Service>(
+  [
+    ...bundle.catalog.services.map((s): Service => ({
+      ...s,
+      plainName: PLAIN_NAMES[s.id] ?? `Simple ${s.name}`,
+    })),
+    ...CONCEPTS,
+  ].map((s) => [s.id, s]),
+);
+
+/** Where the analogy of S3 in "upload-store" breaks, in the level 0 version of the PDF scenario. */
+export const S3_ANALOGY_LIMIT = {
+  text: "Un archivo de papel tiene carpetas; acá cada documento es un **objeto** con su clave.",
+  references: [
+    "https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html",
+    "https://docs.aws.amazon.com/AmazonS3/latest/userguide/UsingObjects.html",
+  ],
+} as const;
+
+/** The PDF scenario played at level 0, with an analogy limit on S3 in "upload-store". */
+export const levelZeroScenario: Scenario = {
+  ...pdfScenario,
+  level: 0,
+  diagram: {
+    ...pdfScenario.diagram,
+    nodes: pdfScenario.diagram.nodes.map((node) =>
+      node.type === "slot" && node.id === "upload-store"
+        ? {
+            ...node,
+            answers: node.answers.map((answer) =>
+              answer.service === "s3"
+                ? {
+                    ...answer,
+                    analogyLimit: {
+                      text: S3_ANALOGY_LIMIT.text,
+                      references: [...S3_ANALOGY_LIMIT.references],
+                    },
+                  }
+                : answer,
+            ),
+          }
+        : node,
+    ),
+  },
+};

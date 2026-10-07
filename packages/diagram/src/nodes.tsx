@@ -226,6 +226,7 @@ function PrintFixedNode({
       >
         <ServiceIcon
           src={service?.iconSrc}
+          glyph={service?.glyph}
           name={name}
           category={service?.category ?? ""}
           decorative
@@ -259,6 +260,7 @@ export function FixedNode({ data }: NodeProps<FixedFlowNode>) {
       >
         <ServiceIcon
           src={service?.iconSrc}
+          glyph={service?.glyph}
           name={name}
           category={service?.category ?? ""}
           decorative

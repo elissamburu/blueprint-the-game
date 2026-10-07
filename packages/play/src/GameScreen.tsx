@@ -27,6 +27,7 @@ import {
 } from "@blueprint/game-engine";
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
+import { ServiceName } from "@blueprint/ui/components/service-name";
 import { EXIT_MS } from "@blueprint/ui/lib/motion";
 import { useReducedMotion } from "@blueprint/ui/lib/use-reduced-motion";
 import {
@@ -40,6 +41,7 @@ import {
 } from "react";
 import { useTranslation } from "react-i18next";
 import { createServiceLookup, slotViews } from "./board";
+import { cardAccessibleName, cardPlainName, entryIcon, showsPlainNames } from "./catalog-entry";
 import { CaseDrawer } from "./CaseDrawer";
 import { FeedbackCard, hasFeedback } from "./FeedbackCard";
 import { FocusBar, GameBar, type GameProgress } from "./GameBar";
@@ -83,9 +85,11 @@ export default function GameScreen({ scenario, bundle, host }: GameScreenProps) 
     [catalog],
   );
   const { iconSrc } = host;
+  // Level 0 cards show the plain name first (RF-PAL-06): palette, revealed slots and announcements.
+  const plainNames = showsPlainNames(scenario.level);
   const serviceLookup = useMemo(
-    () => createServiceLookup(catalog.services, iconSrc),
-    [catalog, iconSrc],
+    () => createServiceLookup(catalog.services, iconSrc, { plainNames }),
+    [catalog, iconSrc, plainNames],
   );
   const steps = useMemo(
     () => diagramSteps(scenario.diagram, serviceLookup),
@@ -95,10 +99,13 @@ export default function GameScreen({ scenario, bundle, host }: GameScreenProps) 
   const numbers = useMemo(() => slotNumbers(scenario), [scenario]);
   const names = useMemo(
     (): Names => ({
-      serviceName: (id) => services.get(id)?.name ?? id,
+      serviceName: (id) => {
+        const service = services.get(id);
+        return service === undefined ? id : cardAccessibleName(service, plainNames);
+      },
       slotRole: (id) => nodes.get(id)?.role ?? id,
     }),
-    [services, nodes],
+    [services, nodes, plainNames],
   );
   const palette = useMemo(
     () =>
@@ -382,7 +389,12 @@ export default function GameScreen({ scenario, bundle, host }: GameScreenProps) 
         serviceName={names.serviceName}
         slotRole={names.slotRole}
         renderOverlay={(serviceId) => (
-          <DragChip service={services.get(serviceId)} id={serviceId} iconSrc={iconSrc} />
+          <DragChip
+            service={services.get(serviceId)}
+            id={serviceId}
+            iconSrc={iconSrc}
+            plainNames={plainNames}
+          />
         )}
       >
         <div ref={setLayout} className="relative flex min-h-0 flex-1">
@@ -462,6 +474,7 @@ export default function GameScreen({ scenario, bundle, host }: GameScreenProps) 
             collapsed={paletteCollapsed}
             onCollapsedChange={setPaletteCollapsed}
             searchRef={searchRef}
+            plainNames={plainNames}
           />
         </div>
       </ServiceDndContext>
@@ -500,16 +513,28 @@ function DragChip({
   service,
   id,
   iconSrc,
+  plainNames,
 }: {
   service: Service | undefined;
   id: string;
   iconSrc: GameHost["iconSrc"];
+  plainNames: boolean;
 }) {
   const name = service?.name ?? id;
+  const plainName = service === undefined ? undefined : cardPlainName(service, plainNames);
   return (
     <span className="flex w-[15rem] items-center gap-[0.6rem] rounded-md border border-primary bg-card p-[0.45rem] text-sm font-semibold shadow-lg">
-      <ServiceIcon src={iconSrc(id)} name={name} category={service?.category ?? ""} decorative />
-      {name}
+      <ServiceIcon
+        {...(service === undefined ? { src: iconSrc(id) } : entryIcon(service, iconSrc))}
+        name={name}
+        category={service?.category ?? ""}
+        decorative
+      />
+      {plainName === undefined ? (
+        name
+      ) : (
+        <ServiceName plainName={plainName} name={name} nameClassName="text-xs" />
+      )}
     </span>
   );
 }

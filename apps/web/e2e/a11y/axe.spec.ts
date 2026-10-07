@@ -15,7 +15,7 @@ import {
   slot,
 } from "../support/app";
 import { expectNoBlockingViolations } from "../support/axe";
-import { AREAS, CLUB_PHOTOS, EXPERIENCE } from "../support/fixture";
+import { AREAS, CLUB_PHOTOS, EXPERIENCE, PIZZERIA } from "../support/fixture";
 
 const { store, thumbnailer, index } = CLUB_PHOTOS.slots;
 
@@ -191,4 +191,24 @@ test("acerca de", async ({ page }) => {
   await page.goto("/acerca");
   await expect(page.getByRole("heading", { level: 1, name: "Acerca de Blueprint" })).toBeVisible();
   await expectNoBlockingViolations(page, "acerca de");
+});
+
+test("nivel 0: juego con la paleta expandida y colapsada, y feedback con la analogía", async ({
+  page,
+}) => {
+  test.slow();
+  // «Recién empiezo con la nube» already marks «Fundamentos de la nube».
+  await onboard(page, { areas: [], experience: EXPERIENCE.newcomer });
+  await playFromListing(page, PIZZERIA.title);
+  await expectNoBlockingViolations(page, "nivel 0, vacío");
+
+  const { recipes } = PIZZERIA.slots;
+  await place(page, recipes.role, recipes.optimal);
+  const card = feedback(page, "Óptimo");
+  await expect(card.getByRole("group", { name: "Dónde se rompe la analogía" })).toBeVisible();
+  await expectNoBlockingViolations(page, "nivel 0, con feedback y la analogía");
+
+  await page.getByRole("button", { name: "Cerrar explicación" }).click();
+  await page.getByRole("button", { name: "Colapsar la paleta" }).click();
+  await expectNoBlockingViolations(page, "nivel 0, con la paleta colapsada");
 });

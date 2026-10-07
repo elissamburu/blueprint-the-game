@@ -3,10 +3,13 @@
 // not committed (ADR-0012), so any icon may be missing: when the image does not load (or there
 // is no src) it shows the service initials over its category color. The initials are 12 px
 // (0.75rem), the minimum for short labels (docs/design, problem 28); on the board the caller sets
-// them in px, as the rest of the board text.
+// them in px, as the rest of the board text. A concept (ADR-0027 §1) has no official icon: with a
+// glyph it draws its lucide icon in currentColor, in the same box; without one, its initials.
 // Lovable: .service-icon and .service-icon-fallback + .service-icon-<tone> (src/styles.css).
+import type { ConceptGlyph } from "@blueprint/scenario-schema";
 import { useState } from "react";
 import type * as React from "react";
+import { CONCEPT_GLYPH_ICONS } from "@blueprint/ui/lib/concept-glyphs";
 import { cn } from "@blueprint/ui/lib/utils";
 
 /**
@@ -55,6 +58,8 @@ export const serviceInitials = (name: string): string => {
 export type ServiceIconProps = Omit<React.ComponentProps<"span">, "children"> & {
   /** URL of the icon (apps/web: icons/<serviceId>.svg). Without it, shows the fallback. */
   src?: string | undefined;
+  /** Glyph of a concept: drawn instead of `src`, which a concept never has. */
+  glyph?: ConceptGlyph | undefined;
   /** Service name: alternative text and source of the initials. */
   name: string;
   /** Catalog category id: color of the fallback. */
@@ -68,6 +73,7 @@ export type ServiceIconProps = Omit<React.ComponentProps<"span">, "children"> & 
 
 function ServiceIcon({
   src,
+  glyph,
   name,
   category,
   decorative = false,
@@ -76,7 +82,8 @@ function ServiceIcon({
 }: ServiceIconProps) {
   // Remembers which src failed, so a new src is tried again without an effect.
   const [failedSrc, setFailedSrc] = useState<string>();
-  const showImage = src !== undefined && failedSrc !== src;
+  const Glyph = glyph === undefined ? undefined : CONCEPT_GLYPH_ICONS[glyph];
+  const showImage = Glyph === undefined && src !== undefined && failedSrc !== src;
   const fallbackA11y = decorative
     ? { "aria-hidden": true as const }
     : { role: "img", "aria-label": name };
@@ -84,7 +91,8 @@ function ServiceIcon({
   return (
     <span
       data-slot="service-icon"
-      data-fallback={showImage ? undefined : ""}
+      data-fallback={showImage || Glyph !== undefined ? undefined : ""}
+      data-glyph={Glyph === undefined ? undefined : glyph}
       className={cn(
         "inline-grid size-8 flex-none place-items-center overflow-hidden rounded-md",
         !showImage && [
@@ -96,7 +104,9 @@ function ServiceIcon({
       {...(showImage ? {} : fallbackA11y)}
       {...props}
     >
-      {showImage ? (
+      {Glyph !== undefined ? (
+        <Glyph aria-hidden className="size-[62.5%]" />
+      ) : showImage ? (
         <img
           src={src}
           alt={decorative ? "" : name}

@@ -32,7 +32,9 @@
   "palette": {
     "label": "Paleta de servicios",
     "title": "Servicios",
+    "titleCards": "Servicios y conceptos",
     "help": "Arrastrá un servicio a un casillero, o elegí un casillero y después un servicio.",
+    "helpCards": "Arrastrá una tarjeta a un casillero, o elegí un casillero y después una tarjeta.",
     "forSlot": "Elegí un servicio para «{{role}}». Esc cancela.",
     "pending": "{{service}} elegido: activá un casillero para colocarlo. Esc cancela.",
     "search": "Buscar servicio",
@@ -57,7 +59,9 @@
     "docsCount_other": "{{count}} enlaces",
     "revealedNote": "No suma puntos",
     "alsoOptimal_one": "También es óptimo: {{services}}",
-    "alsoOptimal_other": "También son óptimos: {{services}}"
+    "alsoOptimal_other": "También son óptimos: {{services}}",
+    "analogyLimit": "Dónde se rompe la analogía",
+    "analogyDocs": "sobre la analogía"
   },
   "hints": {
     "reveal": "Ver pista (−{{cost}} pts)",
@@ -133,7 +137,9 @@
     "incorrect": "Incorrectos típicos",
     "why": "Por qué:",
     "objectives": "Objetivos",
-    "docs": "Documentación oficial"
+    "docs": "Documentación oficial",
+    "analogyLimit": "Dónde se rompe la analogía:",
+    "analogyDocs": "Documentación de la analogía"
   },
   "external": "(se abre en otra pestaña)"
 }

@@ -3,13 +3,16 @@
 // scenario, grouped by category, collapsible, with a search box. Every item is a button (slot
 // first / service first adapters) and a @dnd-kit draggable (drag adapter). The whole palette
 // collapses to a column of icons, each one with its name as a tooltip and accessible name
-// (layout v2); the app remembers that as a preference of the browser, not as progress.
+// (layout v2); the app remembers that as a preference of the browser, not as progress. At level 0
+// each card shows the plain name on top of the real name, is named with both and is found by both
+// (RF-PAL-06, catalog-entry.ts); at any other level it shows the name, as always.
 // Lovable: ServicePalette, .palette-panel, .palette-heading, .collapsed-services, .service-group,
 // .service-card (src/components/blueprint-app.tsx, styles.css), capturas 13 y 16.
 import type { Category, Service } from "@blueprint/scenario-schema";
 import { Badge } from "@blueprint/ui/components/badge";
 import { Button } from "@blueprint/ui/components/button";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
+import { ServiceName } from "@blueprint/ui/components/service-name";
 import {
   Tooltip,
   TooltipContent,
@@ -26,6 +29,7 @@ import {
 } from "lucide-react";
 import { useId, useMemo, useState, type KeyboardEvent, type Ref } from "react";
 import { useTranslation } from "react-i18next";
+import { cardAccessibleName, cardPlainName, entryIcon } from "./catalog-entry";
 import { useServiceDraggable } from "./interaction/drag";
 import { groupPalette } from "./palette-groups";
 import { Kicker } from "./Kicker";
@@ -47,6 +51,8 @@ export interface PaletteProps {
   collapsed: boolean;
   onCollapsedChange: (collapsed: boolean) => void;
   searchRef?: Ref<HTMLInputElement>;
+  /** Level 0: cards show the plain name first and the search looks it up too (RF-PAL-06). */
+  plainNames?: boolean;
 }
 
 export function Palette({
@@ -61,6 +67,7 @@ export function Palette({
   collapsed,
   onCollapsedChange,
   searchRef,
+  plainNames = false,
 }: PaletteProps) {
   const { t } = useTranslation("play");
   const baseId = useId();
@@ -68,8 +75,8 @@ export function Palette({
   const [query, setQuery] = useState("");
   const [closedGroups, setClosedGroups] = useState<ReadonlySet<string>>(new Set());
   const groups = useMemo(
-    () => groupPalette(serviceIds, catalog, categories, query),
-    [serviceIds, catalog, categories, query],
+    () => groupPalette(serviceIds, catalog, categories, query, plainNames),
+    [serviceIds, catalog, categories, query, plainNames],
   );
   const allGroups = useMemo(
     () => groupPalette(serviceIds, catalog, categories, ""),
@@ -100,14 +107,16 @@ export function Palette({
     }
   };
 
+  // Level 0 with concepts: the cards are not all services (ADR-0027 §6).
+  const cards = plainNames && serviceIds.some((id) => catalog.get(id)?.type === "concept");
   const help =
     targetRole !== null
       ? t("palette.forSlot", { role: targetRole })
       : pendingServiceId !== null
         ? t("palette.pending", {
-            service: catalog.get(pendingServiceId)?.name ?? pendingServiceId,
+            service: pendingName(catalog.get(pendingServiceId), pendingServiceId, plainNames),
           })
-        : t("palette.help");
+        : t(cards ? "palette.helpCards" : "palette.help");
 
   const toggle = (
     <Button
@@ -150,6 +159,7 @@ export function Palette({
                       placed={placed.has(service.id)}
                       iconSrc={iconSrc}
                       onChoose={onChoose}
+                      plainNames={plainNames}
                     />
                   </li>
                 )),
@@ -163,9 +173,14 @@ export function Palette({
             <div className="flex items-start gap-[0.35rem]">
               <div className="min-w-0">
                 <Kicker>{t("palette.kicker")}</Kicker>
-                <h2 className="mt-1 flex items-center gap-2 text-xl">
-                  {t("palette.title")}
-                  <Badge variant="secondary" className="text-sm">
+                {/* «Servicios y conceptos» takes two lines: the count follows the text, inline,
+                    instead of standing apart at the right edge. */}
+                <h2 className={cn("mt-1 text-xl", !cards && "flex items-center gap-2")}>
+                  {t(cards ? "palette.titleCards" : "palette.title")}
+                  <Badge
+                    variant="secondary"
+                    className={cn("text-sm", cards && "ml-2 align-text-bottom")}
+                  >
                     {serviceIds.length}
                   </Badge>
                 </h2>
@@ -236,6 +251,7 @@ export function Palette({
                           placed={placed.has(service.id)}
                           iconSrc={iconSrc}
                           onChoose={onChoose}
+                          plainNames={plainNames}
                         />
                       </li>
                     ))}
@@ -256,15 +272,24 @@ function PaletteItem({
   placed,
   iconSrc,
   onChoose,
+  plainNames,
 }: {
   service: Service;
   pending: boolean;
   placed: boolean;
   iconSrc: (serviceId: string) => string | undefined;
   onChoose: (serviceId: string) => void;
+  plainNames: boolean;
 }) {
   const { t } = useTranslation("play");
   const { setNodeRef, listeners, isDragging } = useServiceDraggable(service.id);
+  const plainName = cardPlainName(service, plainNames);
+  const placedMark = placed && (
+    <span className="ml-auto flex shrink-0 items-center gap-1 text-sm font-normal text-muted-foreground">
+      <CheckIcon aria-hidden className="size-4" />
+      {t("palette.placed")}
+    </span>
+  );
   return (
     <button
       ref={setNodeRef}
@@ -280,17 +305,26 @@ function PaletteItem({
       )}
     >
       <ServiceIcon
-        src={iconSrc(service.id)}
+        {...entryIcon(service, iconSrc)}
         name={service.name}
         category={service.category}
         decorative
       />
-      <span className="min-w-0 flex-1 break-words">{service.name}</span>
-      {placed && (
-        <span className="flex shrink-0 items-center gap-1 text-sm font-normal text-muted-foreground">
-          <CheckIcon aria-hidden className="size-4" />
-          {t("palette.placed")}
-        </span>
+      {plainName === undefined ? (
+        <>
+          <span className="min-w-0 flex-1 break-words">{service.name}</span>
+          {placedMark}
+        </>
+      ) : (
+        // Two names: the mark goes on the line of the real name, so the plain name keeps the whole
+        // width. It is the same mark, read after both names as before.
+        <ServiceName
+          plainName={plainName}
+          name={service.name}
+          nameClassName="text-xs"
+          className="flex-1"
+          aside={placedMark}
+        />
       )}
     </button>
   );
@@ -303,16 +337,20 @@ function CollapsedItem({
   placed,
   iconSrc,
   onChoose,
+  plainNames,
 }: {
   service: Service;
   pending: boolean;
   placed: boolean;
   iconSrc: (serviceId: string) => string | undefined;
   onChoose: (serviceId: string) => void;
+  plainNames: boolean;
 }) {
   const { t } = useTranslation("play");
   const { setNodeRef, listeners, isDragging } = useServiceDraggable(service.id);
-  const name = placed ? t("palette.placedName", { service: service.name }) : service.name;
+  // The tooltip and the accessible name are the same text (RF-PAL-06).
+  const accessibleName = cardAccessibleName(service, plainNames);
+  const name = placed ? t("palette.placedName", { service: accessibleName }) : accessibleName;
   return (
     <Tooltip>
       <TooltipTrigger asChild>
@@ -331,7 +369,7 @@ function CollapsedItem({
           )}
         >
           <ServiceIcon
-            src={iconSrc(service.id)}
+            {...entryIcon(service, iconSrc)}
             name={service.name}
             category={service.category}
             decorative
@@ -351,3 +389,7 @@ function CollapsedItem({
     </Tooltip>
   );
 }
+
+/** Name of the service picked first in the help text: the card's accessible name. */
+const pendingName = (service: Service | undefined, id: string, plainNames: boolean) =>
+  service === undefined ? id : cardAccessibleName(service, plainNames);

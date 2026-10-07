@@ -4,6 +4,8 @@
 // answers, each with its grade (icon and text), the objectives it meets or violates, why, and the
 // official documentation as visible URLs. Every grade and objective status comes from game-engine
 // (evaluatePlacement); nothing here decides one. It sends no command: it is not part of a game.
+// At level 0 each answer is named «<plainName> (<name>)», with visible parentheses (paper has no
+// screen reader), and says where its analogy breaks (RF-PAL-06, RF-EVAL-07).
 import {
   evaluatePlacement,
   objectiveStatuses,
@@ -15,6 +17,7 @@ import { GradeBadge } from "@blueprint/ui/components/grade-badge";
 import { ObjectiveTag } from "@blueprint/ui/components/objective-tag";
 import { useId, type ReactNode } from "react";
 import { useTranslation } from "react-i18next";
+import { cardAccessibleName, showsPlainNames } from "./catalog-entry";
 import { InlineMarkdown } from "./InlineMarkdown";
 
 export interface NumberedSlot {
@@ -99,6 +102,15 @@ function Answer({
   if (evaluation.source === "undeclared") return null;
   const objectives = objectiveStatuses(evaluation, scenario.objectives);
   const references = evaluation.source === "answer" ? evaluation.references : [];
+  const service = services.get(serviceId);
+  const name =
+    service === undefined
+      ? serviceId
+      : cardAccessibleName(service, showsPlainNames(scenario.level));
+  const analogyLimit =
+    evaluation.source === "answer"
+      ? node.answers.find((a) => a.service === serviceId)?.analogyLimit
+      : undefined;
   return (
     <li
       data-grade={evaluation.grade}
@@ -106,7 +118,7 @@ function Answer({
     >
       <p className="flex flex-wrap items-center gap-x-3 gap-y-1">
         <GradeBadge grade={evaluation.grade} />
-        <strong className="text-base">{services.get(serviceId)?.name ?? serviceId}</strong>
+        <strong className="text-base">{name}</strong>
       </p>
       {objectives.length > 0 && (
         <ul aria-label={t("answers.objectives")} className="mt-2 flex flex-wrap gap-x-4 gap-y-1">
@@ -122,27 +134,41 @@ function Answer({
       <p className="mt-2 text-base">
         <strong>{t("answers.why")}</strong> <InlineMarkdown text={evaluation.rationale} />
       </p>
-      {references.length > 0 && (
-        <div className="mt-2 text-sm">
-          <p className="font-semibold">{t("answers.docs")}</p>
-          <ul className="mt-1 flex flex-col gap-1">
-            {references.map((url) => (
-              <li key={url}>
-                {/* The URL is the text: on paper a link is only what it says. */}
-                <a
-                  href={url}
-                  target="_blank"
-                  rel="noreferrer"
-                  className="break-all text-primary underline underline-offset-4 print:no-underline"
-                >
-                  {url}
-                  <span className="sr-only"> {t("external")}</span>
-                </a>
-              </li>
-            ))}
-          </ul>
+      {analogyLimit !== undefined && (
+        <div data-analogy-limit="">
+          <p className="mt-2 text-base">
+            <strong>{t("answers.analogyLimit")}</strong> <InlineMarkdown text={analogyLimit.text} />
+          </p>
+          <References title={t("answers.analogyDocs")} urls={analogyLimit.references} />
         </div>
       )}
+      <References title={t("answers.docs")} urls={references} />
     </li>
+  );
+}
+
+/** Official documentation as visible URLs: on paper a link is only what it says. */
+function References({ title, urls }: { title: string; urls: readonly string[] }) {
+  const { t } = useTranslation("play");
+  if (urls.length === 0) return null;
+  return (
+    <div className="mt-2 text-sm">
+      <p className="font-semibold">{title}</p>
+      <ul className="mt-1 flex flex-col gap-1">
+        {urls.map((url) => (
+          <li key={url}>
+            <a
+              href={url}
+              target="_blank"
+              rel="noreferrer"
+              className="break-all text-primary underline underline-offset-4 print:no-underline"
+            >
+              {url}
+              <span className="sr-only"> {t("external")}</span>
+            </a>
+          </li>
+        ))}
+      </ul>
+    </div>
   );
 }

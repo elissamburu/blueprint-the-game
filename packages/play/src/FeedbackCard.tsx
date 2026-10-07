@@ -3,7 +3,9 @@
 // over the board (layout v2), only while there is something to show: after a placement or when a
 // resolved slot is activated. Where it floats (bottom or top) is decided by feedback-placement.ts
 // so that it never covers its slot. Grade, objective statuses and the available actions come from
-// game-engine; this component only presents them. It rises in and, while it leaves, sinks out
+// game-engine; this component only presents them. The title names the service by its full name and,
+// when the answer has one, a block says where its analogy breaks (RF-EVAL-07): it is part of the
+// card, so the live region still reads the grade once. It rises in and, while it leaves, sinks out
 // without being reachable (inert); with reduced motion it only fades (RF-PLAY-17).
 // Lovable: FeedbackPanel, .floating-feedback, .feedback-panel, .goal-links
 // (src/components/blueprint-app.tsx, styles.css), captura 17.
@@ -14,7 +16,7 @@ import {
   type SessionState,
   type SlotStatus,
 } from "@blueprint/game-engine";
-import type { Service } from "@blueprint/scenario-schema";
+import type { AnalogyLimit as AnalogyLimitData, Service } from "@blueprint/scenario-schema";
 import { Button } from "@blueprint/ui/components/button";
 import { gradeLabel } from "@blueprint/ui/components/grade-badge";
 import { ObjectiveTag } from "@blueprint/ui/components/objective-tag";
@@ -27,6 +29,7 @@ import {
   CircleXIcon,
   ExternalLinkIcon,
   EyeIcon,
+  Link2OffIcon,
   MinusIcon,
   XIcon,
   type LucideIcon,
@@ -115,12 +118,18 @@ export function FeedbackCard({
   const Icon = style.icon;
   const service = services.get(evaluation.serviceId);
   const serviceName = service?.name ?? evaluation.serviceId;
+  // The title names it in full (RF-EVAL-07); explanations and lists keep the short name.
+  const fullName = service?.fullName ?? serviceName;
   const explanation =
     evaluation.source === "undeclared"
       ? genericExplanation(t, service ?? { short: serviceName }, evaluation.role)
       : evaluation.rationale;
   const objectives = objectiveStatuses(evaluation, session.scenario.objectives);
   const references = evaluation.source === "answer" ? evaluation.references : [];
+  const analogyLimit =
+    evaluation.source === "answer"
+      ? node.answers.find((a) => a.service === evaluation.serviceId)?.analogyLimit
+      : undefined;
   const actions = status === "acceptable" || status === "accepted" || status === "incorrect";
   // A revealed slot shows its first optimal answer; the other optimal ones are named too.
   const alsoOptimal =
@@ -163,7 +172,7 @@ export function FeedbackCard({
         <h2 id={titleId} className="flex flex-wrap items-center gap-x-3 gap-y-1 text-lg font-bold">
           {statusLabel(status)}
           <span className="rounded-[5px] border bg-card px-2 py-[0.15rem] text-sm font-semibold">
-            {serviceName}
+            {fullName}
           </span>
           {status === "accepted" && (
             <span className="text-sm font-semibold text-muted-foreground">
@@ -179,6 +188,7 @@ export function FeedbackCard({
         <p className="mt-1 text-base text-foreground">
           <InlineMarkdown text={explanation} />
         </p>
+        {analogyLimit !== undefined && <AnalogyLimit limit={analogyLimit} />}
         {alsoOptimal.length > 0 && (
           <p className="mt-1 text-base font-semibold text-foreground">
             {t("feedback.alsoOptimal", {
@@ -234,6 +244,31 @@ export function FeedbackCard({
   );
 }
 
+/** «Dónde se rompe la analogía»: a text label and an icon (not only a color), its text and links. */
+function AnalogyLimit({ limit }: { limit: AnalogyLimitData }) {
+  const { t } = useTranslation("play");
+  const titleId = useId();
+  return (
+    <div
+      role="group"
+      aria-labelledby={titleId}
+      data-analogy-limit=""
+      className="mt-2 rounded-md border bg-card px-3 py-2"
+    >
+      <h3 id={titleId} className="flex items-center gap-[0.35rem] text-sm font-semibold">
+        <Link2OffIcon aria-hidden className="size-4 shrink-0" />
+        {t("feedback.analogyLimit")}
+      </h3>
+      <p className="mt-1 text-base text-foreground">
+        <InlineMarkdown text={limit.text} />
+      </p>
+      <p className="mt-1">
+        <DocsLink references={limit.references} context={t("feedback.analogyDocs")} />
+      </p>
+    </div>
+  );
+}
+
 const LINK =
   "inline-flex items-center gap-1 text-sm font-semibold text-primary underline-offset-4 hover:underline";
 
@@ -243,8 +278,17 @@ const referenceLabel = (url: string) => {
   return `${hostname}${pathname === "/" ? "" : pathname}`;
 };
 
-/** One "Documentación" link; with several references, it opens the list in a popover. */
-function DocsLink({ references }: { references: readonly string[] }) {
+/**
+ * One "Documentación" link; with several references, it opens the list in a popover. `context`
+ * tells screen readers which documentation it is when the card has more than one such link.
+ */
+function DocsLink({
+  references,
+  context,
+}: {
+  references: readonly string[];
+  context?: string | undefined;
+}) {
   const { t } = useTranslation("play");
   const [first] = references;
   if (first === undefined) return null;
@@ -252,6 +296,7 @@ function DocsLink({ references }: { references: readonly string[] }) {
     return (
       <a href={first} target="_blank" rel="noreferrer" className={LINK}>
         {t("feedback.docs")}
+        {context !== undefined && <span className="sr-only"> {context}</span>}
         <ExternalLinkIcon aria-hidden className="size-3.5" />
         <span className="sr-only">{t("external")}</span>
       </a>
@@ -261,6 +306,7 @@ function DocsLink({ references }: { references: readonly string[] }) {
     <Popover>
       <PopoverTrigger className={cn(LINK, "cursor-pointer")}>
         {t("feedback.docs")}
+        {context !== undefined && <span className="sr-only"> {context}</span>}
         <span className="sr-only"> ({t("feedback.docsCount", { count: references.length })})</span>
         <ChevronDownIcon aria-hidden className="size-3.5" />
       </PopoverTrigger>

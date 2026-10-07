@@ -207,7 +207,7 @@ Desde F2.1 todas las experiencias incluyen el nivel 0, porque no hay un nivel an
 **CA RF-PAL-06**
 - La tarjeta (paleta expandida y casillero del tablero) muestra el nombre simple arriba y el nombre real debajo, con al menos 0,75 rem fuera del tablero (12 px dentro) y contraste ≥ 4,5:1.
 - El nombre accesible es «<nombre simple> (<nombre real>)», p. ej. «Almacenamiento de archivos (Amazon S3)». En la paleta colapsada, el tooltip y el `aria-label` usan el mismo texto.
-- La descripción corta de RF-PAL-03 también se muestra en el nivel 0.
+- La descripción corta de RF-PAL-03 también se muestra en el nivel 0. Depende de RF-PAL-03, pendiente desde F1 ([roadmap](05-roadmap.md#f1--juego-jugable-modo-invitado-desktop)): llega con él, no con RF-PAL-06.
 - Fuera del nivel 0 la tarjeta no cambia.
 
 ---

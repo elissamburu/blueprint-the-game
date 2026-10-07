@@ -16,7 +16,7 @@ import {
   type ProgressEvent,
   type SlotReview,
 } from "@blueprint/game-engine";
-import { InlineMarkdown } from "@blueprint/play";
+import { entryIcon, InlineMarkdown } from "@blueprint/play";
 import type { Scenario, Service } from "@blueprint/scenario-schema";
 import { Badge } from "@blueprint/ui/components/badge";
 import { Button } from "@blueprint/ui/components/button";
@@ -513,7 +513,7 @@ function ReviewItem({
         <span aria-hidden="true" className="size-9 rounded-md bg-muted" />
       ) : (
         <ServiceIcon
-          src={serviceIconSrc(chosen.id)}
+          {...entryIcon(chosen, serviceIconSrc)}
           name={chosen.name}
           category={chosen.category}
           decorative
