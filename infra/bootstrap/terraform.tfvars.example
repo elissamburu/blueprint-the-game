@@ -1,0 +1,22 @@
+# Copy to terraform.tfvars (ignored by git) and fill in. Never commit the real values.
+# Guide: docs/guias/configurar-aws-en-tu-fork.md
+
+account_id = "<ACCOUNT_ID>" # 12 digits: aws sts get-caller-identity --query Account
+aws_region = "us-east-2"
+
+# Shared account: names start with the prefix and resources carry Project = project_tag.
+name_prefix = "blueprint"
+project_tag = "blueprint"
+
+github_owner    = "<OWNER>"
+github_repo     = "<REPO>"
+github_owner_id = 0 # gh api repos/<OWNER>/<REPO> --jq .owner.id
+github_repo_id  = 0 # gh api repos/<OWNER>/<REPO> --jq .id
+subject_format  = "immutable" # or "legacy": see step 1 of the guide
+
+# false if aws iam list-open-id-connect-providers already shows token.actions.githubusercontent.com
+create_oidc_provider = true
+
+# Optional: own domain in Route 53. Leave empty to give the roles no Route 53 permissions.
+route53_zone_id      = "" # e.g. "Z0123456789ABCDEFGHIJ"
+route53_record_names = [] # e.g. ["beta.example.com", "_*.beta.example.com"]

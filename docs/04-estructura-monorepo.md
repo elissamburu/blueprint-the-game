@@ -105,20 +105,24 @@ blueprint/
 │   └── deploy-beta/                   # ⏳ temporal (lo reemplaza F3): build, vista previa y subida manual de la beta
 │
 ├── infra/                             # 🏗️ Terraform (ADR-0014)
-│   ├── bootstrap/                     # se aplica UNA vez, a mano: bucket de state, OIDC provider, roles
-│   │   ├── main.tf
-│   │   ├── oidc.tf
-│   │   ├── roles.tf                   # plan (read-only), apply (con permissions boundary), deploy-content
-│   │   ├── state.tf
+│   ├── bootstrap/                     # se aplica UNA vez, a mano: bucket de state, OIDC provider, roles (state local)
+│   │   ├── versions.tf                # required_version + provider fijados
+│   │   ├── providers.tf               # allowed_account_ids + default_tags (Project)
+│   │   ├── locals.tf                  # prefijo, environments, formato del sub, ARNs acotados
+│   │   ├── state_bucket.tf
+│   │   ├── oidc.tf                    # propio o existente (create_oidc_provider)
+│   │   ├── iam_policies.tf            # plan, apply, deploy-content y el permissions boundary
+│   │   ├── iam_roles.tf
+│   │   ├── outputs.tf                 # ARNs y bucket → variables del repo en GitHub
 │   │   ├── variables.tf
-│   │   └── terraform.tfvars.example
+│   │   ├── terraform.tfvars.example
+│   │   └── tests/                     # terraform test con provider simulado (sin AWS)
 │   ├── modules/
 │   │   ├── static-site/               # S3 privado + CloudFront (OAC) + headers de seguridad
 │   │   ├── auth/                      # Cognito user pool + app client + dominio de login
 │   │   ├── api/                       # HTTP API + JWT authorizer + Lambdas + throttling
 │   │   ├── data/                      # DynamoDB single-table (on-demand, PITR)
 │   │   ├── observability/             # log groups con retención, alarmas, presupuesto
-│   │   └── github-deploy-roles/       # usado por bootstrap
 │   └── envs/
 │       └── prod/
 │           ├── main.tf                # compone los módulos

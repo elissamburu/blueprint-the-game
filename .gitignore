@@ -35,6 +35,9 @@ pnpm-debug.log*
 *.tfstate.*
 *.tfvars
 !*.tfvars.example
+*.tfplan
+.terraform.tfstate.lock.info
+.terraform-plugins/
 crash.log
 
 # Editors and OS
