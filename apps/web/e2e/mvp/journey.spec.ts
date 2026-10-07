@@ -106,7 +106,7 @@ test("un invitado completa un escenario, sube de rango y desbloquea el nivel sig
     const achievements = page.getByRole("region", { name: "Logros" });
     await expect(achievements.getByRole("listitem")).toHaveText([
       `Nuevo rangoSubiste a ${RANKS.second}.`,
-      `Nivel desbloqueadoNivel 200 en ${AREAS.serverless} y ${AREAS.storage}.`,
+      `Nivel desbloqueadoNivel 200 en ${AREAS.fundamentos}, ${AREAS.serverless} y ${AREAS.storage}.`,
     ]);
     await expect(headerRank(page)).toHaveText(`Rango:${RANKS.second}`);
   });

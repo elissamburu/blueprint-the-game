@@ -63,7 +63,7 @@ import { ReferencePairs } from "./catalog/reference";
 import { serviceIconSrc } from "./service-icons";
 
 const GRADES: readonly SlotGrade[] = ["optimal", "acceptable", "incorrect", "empty"];
-const LEVELS: readonly ScenarioLevel[] = [100, 200, 300, 400];
+const LEVELS: readonly ScenarioLevel[] = [0, 100, 200, 300, 400];
 const BUTTON_VARIANTS = [
   "default",
   "secondary",

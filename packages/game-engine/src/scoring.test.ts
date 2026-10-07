@@ -184,6 +184,23 @@ describe("scenarioResult", () => {
     expect(scenarioResult(state)).toMatchObject({ score: 85, xp: 128 }); // 127.5
   });
 
+  it("applies ×0.5 at level 0 with the same rounding (ADR-0027 §3)", () => {
+    const state = play(
+      createSession(scenario([slot("a"), slot("b"), slot("c")], { level: 0 }), gameRules),
+      commands.useHint("a"),
+      commands.placeService("a", "lambda"), // 85
+      commands.placeService("b", "lambda"), // 100
+      commands.placeService("c", "lambda"), // 100
+    );
+    expect(scenarioResult(state)).toMatchObject({
+      level: 0,
+      score: 285,
+      maxScore: 300,
+      multiplier: 0.5,
+      xp: 143, // 142.5
+    });
+  });
+
   it("marks a scenario perfect only when every slot is green at the first attempt", () => {
     const green = play(
       createSession(scenario([slot("a"), slot("b")], { level: 400 }), gameRules),

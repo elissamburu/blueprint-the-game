@@ -33,7 +33,7 @@ test("onboarding", async ({ page }) => {
   await expect(page.getByRole("heading", { name: "Armemos tu ruta de aprendizaje" })).toBeVisible();
   await expectNoBlockingViolations(page, "onboarding, vacío");
   await page.getByRole("button", { name: AREAS.serverless, exact: true }).click();
-  await page.getByRole("radio", { name: EXPERIENCE.beginner }).click();
+  await page.getByRole("radio", { name: EXPERIENCE.beginner, exact: true }).click();
   await expectNoBlockingViolations(page, "onboarding, con un área y la experiencia elegidas");
 });
 
@@ -133,7 +133,7 @@ test.describe("forced-colors: active", () => {
     test.slow();
     await page.goto("/");
     await page.getByRole("button", { name: AREAS.serverless, exact: true }).click();
-    await page.getByRole("radio", { name: EXPERIENCE.beginner }).click();
+    await page.getByRole("radio", { name: EXPERIENCE.beginner, exact: true }).click();
     await expect(page.getByRole("button", { name: "Ver mi ruta" })).toBeEnabled();
     await expectNoBlockingViolations(page, "onboarding completo, colores forzados");
     await page.getByRole("button", { name: "Ver mi ruta" }).click();

@@ -19,11 +19,14 @@ const renderBadge = (level: ScenarioLevel, variant?: "solid" | "outline") => {
 };
 
 describe("LevelBadge", () => {
-  it.each<ScenarioLevel>([100, 200, 300, 400])("level %i → accessible text “Nivel %i”", (level) => {
-    const badge = renderBadge(level);
-    expect(badge.textContent).toBe(`Nivel ${level}`);
-    expect(badge.dataset.level).toBe(String(level));
-  });
+  it.each<ScenarioLevel>([0, 100, 200, 300, 400])(
+    "level %i → accessible text “Nivel %i”",
+    (level) => {
+      const badge = renderBadge(level);
+      expect(badge.textContent).toBe(`Nivel ${level}`);
+      expect(badge.dataset.level).toBe(String(level));
+    },
+  );
 
   it("is outlined by default and solid on request", () => {
     expect(renderBadge(200).dataset.variant).toBe("outline");

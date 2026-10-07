@@ -1,5 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Onboarding (RF-ONB-01, RF-ONB-02; docs/design/pantallas/00): areas of interest and experience.
+// Onboarding (RF-ONB-01, RF-ONB-02, RF-ONB-05; docs/design/pantallas/00): areas of interest and
+// experience. Choosing «Recién empiezo con la nube» marks the area of the cloud basics, which the
+// player can unmark.
 // "Ver mi ruta" creates the progress with game-engine, saves it and opens the scenarios. The areas
 // come from content/areas.yaml and the experiences from game-rules.yaml, with their texts in i18n.
 // There is no "1 de 2": the second step (the tutorial, RF-ONB-04) does not exist yet.
@@ -99,6 +101,9 @@ function MiniNode({ icon: Icon, active = false }: { icon: LucideIcon; active?: b
   );
 }
 
+/** Area preselected for `newcomer` (RF-ONB-05, ADR-0027 §3). */
+const NEWCOMER_AREA = "fundamentos";
+
 const panelClass =
   "rounded-xl border bg-card p-5 shadow-[0_22px_65px_color-mix(in_oklab,var(--foreground)_9%,transparent)] md:p-[clamp(1.5rem,3vw,2.7rem)]";
 
@@ -111,6 +116,14 @@ function SetupPanel({ bundle }: { bundle: ContentBundle }) {
   const [experience, setExperience] = useState<Experience | null>(null);
   const [saving, setSaving] = useState(false);
   const ready = interests.length > 0 && experience !== null;
+
+  const chooseExperience = (next: Experience) => {
+    setExperience(next);
+    const basics = bundle.index.areas.some((area) => area.id === NEWCOMER_AREA);
+    if (next === "newcomer" && basics && !interests.includes(NEWCOMER_AREA)) {
+      setInterests([...interests, NEWCOMER_AREA]);
+    }
+  };
 
   const submit = async (event: MouseEvent<HTMLButtonElement>) => {
     // aria-disabled keeps the button focusable, so its reason is read; it does nothing.
@@ -143,8 +156,9 @@ function SetupPanel({ bundle }: { bundle: ContentBundle }) {
       />
       <ExperienceRadios
         rules={bundle.rules}
+        scenarios={bundle.index.scenarios}
         value={experience}
-        onChange={setExperience}
+        onChange={chooseExperience}
         className="mt-[1.8rem]"
       />
       <Button

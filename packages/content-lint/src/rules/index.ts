@@ -18,6 +18,8 @@ import { l016 } from "./l016-curated-distractors.js";
 import { l018 } from "./l018-ids-and-references.js";
 import { l019 } from "./l019-areas-exist.js";
 import { l020 } from "./l020-acceptable-objectives-soft.js";
+import { l021 } from "./l021-level-zero-analogy-limit.js";
+import { l022 } from "./l022-level-zero-plain-names.js";
 
 export const rules: readonly Rule[] = [
   l001,
@@ -36,6 +38,8 @@ export const rules: readonly Rule[] = [
   l018,
   l019,
   l020,
+  l021,
+  l022,
 ];
 
 export {
@@ -55,6 +59,8 @@ export {
   l018,
   l019,
   l020,
+  l021,
+  l022,
 };
 export { checkGeneratedFiles, type GeneratedFile } from "./l012-generated-files.js";
 export { checkVersionBump, gameplayChanges } from "./l014-version-bump.js";

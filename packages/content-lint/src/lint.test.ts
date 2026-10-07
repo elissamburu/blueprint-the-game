@@ -49,6 +49,8 @@ describe("lintScenario", () => {
       "L018",
       "L019",
       "L020",
+      "L021",
+      "L022",
     ]);
     for (const rule of rules) expect(rule.description).not.toBe("");
   });
@@ -144,6 +146,7 @@ describe("real content", () => {
       scenario: parseRaw(pdfRaw, parseScenario),
       folderName: "serverless-pdf-processing",
       catalog: pdfCatalog,
+      categories: parseRaw(categoriesRaw, parseCategories),
       confusionGroups: pdfConfusionGroups,
       gameRules,
       areas: parseRaw(areasRaw, parseAreas),

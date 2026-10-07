@@ -270,18 +270,19 @@ export const inspectContent = async (options: ValidateOptions): Promise<Inspecte
       ids = ids.filter((id) => id === wanted);
     }
 
-    const { services, confusionGroups, gameRules, areas } = shared;
+    const { services, categories, confusionGroups, gameRules, areas } = shared;
     const catalog = services === undefined ? undefined : catalogById(services);
     const canLint =
       services !== undefined &&
+      categories !== undefined &&
       confusionGroups !== undefined &&
       gameRules !== undefined &&
       areas !== undefined;
     if (ids.length > 0 && !canLint) {
       skipped.push({
-        code: "L001-L019",
+        code: "L001-L022",
         reason:
-          "el catálogo, los grupos de confusión, game-rules o las áreas faltan o tienen errores, así que el lint semántico de los escenarios no se ejecutó",
+          "el catálogo, las categorías, los grupos de confusión, game-rules o las áreas faltan o tienen errores, así que el lint semántico de los escenarios no se ejecutó",
       });
     }
     if (ids.length > 0 && catalog === undefined) {
@@ -305,6 +306,7 @@ export const inspectContent = async (options: ValidateOptions): Promise<Inspecte
             scenario,
             folderName: id,
             catalog: services,
+            categories,
             confusionGroups,
             gameRules,
             areas,

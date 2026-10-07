@@ -15,7 +15,8 @@ export const onboard = async (
   for (const area of areas) {
     await page.getByRole("button", { name: area, exact: true }).click();
   }
-  await page.getByRole("radio", { name: experience }).click();
+  // Exact: «Recién empiezo» is also the start of «Recién empiezo con la nube».
+  await page.getByRole("radio", { name: experience, exact: true }).click();
   await page.getByRole("button", { name: "Ver mi ruta" }).click();
   await expect(page.getByRole("heading", { level: 1, name: "Escenarios" })).toBeVisible();
 };

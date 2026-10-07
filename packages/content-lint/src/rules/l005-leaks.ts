@@ -54,15 +54,35 @@ export const leakRegExp = (pattern: string): RegExp => {
   return new RegExp(`(?<![\\p{L}\\p{N}_])${body}(?![\\p{L}\\p{N}_])`, "iu");
 };
 
-const firstMatch = (service: Service, text: string): string | undefined => {
+/** Without diacritics (NFD, combining marks removed): «Región» and «region» compare equal. */
+export const withoutDiacritics = (text: string): string =>
+  text.normalize("NFD").replace(/\p{M}/gu, "");
+
+/**
+ * At level 0 the `plainName` is a pattern too (ADR-0027 §5): the whole phrase, on word
+ * boundaries, ignoring case and diacritics. «Almacenamiento de archivos» leaks in «el
+ * almacenamiento de archivos de la pizzería», but «archivos» alone does not.
+ */
+export const plainNameLeaks = (plainName: string, text: string): boolean =>
+  leakRegExp(withoutDiacritics(plainName)).test(withoutDiacritics(text));
+
+const firstMatch = (
+  service: Service,
+  text: string,
+  level: Scenario["level"],
+): string | undefined => {
   for (const pattern of service.leakPatterns) {
     const match = leakRegExp(pattern).exec(text);
     if (match !== null) return match[0];
+  }
+  if (level === 0 && service.plainName !== undefined && plainNameLeaks(service.plainName, text)) {
+    return service.plainName;
   }
   return undefined;
 };
 
 /**
+ * Matches the `leakPatterns` of each entry and, at level 0, its `plainName` (`plainNameLeaks`).
  * Error: naming an answer (optimal or acceptable) of any slot.
  * Warning: naming an `incorrect` or `palette.extra` service (leaks by elimination).
  * Services of fixed nodes are already visible and never count; other services are free.
@@ -98,7 +118,7 @@ export const l005: Rule = {
 
     return visibleTexts(scenario).flatMap(({ path, text }) =>
       watched.flatMap(({ service, slot }): Issue[] => {
-        const match = firstMatch(service, text);
+        const match = firstMatch(service, text, scenario.level);
         if (match === undefined) return [];
         return [
           slot === undefined

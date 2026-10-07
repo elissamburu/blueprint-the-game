@@ -123,7 +123,7 @@ export const gameRules: GameRules = {
     hintCost: 15,
     revealedSolution: 0,
   },
-  levelMultipliers: { "100": 1, "200": 1.5, "300": 2, "400": 3 },
+  levelMultipliers: { "0": 0.5, "100": 1, "200": 1.5, "300": 2, "400": 3 },
   ranks: [
     { id: "aprendiz", name: "Aprendiz", minXp: 0 },
     { id: "constructor", name: "Constructor", minXp: 1000 },
@@ -131,15 +131,23 @@ export const gameRules: GameRules = {
   unlock: {
     scenariosRequired: 3,
     byExperience: {
-      beginner: [100],
-      "aws-user": [100, 200],
-      architect: [100, 200, 300],
-      expert: [100, 200, 300, 400],
+      newcomer: [0],
+      beginner: [0, 100],
+      "aws-user": [0, 100, 200],
+      architect: [0, 100, 200, 300],
+      expert: [0, 100, 200, 300, 400],
     },
   },
   palette: {
-    modeByLevel: { "100": "curated", "200": "categories", "300": "categories-plus", "400": "full" },
+    modeByLevel: {
+      "0": "curated",
+      "100": "curated",
+      "200": "categories",
+      "300": "categories-plus",
+      "400": "full",
+    },
     defaultMaxSize: 12,
+    maxSizeByLevel: { "0": 8 },
   },
 };
 
@@ -266,6 +274,7 @@ export const baseInput = (scenario: Scenario = baseScenario()): LintInput => ({
   scenario,
   folderName: scenario.id,
   catalog,
+  categories,
   confusionGroups,
   gameRules,
   areas,

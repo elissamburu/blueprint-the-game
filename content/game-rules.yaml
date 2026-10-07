@@ -10,7 +10,7 @@ scoring:
   hintCost: 15 # por pista usada (el puntaje del casillero no baja de 0)
   revealedSolution: 0 # casillero con la solución vista (RF-PLAY-14); no puede superar a acceptedAcceptable ni a greenAfterErrors.min
 
-levelMultipliers: { 100: 1, 200: 1.5, 300: 2, 400: 3 }
+levelMultipliers: { 0: 0.5, 100: 1, 200: 1.5, 300: 2, 400: 3 }
 
 ranks: # umbral de XP acumulada (RF-GAM-01)
   - { id: aprendiz, name: Aprendiz, minXp: 0 }
@@ -24,12 +24,19 @@ unlock:
   # del área en N) escenarios del área en N. Si el área no tiene escenarios de N, cuentan los de
   # nivel N de cualquier área. Si no hay escenarios de N en ninguna área, N+1 no se abre.
   scenariosRequired: 3
-  byExperience: # niveles desbloqueados al inicio en todas las áreas según el onboarding (RF-ONB-02)
-    beginner: [100] # Recién empiezo
-    aws-user: [100, 200] # Uso AWS
-    architect: [100, 200, 300] # Diseño arquitecturas
-    expert: [100, 200, 300, 400] # Experto
+  # Niveles desbloqueados al inicio en todas las áreas según el onboarding (RF-ONB-02). Todas
+  # incluyen el 0, que no tiene un nivel anterior que lo abra (ADR-0027 §3, C008); cada una
+  # arranca en su nivel más alto abierto (RF-NAV-02).
+  byExperience:
+    newcomer: [0] # Recién empiezo con la nube (RF-ONB-05)
+    beginner: [0, 100] # Recién empiezo
+    aws-user: [0, 100, 200] # Uso AWS
+    architect: [0, 100, 200, 300] # Diseño arquitecturas
+    expert: [0, 100, 200, 300, 400] # Experto
 
 palette:
-  modeByLevel: { 100: curated, 200: categories, 300: categories-plus, 400: full }
+  modeByLevel: { 0: curated, 100: curated, 200: categories, 300: categories-plus, 400: full }
   defaultMaxSize: 12
+  # maxSize de curated por nivel. Precedencia: palette.maxSize del escenario > maxSizeByLevel >
+  # defaultMaxSize.
+  maxSizeByLevel: { 0: 8 }

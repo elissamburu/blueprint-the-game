@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// The onboarding through the real routes (RF-ONB-01, RF-ONB-02): areas from areas.yaml,
-// experiences from game-rules.yaml, "Ver mi ruta" and the progress it creates.
-import type { Experience } from "@blueprint/scenario-schema";
+// The onboarding through the real routes (RF-ONB-01, RF-ONB-02, RF-ONB-05): areas from
+// areas.yaml, experiences from game-rules.yaml, "Ver mi ruta" and the progress it creates.
+import type { BundleIndex, Experience } from "@blueprint/scenario-schema";
 import { act, cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import axe, { type RunOptions } from "axe-core";
@@ -63,7 +63,7 @@ describe("onboarding", () => {
     expect(toggles.every((toggle) => toggle.getAttribute("aria-pressed") === "false")).toBe(true);
   });
 
-  it("offers the four experiences of RF-ONB-02 as a radio group", async () => {
+  it("offers the four experiences of RF-ONB-02 as a radio group while there is no level 0", async () => {
     const user = await renderWelcome();
     const radios = screen.getAllByRole("radio");
     expect(radios.map((radio) => radio.getAttribute("aria-labelledby") !== null)).toEqual([
@@ -75,6 +75,8 @@ describe("onboarding", () => {
     const names = ["Recién empiezo", "Uso AWS", "Diseño arquitecturas", "Experto"];
     for (const name of names) expect(screen.getByRole("radio", { name })).toBeTruthy();
     expect(screen.queryByText("Uso la nube")).toBeNull();
+    // Without a listed level 0 scenario, «Recién empiezo con la nube» would lead nowhere.
+    expect(screen.queryByRole("radio", { name: /Recién empiezo con la nube/ })).toBeNull();
 
     // Arrow keys move between the options (roving focus) and Space chooses.
     await user.click(screen.getByRole("radio", { name: "Recién empiezo" }));
@@ -113,10 +115,10 @@ describe("onboarding", () => {
   });
 
   it.each<[Experience, string, number[]]>([
-    ["beginner", "Recién empiezo", [100]],
-    ["aws-user", "Uso AWS", [100, 200]],
-    ["architect", "Diseño arquitecturas", [100, 200, 300]],
-    ["expert", "Experto", [100, 200, 300, 400]],
+    ["beginner", "Recién empiezo", [0, 100]],
+    ["aws-user", "Uso AWS", [0, 100, 200]],
+    ["architect", "Diseño arquitecturas", [0, 100, 200, 300]],
+    ["expert", "Experto", [0, 100, 200, 300, 400]],
   ])(
     "creates the progress of «%s» with game-engine, saves it and opens the scenarios",
     async (experience, label, levels) => {
@@ -133,6 +135,71 @@ describe("onboarding", () => {
       expect(progress?.xp).toBe(0);
     },
   );
+
+  describe("with a level 0 scenario listed (RF-ONB-05)", () => {
+    /** The bundle with static-website-https listed as a level 0 scenario of «fundamentos». */
+    const withLevelZero = () => {
+      const files = bundleFiles(["published", "published", "published"]);
+      const index = files["index.json"] as BundleIndex;
+      index.scenarios = index.scenarios.map((entry, i) =>
+        i === 0 ? { ...entry, level: 0, areas: ["fundamentos"] } : entry,
+      );
+      return { files, index };
+    };
+
+    beforeEach(() => {
+      vi.stubGlobal("fetch", fetchFrom(withLevelZero().files));
+    });
+
+    it("offers «Recién empiezo con la nube» first, with its text, among five arrow-navigable options", async () => {
+      const user = await renderWelcome();
+      const radios = screen.getAllByRole("radio");
+      expect(radios).toHaveLength(5);
+      const newcomer = screen.getByRole("radio", { name: "Recién empiezo con la nube" });
+      expect(radios[0]).toBe(newcomer);
+      expect(newcomer.textContent).toContain(
+        "Nunca usé la nube; quiero entender las ideas básicas",
+      );
+      expect(screen.getByRole("radio", { name: "Recién empiezo" }).textContent).toContain(
+        "Conozco la idea de nube y quiero empezar con AWS",
+      );
+
+      await user.click(newcomer);
+      await user.keyboard("{ArrowDown}");
+      expect(document.activeElement).toBe(screen.getByRole("radio", { name: "Recién empiezo" }));
+      await user.keyboard("{ArrowUp}");
+      expect(document.activeElement).toBe(newcomer);
+    });
+
+    it("marks «Fundamentos de la nube» when choosing it, which the player can unmark", async () => {
+      const user = await renderWelcome();
+      const basics = () => screen.getByRole("button", { name: "Fundamentos de la nube" });
+      expect(basics().getAttribute("aria-pressed")).toBe("false");
+
+      await user.click(screen.getByRole("radio", { name: "Recién empiezo con la nube" }));
+      expect(basics().getAttribute("aria-pressed")).toBe("true");
+      expect(submit().getAttribute("aria-disabled")).toBe("false");
+
+      await user.click(basics());
+      expect(basics().getAttribute("aria-pressed")).toBe("false");
+      await user.click(screen.getByRole("button", { name: "Serverless" }));
+      await act(() => user.click(submit()));
+
+      expect(await screen.findByRole("heading", { level: 1, name: "Escenarios" })).toBeTruthy();
+      const progress = storedProgress();
+      expect(progress?.experience).toBe("newcomer");
+      expect(progress?.interests).toEqual(["serverless"]);
+      expect([...new Set(progress?.unlocked.map((u) => u.level))]).toEqual([0]);
+    });
+
+    it("does not mark the area for the other experiences", async () => {
+      const user = await renderWelcome();
+      await user.click(screen.getByRole("radio", { name: "Recién empiezo" }));
+      expect(
+        screen.getByRole("button", { name: "Fundamentos de la nube" }).getAttribute("aria-pressed"),
+      ).toBe("false");
+    });
+  });
 
   it("is skipped by a player who already has progress", async () => {
     storeProgress(newProgress("beginner"));

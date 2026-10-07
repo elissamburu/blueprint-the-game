@@ -4,6 +4,7 @@ import { plural, slotsOf } from "../scenario-helpers.js";
 import type { Rule } from "../types.js";
 
 export const SLOTS_BY_LEVEL: Record<Scenario["level"], { min: number; max: number }> = {
+  0: { min: 3, max: 5 },
   100: { min: 2, max: 4 },
   200: { min: 4, max: 7 },
   300: { min: 6, max: 10 },

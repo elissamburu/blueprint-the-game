@@ -22,11 +22,17 @@ export const AreasFileSchema = z.array(AreaSchema);
 
 const nonNegativeInt = () => z.int().nonnegative();
 
-/** One value per scenario level; YAML integer keys arrive as strings. */
-const perLevel = <T extends z.ZodType>(value: T) =>
-  z.record(z.enum(["100", "200", "300", "400"]), value);
+/** LEVELS as record keys. */
+const LEVEL_KEYS = ["0", "100", "200", "300", "400"] as const;
 
-export const EXPERIENCES = ["beginner", "aws-user", "architect", "expert"] as const;
+/** One value per scenario level; YAML integer keys arrive as strings. */
+const perLevel = <T extends z.ZodType>(value: T) => z.record(z.enum(LEVEL_KEYS), value);
+
+/** Some levels only; YAML integer keys arrive as strings. */
+const someLevels = <T extends z.ZodType>(value: T) => z.partialRecord(z.enum(LEVEL_KEYS), value);
+
+/** Onboarding experiences, in the order the onboarding shows them (RF-ONB-02, RF-ONB-05). */
+export const EXPERIENCES = ["newcomer", "beginner", "aws-user", "architect", "expert"] as const;
 
 export const GameRulesSchema = z.strictObject({
   scoring: z
@@ -77,6 +83,11 @@ export const GameRulesSchema = z.strictObject({
   palette: z.strictObject({
     modeByLevel: perLevel(oneOf(CONCRETE_PALETTE_MODES, "modo de paleta")),
     defaultMaxSize: positiveInt(),
+    maxSizeByLevel: someLevels(positiveInt())
+      .optional()
+      .describe(
+        "maxSize de curated por nivel: el palette.maxSize del escenario tiene prioridad y defaultMaxSize es el valor por omisión.",
+      ),
   }),
 });
 

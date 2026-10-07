@@ -5,6 +5,7 @@ import exampleRaw from "../../../content/scenarios/serverless-pdf-processing/sce
 import {
   adjacentCategories,
   buildCuratedPalette,
+  curatedMaxSize,
   formatIssues,
   parseScenario,
   resolvePaletteMode,
@@ -14,8 +15,15 @@ import {
 
 const gameRules: Pick<GameRules, "palette"> = {
   palette: {
-    modeByLevel: { "100": "curated", "200": "categories", "300": "categories-plus", "400": "full" },
+    modeByLevel: {
+      "0": "curated",
+      "100": "curated",
+      "200": "categories",
+      "300": "categories-plus",
+      "400": "full",
+    },
     defaultMaxSize: 12,
+    maxSizeByLevel: { "0": 8 },
   },
 };
 
@@ -72,6 +80,28 @@ describe("resolvePaletteMode", () => {
 
   it("treats a missing palette as auto", () => {
     expect(resolvePaletteMode({ level: 200 }, gameRules)).toBe("categories");
+  });
+});
+
+describe("curatedMaxSize", () => {
+  it("prefers the scenario's palette.maxSize over maxSizeByLevel and defaultMaxSize", () => {
+    expect(
+      curatedMaxSize({ level: 0, palette: { mode: "curated", maxSize: 6, extra: [] } }, gameRules),
+    ).toBe(6);
+    expect(
+      curatedMaxSize({ level: 100, palette: { mode: "auto", maxSize: 20, extra: [] } }, gameRules),
+    ).toBe(20);
+  });
+
+  it("uses maxSizeByLevel when the scenario has no maxSize", () => {
+    expect(curatedMaxSize({ level: 0 }, gameRules)).toBe(8);
+    expect(curatedMaxSize({ level: 0, palette: { mode: "auto", extra: [] } }, gameRules)).toBe(8);
+  });
+
+  it("falls back to defaultMaxSize for a level without its own size", () => {
+    expect(curatedMaxSize({ level: 100 }, gameRules)).toBe(12);
+    const { maxSizeByLevel: _, ...withoutByLevel } = gameRules.palette;
+    expect(curatedMaxSize({ level: 0 }, { palette: withoutByLevel })).toBe(12);
   });
 });
 

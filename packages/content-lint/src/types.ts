@@ -32,6 +32,8 @@ export interface LintInput {
   /** Name of the folder that contains `scenario.yaml` (content/scenarios/<folder>/). */
   folderName: string;
   catalog: readonly Service[];
+  /** To build the palette of the `categories` and `categories-plus` modes (L022). */
+  categories: readonly Category[];
   confusionGroups: readonly ConfusionGroup[];
   gameRules: GameRules;
   areas: readonly Area[];

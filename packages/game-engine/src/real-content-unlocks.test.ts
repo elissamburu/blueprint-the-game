@@ -35,13 +35,13 @@ const playable = (progress: PlayerProgress) =>
   realScenarios.filter((s) => isScenarioPlayable(progress.unlocked, s)).map((s) => s.id);
 
 describe("beginner path through the real scenarios", () => {
-  it("starts with only level 100 open in every area", () => {
+  it("starts with levels 0 and 100 open in every area", () => {
     const progress = createProgress(
       { experience: "beginner", interests: [] },
       realScenarios,
       gameRules,
     );
-    expect(progress.unlocked).toEqual(pairs(areas, [100]));
+    expect(progress.unlocked).toEqual(pairs(areas, [0, 100]));
     expect(playable(progress)).toEqual([staticWebsiteScenario.id]);
   });
 
@@ -55,12 +55,12 @@ describe("beginner path through the real scenarios", () => {
     const afterStatic = complete(start, staticWebsiteScenario);
     // networking and storage count their own scenario; the other areas have no level-100
     // scenarios, so they count level 100 of any area.
-    expect(afterStatic.progress.unlocked).toEqual(pairs(areas, [100, 200]));
+    expect(afterStatic.progress.unlocked).toEqual(pairs(areas, [0, 100, 200]));
     expect(afterStatic.events).toContainEqual({ type: "levelUnlocked", level: 200, areas });
     expect(playable(afterStatic.progress)).toEqual([staticWebsiteScenario.id, pdfScenario.id]);
 
     const afterPdf = complete(afterStatic.progress, pdfScenario);
-    expect(afterPdf.progress.unlocked).toEqual(pairs(areas, [100, 200, 300]));
+    expect(afterPdf.progress.unlocked).toEqual(pairs(areas, [0, 100, 200, 300]));
     expect(afterPdf.events).toContainEqual({ type: "levelUnlocked", level: 300, areas });
     expect(afterPdf.progress.unlocked.some((u) => u.level === 400)).toBe(false);
     expect(playable(afterPdf.progress)).toEqual(realScenarios.map((s) => s.id));

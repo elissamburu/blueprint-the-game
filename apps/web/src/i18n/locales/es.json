@@ -57,9 +57,13 @@
     "areas": "¿Qué áreas querés practicar?",
     "experience": "¿Cuál es tu experiencia?",
     "experiences": {
+      "newcomer": {
+        "title": "Recién empiezo con la nube",
+        "description": "Nunca usé la nube; quiero entender las ideas básicas"
+      },
       "beginner": {
         "title": "Recién empiezo",
-        "description": "Quiero conocer los conceptos"
+        "description": "Conozco la idea de nube y quiero empezar con AWS"
       },
       "aws-user": {
         "title": "Uso AWS",

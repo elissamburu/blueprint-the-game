@@ -80,6 +80,7 @@ Desde F2.1 todas las experiencias incluyen el nivel 0, porque no hay un nivel an
 - Al terminar el onboarding, el escenario recomendado (RF-NAV-02) es de nivel 0.
 - La UI no nombra el examen de certificación ([ADR-0019](adr/0019-nombre-y-marcas.md) pendiente); usa «Ideas básicas de la nube».
 - El grupo de radios con cinco opciones se sigue navegando con flechas y cumple [accesibilidad](accesibilidad.md).
+- **Guarda**: mientras el índice del contenido no liste ningún escenario de nivel 0 (en producción, `published` o `beta`), la opción no se muestra y el grupo tiene cuatro opciones. Así, un despliegue sin escenarios de nivel 0 no lleva a nadie a un listado vacío. En el perfil se sigue mostrando a quien ya la tiene elegida.
 
 ---
 

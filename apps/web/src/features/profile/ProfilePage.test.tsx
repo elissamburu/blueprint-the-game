@@ -116,7 +116,7 @@ describe("profile", () => {
       within(serverless)
         .getAllByText(/Nivel/)
         .map((b) => b.textContent),
-    ).toEqual(["Nivel 100", "Nivel 200", "Nivel 300"]);
+    ).toEqual(["Nivel 0", "Nivel 100", "Nivel 200", "Nivel 300"]);
   });
 
   it("edits the areas and raises the experience, opening its levels (RF-ONB-03)", async () => {

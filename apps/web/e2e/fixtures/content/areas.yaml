@@ -1,4 +1,7 @@
 # Areas of the e2e fixture bundle.
+- id: fundamentos
+  name: Fundamentos de la nube
+  description: "Las ideas básicas de la nube explicadas con situaciones cotidianas."
 - id: serverless
   name: Serverless
   description: "Arquitecturas sin servidores que administrar."

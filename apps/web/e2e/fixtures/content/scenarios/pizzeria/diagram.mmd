@@ -1,0 +1,14 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: pizzeria v1
+flowchart LR
+  n_customers(["Clientes"])
+  subgraph g_shop["La pizzería"]
+    n_city["Región de AWS"]
+    n_kitchens["Zona de disponibilidad"]
+    n_recipes["Amazon S3"]
+  end
+  n_customers -->|"1. Piden pizza"| n_city
+  n_city ==>|"2. Reparte los pedidos"| n_kitchens
+  n_kitchens ==>|"3. Consultan la receta"| n_recipes
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_city,n_kitchens,n_recipes slot

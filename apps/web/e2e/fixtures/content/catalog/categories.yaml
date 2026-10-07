@@ -10,3 +10,9 @@
   name: Gestión
 - id: integration
   name: Integración
+- id: concept-global-infrastructure
+  name: Infraestructura global
+  kind: concept
+- id: concept-cloud-economics
+  name: Economía de la nube
+  kind: concept

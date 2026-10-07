@@ -1,0 +1,111 @@
+# Level 0 scenario of the e2e fixture bundle (ADR-0027): a daily-life situation whose three slots
+# take two concepts and a service, all with a plain name, and whose answers say where the analogy
+# breaks. It exists to play level 0 end to end (newcomer → recommended → completed with ×0.5);
+# it is test content, not reviewed for publication. The specs assert its scores.
+schemaVersion: 1
+id: pizzeria
+version: 1
+status: published
+lang: es
+level: 0
+areas: [fundamentos]
+title: "Una pizzería que abre en otra ciudad"
+summary: "Una pizzería elige dónde abrir, cómo no quedarse sin cocina y dónde guardar sus recetas."
+estimatedMinutes: 5
+authors:
+  - github: blueprint-e2e
+context: |
+  Una pizzería de barrio quiere abrir en otra ciudad.
+  Necesita estar cerca de sus clientes, seguir cocinando si una cocina falla y no perder sus recetas.
+objectives:
+  - id: near-customers
+    kind: soft
+    category: latency
+    text: "Estar cerca de los clientes."
+  - id: keep-cooking
+    kind: hard
+    category: availability
+    text: "Seguir cocinando aunque una cocina se quede sin luz."
+  - id: keep-recipes
+    kind: soft
+    category: durability
+    text: "No perder nunca las recetas."
+diagram:
+  canvas: { width: 1200, height: 700 }
+  groups:
+    - id: shop
+      kind: generic
+      label: "La pizzería"
+      rect: { x: 200, y: 40, w: 960, h: 620 }
+      parent: null
+  nodes:
+    - id: customers
+      type: actor
+      label: "Clientes"
+      icon: users
+      position: { x: 40, y: 300 }
+    - id: city
+      type: slot
+      role: "La ciudad donde la pizzería abre, elegida por estar cerca de sus clientes."
+      position: { x: 300, y: 120 }
+      group: shop
+      answers:
+        - service: region
+          grade: optimal
+          objectives: [near-customers]
+          rationale: "Como la ciudad que elige la pizzería, una región es el lugar del mundo donde corren tus recursos: elegir una cercana acorta la distancia hasta los clientes."
+          references:
+            - https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html
+          analogyLimit:
+            text: "Una ciudad es un solo lugar; una región agrupa varias zonas de disponibilidad aisladas entre sí."
+            references:
+              - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html
+      incorrect:
+        - service: edge-location
+          rationale: "Acerca la entrega de contenido, pero no es donde se instala la pizzería."
+    - id: kitchens
+      type: slot
+      role: "Dos cocinas en edificios distintos de la misma ciudad, con luz propia cada una."
+      position: { x: 600, y: 120 }
+      group: shop
+      answers:
+        - service: availability-zone
+          grade: optimal
+          objectives: [keep-cooking]
+          rationale: "Como dos cocinas con luz propia, las zonas de disponibilidad están aisladas: si una falla, la otra sigue funcionando."
+          references:
+            - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html
+          analogyLimit:
+            text: "Las cocinas se ven desde la calle; las zonas de disponibilidad no muestran su ubicación exacta."
+            references:
+              - https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html
+      incorrect:
+        - service: ec2
+          violates: [keep-cooking]
+          rationale: "Una sola computadora alquilada se apaga si se corta su luz: no aporta una cocina aparte."
+    - id: recipes
+      type: slot
+      role: "El lugar donde se guardan las recetas y las fotos del menú."
+      position: { x: 600, y: 420 }
+      group: shop
+      answers:
+        - service: s3
+          grade: optimal
+          objectives: [keep-recipes]
+          rationale: "Como un archivo que nunca se pierde, guarda las recetas y las fotos con alta durabilidad y se paga por lo guardado."
+          references:
+            - https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html
+          analogyLimit:
+            text: "Un archivo de papel tiene carpetas; acá cada receta es un objeto con su clave, sin carpetas reales."
+            references:
+              - https://docs.aws.amazon.com/AmazonS3/latest/userguide/Welcome.html
+      incorrect:
+        - service: efs
+          rationale: "Es un disco que se comparte entre computadoras: no hace falta montarlo para guardar recetas."
+  edges:
+    - { id: e1, from: customers, to: city, step: 1, label: "Piden pizza", style: sync }
+    - { id: e2, from: city, to: kitchens, step: 2, label: "Reparte los pedidos", style: data }
+    - { id: e3, from: kitchens, to: recipes, step: 3, label: "Consultan la receta", style: data }
+palette:
+  mode: auto
+  extra: [pay-as-you-go]
