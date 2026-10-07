@@ -24,6 +24,10 @@ export const formatFinding = (finding: Finding, groupFile?: string): string => {
 export const formatSummary = (errors: number, warnings: number): string =>
   `${plural(errors, "error", "errores")}, ${plural(warnings, "warning", "warnings")}`;
 
+/** Shown under a draft that does not pass the schema: why it is an error and what it blocks. */
+export const UNPARSABLE_DRAFT_NOTE =
+  "  Es un borrador (status: draft): no bloquea el juego hasta que se commitee (pnpm content:dev lo saltea), pero en CI este error sí falla.";
+
 export const formatValidationText = (report: ValidationReport): string => {
   const lines: string[] = [];
   if (report.shared.length > 0) {
@@ -47,6 +51,7 @@ export const formatValidationText = (report: ValidationReport): string => {
     }
     lines.push(`✖ ${scenario.id}  (${scenario.file})`);
     for (const finding of scenario.findings) lines.push(formatFinding(finding, scenario.file));
+    if (scenario.unparsableDraft === true) lines.push(UNPARSABLE_DRAFT_NOTE);
     lines.push("");
   }
   if (report.skipped.length > 0) {

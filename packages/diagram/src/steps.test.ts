@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-import { parseScenario, type Edge } from "@blueprint/scenario-schema";
+import { isUnparsableDraft, parseScenario, type Edge } from "@blueprint/scenario-schema";
 import { parse as parseYaml } from "yaml";
 import { describe, expect, it } from "vitest";
 import { fakeServices, realScenarios, staticWebsiteScenario } from "./testing/fixtures";
@@ -154,6 +154,8 @@ describe("edgeSteps", () => {
     });
     expect(Object.keys(sources).length).toBeGreaterThanOrEqual(realScenarios.length);
     for (const [path, raw] of Object.entries(sources)) {
+      // A draft saved with errors by the Studio (ADR-0025, S10) has no steps to name.
+      if (isUnparsableDraft(raw, parseYaml)) continue;
       const parsed = parseScenario(parseYaml(raw));
       if (!parsed.success) throw new Error(`${path}: ${JSON.stringify(parsed.issues)}`);
       const names = edgeSteps(parsed.data.diagram, fakeServices).map((s) => s.name);

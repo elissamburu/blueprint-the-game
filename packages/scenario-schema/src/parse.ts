@@ -52,3 +52,30 @@ export const parseBundleIndex: (input: unknown) => ParseResult<BundleIndex> =
   parseWith(BundleIndexSchema);
 export const parseBundleCatalog: (input: unknown) => ParseResult<BundleCatalog> =
   parseWith(BundleCatalogSchema);
+
+/**
+ * A deserialized scenario with `status: draft` that does not pass the schema. The Studio saves
+ * drafts with errors (ADR-0025, amendment S10), possibly untracked in a local checkout: the
+ * development tools skip them instead of failing. Any other scenario that does not parse is still
+ * an error.
+ */
+export const isUnparsableDraftDocument = (document: unknown): boolean =>
+  typeof document === "object" &&
+  document !== null &&
+  (document as Record<string, unknown>).status === "draft" &&
+  !parseScenario(document).success;
+
+/**
+ * {@link isUnparsableDraftDocument} over the text of a scenario.yaml. The YAML parser is the
+ * caller's (this package does no IO and has no runtime YAML dependency); a text that is not valid
+ * YAML is not a draft to skip, it fails as before.
+ */
+export const isUnparsableDraft = (raw: string, parseYaml: (text: string) => unknown): boolean => {
+  let document: unknown;
+  try {
+    document = parseYaml(raw);
+  } catch {
+    return false;
+  }
+  return isUnparsableDraftDocument(document);
+};

@@ -9,12 +9,16 @@ import {
   type BundleIndexEntry,
   type Scenario,
 } from "@blueprint/scenario-schema";
-import { inspectContent, type ValidationReport } from "./validate.js";
+import { countBySeverity } from "./findings.js";
+import { inspectContent, type ScenarioReport, type ValidationReport } from "./validate.js";
 
 export interface BuildOptions {
   contentDir: string;
   outDir: string;
-  /** Also bundle and list draft scenarios. Local development only: the deploy never uses it. */
+  /**
+   * Also bundle and list draft scenarios. Local development only: the deploy never uses it. A
+   * draft that does not pass the schema is skipped (`skippedDrafts`) instead of failing.
+   */
   includeDrafts?: boolean;
 }
 
@@ -28,6 +32,11 @@ export interface BuildResult {
   listed: number;
   /** Draft scenarios left out of the bundle (0 with `includeDrafts`). */
   excludedDrafts: number;
+  /**
+   * With `includeDrafts`, drafts that do not pass the schema (ADR-0025, S10), left out of the
+   * bundle and of `report` instead of failing the build. Their findings say why.
+   */
+  skippedDrafts: ScenarioReport[];
 }
 
 export { BUNDLE_SCHEMA_VERSION, type BundleIndex };
@@ -56,6 +65,25 @@ const indexEntry = (scenario: Scenario): BundleIndexEntry => ({
   file: scenarioBundleFile(scenario),
 });
 
+/** The report without the given scenarios, with its counts and `ok` recomputed. */
+const withoutScenarios = (
+  report: ValidationReport,
+  skipped: readonly ScenarioReport[],
+): ValidationReport => {
+  const scenarios = report.scenarios.filter((scenario) => !skipped.includes(scenario));
+  const counts = countBySeverity([
+    ...report.shared,
+    ...(report.integrity ?? []),
+    ...scenarios.flatMap((scenario) => scenario.findings),
+  ]);
+  return {
+    ...report,
+    ok: counts.errors === 0,
+    summary: { scenarios: scenarios.length, ...counts },
+    scenarios,
+  };
+};
+
 const json = (value: unknown): string => `${JSON.stringify(value, null, 2)}\n`;
 
 /** Files this command owns in `outDir`; only these are removed before writing. */
@@ -77,7 +105,13 @@ const removeStaleBundle = async (outDir: string): Promise<void> => {
 
 export const build = async (options: BuildOptions): Promise<BuildResult> => {
   const outDir = path.resolve(options.outDir);
-  const { report, shared, scenarios } = await inspectContent({ contentDir: options.contentDir });
+  const inspected = await inspectContent({ contentDir: options.contentDir });
+  const { shared, scenarios } = inspected;
+  const includeDrafts = options.includeDrafts === true;
+  const skippedDrafts = includeDrafts
+    ? inspected.report.scenarios.filter((scenario) => scenario.unparsableDraft === true)
+    : [];
+  const report = withoutScenarios(inspected.report, skippedDrafts);
   const result: BuildResult = {
     ok: false,
     report,
@@ -85,6 +119,7 @@ export const build = async (options: BuildOptions): Promise<BuildResult> => {
     files: [],
     listed: 0,
     excludedDrafts: 0,
+    skippedDrafts,
   };
   const { services, categories, confusionGroups, areas, gameRules, badges } = shared;
   if (
@@ -98,7 +133,6 @@ export const build = async (options: BuildOptions): Promise<BuildResult> => {
   ) {
     return result;
   }
-  const includeDrafts = options.includeDrafts === true;
   const bundled = bundledStatuses(includeDrafts);
   const valid = scenarios.flatMap((loaded) =>
     loaded.scenario === undefined ? [] : [loaded.scenario],

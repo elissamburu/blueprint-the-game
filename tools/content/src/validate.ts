@@ -13,7 +13,12 @@ import {
   sharedRules,
   type SharedContentKey,
 } from "@blueprint/content-lint";
-import { parseScenario, type Scenario, type Service } from "@blueprint/scenario-schema";
+import {
+  isUnparsableDraftDocument,
+  parseScenario,
+  type Scenario,
+  type Service,
+} from "@blueprint/scenario-schema";
 import {
   SCENARIO_FILE,
   SCENARIOS_DIR,
@@ -52,6 +57,11 @@ export interface ScenarioReport {
   id: string;
   file: string;
   findings: Finding[];
+  /**
+   * A draft that does not pass the schema (ADR-0025, S10): still an error here, but
+   * content:build --include-drafts skips it with a warning.
+   */
+  unparsableDraft?: true;
 }
 
 export interface ValidationReport {
@@ -321,7 +331,14 @@ export const inspectContent = async (options: ValidateOptions): Promise<Inspecte
         }
       }
       scenarios.push(loaded);
-      reports.push({ id, file: loaded.file, findings });
+      reports.push({
+        id,
+        file: loaded.file,
+        findings,
+        ...(scenario === undefined && isUnparsableDraftDocument(loaded.raw)
+          ? { unparsableDraft: true as const }
+          : {}),
+      });
     }
   }
 

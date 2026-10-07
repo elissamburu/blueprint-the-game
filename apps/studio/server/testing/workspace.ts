@@ -5,6 +5,8 @@ import { cp, mkdtemp, readdir, readFile, rm } from "node:fs/promises";
 import { createServer } from "node:net";
 import os from "node:os";
 import path from "node:path";
+import { isUnparsableDraft } from "@blueprint/scenario-schema";
+import { parse as parseYaml } from "yaml";
 import { ScenarioIdSchema } from "../../shared/api.js";
 import { createApp } from "../app.js";
 import { REPO_ROOT } from "../config.js";
@@ -92,6 +94,20 @@ export const realScenarioIds = async (): Promise<string[]> =>
     .filter((entry) => entry.isDirectory() && ScenarioIdSchema.safeParse(entry.name).success)
     .map((entry) => entry.name)
     .sort();
+
+/**
+ * Ids of the real scenarios that are drafts saved with errors (ADR-0025, S10), possibly untracked
+ * in a local checkout: they are listed with errors and have no generated files.
+ */
+export const realUnparsableDraftIds = async (): Promise<Set<string>> => {
+  const ids = await realScenarioIds();
+  const texts = await Promise.all(
+    ids.map((id) =>
+      readFile(path.join(REAL_CONTENT, "scenarios", id, "scenario.yaml"), "utf8").catch(() => ""),
+    ),
+  );
+  return new Set(ids.filter((_, i) => isUnparsableDraft(texts[i] ?? "", parseYaml)));
+};
 
 export const TEST_CLIENT: ClientFiles = {
   indexHtml:
