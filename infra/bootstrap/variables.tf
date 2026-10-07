@@ -100,3 +100,28 @@ variable "route53_record_names" {
     error_message = "Each record name must be lowercase, without the trailing dot."
   }
 }
+
+variable "cloudfront_oac_ids" {
+  description = "IDs of the CloudFront origin access controls of the project (created by infra/envs/prod). gh-apply can update and delete only these; empty, it can create them but never change or delete one. Fill in after the first apply of infra/envs/prod and re-apply the bootstrap."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition     = alltrue([for id in var.cloudfront_oac_ids : can(regex("^[A-Z0-9]{1,64}$", id))])
+    error_message = "Each origin access control ID must be the bare ID (uppercase letters and digits, e.g. E1ABCDEFGHIJKL), not an ARN or a wildcard."
+  }
+}
+
+variable "cloudfront_response_headers_policy_ids" {
+  description = "IDs of the CloudFront response headers policies of the project (created by infra/envs/prod). gh-apply can update and delete only these; empty, it can create them but never change or delete one. Fill in after the first apply of infra/envs/prod and re-apply the bootstrap."
+  type        = list(string)
+  default     = []
+
+  validation {
+    condition = alltrue([
+      for id in var.cloudfront_response_headers_policy_ids :
+      can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", id))
+    ])
+    error_message = "Each response headers policy ID must be the bare ID (a lowercase UUID), not an ARN or a wildcard."
+  }
+}

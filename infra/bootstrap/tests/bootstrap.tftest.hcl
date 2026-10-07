@@ -119,8 +119,10 @@ run "reuses_existing_oidc_provider" {
 
 run "policies_fit_iam_limits" {
   variables {
-    route53_zone_id      = "Z0123456789ABCDEFGHIJ"
-    route53_record_names = ["beta.example.com", "_*.beta.example.com"]
+    route53_zone_id                        = "Z0123456789ABCDEFGHIJ"
+    route53_record_names                   = ["beta.example.com", "_*.beta.example.com"]
+    cloudfront_oac_ids                     = ["E1ABCDEFGHIJKL", "E2ABCDEFGHIJKL"]
+    cloudfront_response_headers_policy_ids = ["11111111-2222-3333-4444-555555555555", "66666666-7777-8888-9999-000000000000"]
   }
 
   # Managed policies: 6,144 characters without whitespace. Inline policies: 10,240 per role.
@@ -207,6 +209,119 @@ run "boundary_condition_actions" {
     ]))
     error_message = "TagRole and UntagRole never take the iam:PermissionsBoundary condition (the key is not in their request context)."
   }
+}
+
+# Origin access controls and response headers policies have no tags: other projects of a shared
+# account can have their own, so only the IDs of the variables can be updated or deleted.
+run "cloudfront_untaggable_without_ids" {
+  assert {
+    condition = length([
+      for s in concat(
+        jsondecode(aws_iam_role_policy.github["apply"].policy).Statement,
+        jsondecode(aws_iam_policy.boundary.policy).Statement,
+      ) : s
+      if s.Effect == "Allow" && length(setintersection(flatten([s.Action]), [
+        "cloudfront:UpdateOriginAccessControl",
+        "cloudfront:DeleteOriginAccessControl",
+        "cloudfront:UpdateResponseHeadersPolicy",
+        "cloudfront:DeleteResponseHeadersPolicy",
+      ])) > 0
+    ]) == 0
+    error_message = "With empty lists, no policy allows updating or deleting origin access controls or response headers policies."
+  }
+
+  assert {
+    condition = alltrue([
+      for sid in ["OnlyProjectOriginAccessControls", "OnlyProjectResponseHeadersPolicies"] :
+      one([for s in jsondecode(aws_iam_policy.boundary.policy).Statement : s if s.Sid == sid]).Effect == "Deny"
+      && one([for s in jsondecode(aws_iam_policy.boundary.policy).Statement : s if s.Sid == sid]).Resource == "*"
+    ])
+    error_message = "With empty lists, the boundary explicitly denies updating and deleting them on \"*\"."
+  }
+
+  assert {
+    condition = toset(one([
+      for s in jsondecode(aws_iam_role_policy.github["apply"].policy).Statement : s.Action if s.Sid == "CloudFrontCreateUntaggable"
+    ])) == toset(["cloudfront:CreateOriginAccessControl", "cloudfront:CreateResponseHeadersPolicy"])
+    error_message = "gh-apply can still create origin access controls and response headers policies."
+  }
+
+  # No CloudFront write on "*" other than creating: cache and origin request policies, origin
+  # access identities, key value stores and the rest stay out of reach.
+  assert {
+    condition = alltrue(flatten([
+      for s in concat(
+        jsondecode(aws_iam_role_policy.github["apply"].policy).Statement,
+        jsondecode(aws_iam_role_policy.github["deploy_content"].policy).Statement,
+        jsondecode(aws_iam_policy.boundary.policy).Statement,
+        ) : [
+        for a in flatten([s.Action]) :
+        length(regexall("^cloudfront:(Get|Describe|List|Create(Distribution|Function|OriginAccessControl|ResponseHeadersPolicy)$)", a)) > 0
+        if startswith(a, "cloudfront:")
+      ] if s.Effect == "Allow" && try(s.Resource, null) == "*"
+    ]))
+    error_message = "A CloudFront write other than the allowed creates is open on \"*\"."
+  }
+}
+
+run "cloudfront_untaggable_with_ids" {
+  variables {
+    cloudfront_oac_ids                     = ["E1ABCDEFGHIJKL"]
+    cloudfront_response_headers_policy_ids = ["11111111-2222-3333-4444-555555555555"]
+  }
+
+  assert {
+    condition = alltrue([
+      for s in concat(
+        jsondecode(aws_iam_role_policy.github["apply"].policy).Statement,
+        jsondecode(aws_iam_policy.boundary.policy).Statement,
+      ) :
+      (
+        contains(flatten([s.Action]), "cloudfront:UpdateOriginAccessControl")
+        ? s.Resource == ["arn:aws:cloudfront::111111111111:origin-access-control/E1ABCDEFGHIJKL"]
+        : contains(flatten([s.Action]), "cloudfront:UpdateResponseHeadersPolicy")
+        ? s.Resource == ["arn:aws:cloudfront::111111111111:response-headers-policy/11111111-2222-3333-4444-555555555555"]
+        : true
+      )
+      if s.Effect == "Allow"
+    ])
+    error_message = "Updating and deleting are allowed only on the ARNs of the listed IDs."
+  }
+
+  assert {
+    condition = length([
+      for s in jsondecode(aws_iam_role_policy.github["apply"].policy).Statement : s
+      if contains(["CloudFrontProjectOriginAccessControls", "CloudFrontProjectResponseHeadersPolicies"], s.Sid)
+    ]) == 2
+    error_message = "With IDs, gh-apply gets one statement per type."
+  }
+
+  assert {
+    condition = (
+      one([for s in jsondecode(aws_iam_policy.boundary.policy).Statement : s if s.Sid == "OnlyProjectOriginAccessControls"]).NotResource
+      == ["arn:aws:cloudfront::111111111111:origin-access-control/E1ABCDEFGHIJKL"]
+    )
+    error_message = "With IDs, the boundary denies updating and deleting any other origin access control."
+  }
+
+  assert {
+    condition = (
+      one([for s in jsondecode(aws_iam_policy.boundary.policy).Statement : s if s.Sid == "OnlyProjectResponseHeadersPolicies"]).NotResource
+      == ["arn:aws:cloudfront::111111111111:response-headers-policy/11111111-2222-3333-4444-555555555555"]
+    )
+    error_message = "With IDs, the boundary denies updating and deleting any other response headers policy."
+  }
+}
+
+run "rejects_wildcard_cloudfront_ids" {
+  command = plan
+
+  variables {
+    cloudfront_oac_ids                     = ["*"]
+    cloudfront_response_headers_policy_ids = ["arn:aws:cloudfront::111111111111:response-headers-policy/*"]
+  }
+
+  expect_failures = [var.cloudfront_oac_ids, var.cloudfront_response_headers_policy_ids]
 }
 
 run "rejects_bad_account_id" {

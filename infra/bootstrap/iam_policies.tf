@@ -20,6 +20,32 @@ locals {
   route53_enabled         = var.route53_zone_id != ""
   route53_changes_enabled = local.route53_enabled && length(var.route53_record_names) > 0
 
+  # CloudFront types without tags whose ARNs carry a generated ID (see locals.tf). Creating one does
+  # not affect other projects, so it stays on "*"; updating and deleting are limited to the IDs of the
+  # variables, and with an empty list nothing can be updated or deleted (the boundary denies it).
+  cloudfront_untaggable_create_actions = [
+    "cloudfront:CreateOriginAccessControl",
+    "cloudfront:CreateResponseHeadersPolicy",
+  ]
+  cloudfront_untaggable = {
+    OriginAccessControls = {
+      actions = ["cloudfront:UpdateOriginAccessControl", "cloudfront:DeleteOriginAccessControl"]
+      arns    = local.project_oac_arns
+    }
+    ResponseHeadersPolicies = {
+      actions = ["cloudfront:UpdateResponseHeadersPolicy", "cloudfront:DeleteResponseHeadersPolicy"]
+      arns    = local.project_response_headers_policy_arns
+    }
+  }
+  cloudfront_untaggable_allow = [
+    for name, type in local.cloudfront_untaggable : {
+      Sid      = "CloudFrontProject${name}"
+      Effect   = "Allow"
+      Action   = type.actions
+      Resource = type.arns
+    } if length(type.arns) > 0
+  ]
+
   # --- Read: what terraform plan needs to refresh the project's resources (gh-plan and gh-apply).
   read_statements = concat(
     [
@@ -172,19 +198,14 @@ locals {
         Resource  = [local.distribution_arn, local.project_function_arn]
         Condition = local.resource_is_project
       },
-      # Origin access controls and response headers policies have no tags and their ARNs carry a
-      # generated ID: they cannot be scoped to the project. The boundary allows nothing else.
+      # Origin access controls and response headers policies have no tags: created on "*" (the
+      # create actions take no resource), updated and deleted only by ID (cloudfront_untaggable_allow).
+      # No other CloudFront type without tags (cache and origin request policies, origin access
+      # identities...) is writable.
       {
-        Sid    = "CloudFrontUntaggable"
-        Effect = "Allow"
-        Action = [
-          "cloudfront:CreateOriginAccessControl",
-          "cloudfront:UpdateOriginAccessControl",
-          "cloudfront:DeleteOriginAccessControl",
-          "cloudfront:CreateResponseHeadersPolicy",
-          "cloudfront:UpdateResponseHeadersPolicy",
-          "cloudfront:DeleteResponseHeadersPolicy",
-        ]
+        Sid      = "CloudFrontCreateUntaggable"
+        Effect   = "Allow"
+        Action   = local.cloudfront_untaggable_create_actions
         Resource = "*"
       },
       # ACM supports tags on certificates (in us-east-1, the region CloudFront reads them from).
@@ -324,7 +345,7 @@ locals {
             }
           }
         },
-    ] : statement if local.route53_changes_enabled])
+    ] : statement if local.route53_changes_enabled], local.cloudfront_untaggable_allow)
   })
 
   # --- Deploy of the site: upload files and invalidate the cache (ADR-0014). The bucket and the
@@ -383,7 +404,7 @@ locals {
 
   boundary_policy = jsonencode({
     Version = "2012-10-17"
-    Statement = [
+    Statement = concat([
       {
         Sid       = "CeilingS3"
         Effect    = "Allow"
@@ -391,10 +412,30 @@ locals {
         Resource  = [local.project_bucket_arn, local.project_object_arn]
         Condition = local.in_this_account
       },
+      # CloudFront: reads anywhere; writes only on what the role policies can scope (distributions
+      # and functions by tag and prefix, origin access controls and response headers policies by ID).
+      {
+        Sid      = "CeilingCloudFrontRead"
+        Effect   = "Allow"
+        Action   = ["cloudfront:Get*", "cloudfront:Describe*", "cloudfront:List*"]
+        Resource = "*"
+      },
+      {
+        Sid      = "CeilingCloudFrontCreate"
+        Effect   = "Allow"
+        Action   = concat(["cloudfront:CreateDistribution", "cloudfront:CreateFunction"], local.cloudfront_untaggable_create_actions)
+        Resource = "*"
+      },
+      {
+        Sid      = "CeilingCloudFrontTagged"
+        Effect   = "Allow"
+        Action   = "cloudfront:*"
+        Resource = [local.distribution_arn, local.project_function_arn]
+      },
       {
         Sid      = "CeilingServices"
         Effect   = "Allow"
-        Action   = ["cloudfront:*", "acm:*", "route53:Get*", "route53:List*", "route53:ChangeResourceRecordSets"]
+        Action   = ["acm:*", "route53:Get*", "route53:List*", "route53:ChangeResourceRecordSets"]
         Resource = "*"
       },
       {
@@ -449,8 +490,9 @@ locals {
         Resource = "*"
       },
       # Existing resources without the Project tag cannot be changed. Only actions on resource types
-      # with aws:ResourceTag are listed; S3, Route 53, budgets (ModifyBudget), origin access controls
-      # and response headers policies are scoped by name or ID in the role policies instead.
+      # with aws:ResourceTag are listed; S3, Route 53 and budgets (ModifyBudget) are scoped by name in
+      # the role policies instead, and origin access controls and response headers policies by ID
+      # (OnlyProject* below).
       {
         Sid    = "OnlyTaggedResources"
         Effect = "Deny"
@@ -526,6 +568,22 @@ locals {
           Null            = { (local.project_tag_condition_key) = "false" }
         }
       },
-    ]
+      ],
+      # Same ceiling as the role policies for origin access controls and response headers policies,
+      # plus an explicit deny of updating or deleting any other: with an empty list, all of them.
+      [for statement in local.cloudfront_untaggable_allow : merge(statement, { Sid = replace(statement.Sid, "CloudFrontProject", "CeilingCloudFront") })],
+      [for name, type in local.cloudfront_untaggable : {
+        Sid      = "OnlyProject${name}"
+        Effect   = "Deny"
+        Action   = type.actions
+        Resource = "*"
+      } if length(type.arns) == 0],
+      [for name, type in local.cloudfront_untaggable : {
+        Sid         = "OnlyProject${name}"
+        Effect      = "Deny"
+        Action      = type.actions
+        NotResource = type.arns
+      } if length(type.arns) > 0],
+    )
   })
 }

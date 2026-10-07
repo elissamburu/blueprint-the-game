@@ -54,6 +54,18 @@ locals {
   project_policy_arn   = "arn:${local.partition}:iam::${local.account}:policy/${local.prefix}-*"
   hosted_zone_arn      = "arn:${local.partition}:route53:::hostedzone/${var.route53_zone_id}"
 
+  # Origin access controls and response headers policies have no tags and their ARNs carry a
+  # generated ID: arn:${Partition}:cloudfront::${Account}:origin-access-control/${Id} and
+  # .../response-headers-policy/${Id} (Service Authorization Reference for CloudFront, resource types:
+  # https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazoncloudfront.html).
+  # Changes are limited to the IDs listed in the variables (see iam_policies.tf).
+  project_oac_arns = [
+    for id in var.cloudfront_oac_ids : "arn:${local.partition}:cloudfront::${local.account}:origin-access-control/${id}"
+  ]
+  project_response_headers_policy_arns = [
+    for id in var.cloudfront_response_headers_policy_ids : "arn:${local.partition}:cloudfront::${local.account}:response-headers-policy/${id}"
+  ]
+
   # The bootstrap's own IAM resources: no role can change them, not even gh-apply.
   bootstrap_role_arn   = "arn:${local.partition}:iam::${local.account}:role/${local.prefix}-gh-*"
   bootstrap_policy_arn = "arn:${local.partition}:iam::${local.account}:policy/${local.prefix}-gh-*"
