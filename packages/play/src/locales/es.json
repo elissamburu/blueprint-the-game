@@ -57,7 +57,9 @@
     "docsCount_other": "{{count}} enlaces",
     "revealedNote": "No suma puntos",
     "alsoOptimal_one": "También es óptimo: {{services}}",
-    "alsoOptimal_other": "También son óptimos: {{services}}"
+    "alsoOptimal_other": "También son óptimos: {{services}}",
+    "analogyLimit": "Dónde se rompe la analogía",
+    "analogyDocs": "sobre la analogía"
   },
   "hints": {
     "reveal": "Ver pista (−{{cost}} pts)",
@@ -133,7 +135,9 @@
     "incorrect": "Incorrectos típicos",
     "why": "Por qué:",
     "objectives": "Objetivos",
-    "docs": "Documentación oficial"
+    "docs": "Documentación oficial",
+    "analogyLimit": "Dónde se rompe la analogía:",
+    "analogyDocs": "Documentación de la analogía"
   },
   "external": "(se abre en otra pestaña)"
 }

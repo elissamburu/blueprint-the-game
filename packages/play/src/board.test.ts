@@ -8,7 +8,7 @@ import {
   type Command,
 } from "@blueprint/game-engine";
 import type { GameRules, Scenario } from "@blueprint/scenario-schema";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 import { createServiceLookup, slotViews } from "./board";
 import { bundle, pdfScenario } from "./testing/game-fixture";
 
@@ -35,6 +35,41 @@ describe("createServiceLookup", () => {
       iconSrc: "/icons/s3.svg",
     });
     expect(lookup("nope")).toBeUndefined();
+  });
+
+  const concepts = [
+    { id: "s3", name: "Amazon S3", category: "storage", plainName: "Almacenamiento de archivos" },
+    {
+      id: "region",
+      type: "concept" as const,
+      name: "Región de AWS",
+      category: "concept-global-infrastructure",
+      plainName: "Lugar del mundo",
+      glyph: "region" as const,
+    },
+    { id: "pay", type: "concept" as const, name: "Pago por uso", category: "concept-economics" },
+  ];
+
+  it("never asks the app for the icon of a concept: its glyph, or nothing for the initials", () => {
+    const iconSrc = vi.fn((id: string) => `/icons/${id}.svg`);
+    const lookup = createServiceLookup(concepts, iconSrc);
+    expect(lookup("region")).toEqual({
+      name: "Región de AWS",
+      category: "concept-global-infrastructure",
+      iconSrc: undefined,
+      glyph: "region",
+    });
+    expect(lookup("pay")?.iconSrc).toBeUndefined();
+    expect(lookup("pay")?.glyph).toBeUndefined();
+    expect(iconSrc).toHaveBeenCalledExactlyOnceWith("s3");
+  });
+
+  it("adds the plain name only with plainNames (level 0)", () => {
+    const iconSrc = () => undefined;
+    expect(createServiceLookup(concepts, iconSrc)("s3")?.plainName).toBeUndefined();
+    const level0 = createServiceLookup(concepts, iconSrc, { plainNames: true });
+    expect(level0("s3")?.plainName).toBe("Almacenamiento de archivos");
+    expect(level0("pay")?.plainName).toBeUndefined();
   });
 });
 

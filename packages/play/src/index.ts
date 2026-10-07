@@ -6,6 +6,7 @@
 export type { GameBundle, GameHost } from "./host";
 export type { GameScreenProps } from "./GameScreen";
 export { createServiceLookup, slotViews } from "./board";
+export { cardAccessibleName, entryIcon, showsPlainNames, type CardEntry } from "./catalog-entry";
 export { CaseContext, CaseObjectives } from "./CaseContent";
 export { InlineMarkdown } from "./InlineMarkdown";
 export {

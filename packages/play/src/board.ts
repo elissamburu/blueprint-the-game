@@ -1,17 +1,36 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Adapters between the game and the board (@blueprint/diagram): catalog → service lookup, and
 // game-engine session → slot states. The grade and the number of each slot come from the engine;
-// this only renames the grade. The icon URLs come from the app (GameHost.iconSrc).
+// this only renames the grade. The icon URLs come from the app (GameHost.iconSrc); which name a
+// card shows comes from catalog-entry.ts.
 import type { ServiceLookup, SlotView } from "@blueprint/diagram";
 import { slotNodes, slotNumbers, slotStatus, type SessionState } from "@blueprint/game-engine";
-import type { Service } from "@blueprint/scenario-schema";
+import { cardPlainName, entryIcon, type CardEntry } from "./catalog-entry";
 
+/**
+ * Name, category and icon of every catalog entry for the board. A concept gets its glyph and never
+ * an icon URL. With `plainNames` (level 0) a revealed slot also shows the plain name.
+ */
 export const createServiceLookup = (
-  services: readonly Pick<Service, "id" | "name" | "category">[],
+  services: readonly CardEntry[],
   iconSrc: (serviceId: string) => string | undefined,
+  { plainNames = false }: { plainNames?: boolean } = {},
 ): ServiceLookup => {
   const byId = new Map(
-    services.map((s) => [s.id, { name: s.name, category: s.category, iconSrc: iconSrc(s.id) }]),
+    services.map((s) => {
+      const { src, glyph } = entryIcon(s, iconSrc);
+      const plainName = cardPlainName(s, plainNames);
+      return [
+        s.id,
+        {
+          name: s.name,
+          category: s.category,
+          iconSrc: src,
+          ...(glyph === undefined ? {} : { glyph }),
+          ...(plainName === undefined ? {} : { plainName }),
+        },
+      ];
+    }),
   );
   return (id) => byId.get(id);
 };

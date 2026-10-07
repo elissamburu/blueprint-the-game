@@ -3,7 +3,14 @@ import { slotNodes, slotNumbers } from "@blueprint/game-engine";
 import { cleanup, render, screen, within } from "@testing-library/react";
 import { afterEach, describe, expect, it } from "vitest";
 import { numberedSlots, SlotAnswers } from "./SlotAnswers";
-import { pdfScenario, services, slotOf } from "./testing/game-fixture";
+import {
+  levelZeroScenario,
+  levelZeroServices,
+  pdfScenario,
+  S3_ANALOGY_LIMIT,
+  services,
+  slotOf,
+} from "./testing/game-fixture";
 
 afterEach(cleanup);
 
@@ -88,5 +95,41 @@ describe("SlotAnswers", () => {
     expect(screen.getAllByRole("heading", { level: 4 }).map((h) => h.textContent)).toEqual([
       "Óptimo",
     ]);
+  });
+});
+
+describe("SlotAnswers at level 0", () => {
+  const node = slotOf(levelZeroScenario, "upload-store");
+
+  it("names each answer «plain name (real name)» and says where its analogy breaks", () => {
+    render(<SlotAnswers node={node} scenario={levelZeroScenario} services={levelZeroServices} />);
+    const item = screen.getByText("Almacenamiento de archivos (Amazon S3)").closest("li");
+    if (item === null) throw new Error("no answer");
+    const analogy = item.querySelector<HTMLElement>("[data-analogy-limit]");
+    expect(analogy?.textContent).toContain("Dónde se rompe la analogía:");
+    expect(analogy?.textContent).toContain("acá cada documento es un objeto con su clave.");
+    for (const url of S3_ANALOGY_LIMIT.references) {
+      expect(
+        within(analogy as HTMLElement).getByRole("link", { name: new RegExp(url) }),
+      ).toBeTruthy();
+    }
+    // Below the explanation, above the documentation of the answer.
+    const why = within(item).getByText("Por qué:").closest("p") as HTMLElement;
+    expect(
+      why.compareDocumentPosition(analogy as HTMLElement) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    expect(screen.getByText(`Simple ${services.get("efs")?.name ?? ""} (Amazon EFS)`)).toBeTruthy();
+  });
+
+  it("outside level 0 shows the name only and no analogy without one", () => {
+    render(
+      <SlotAnswers
+        node={slotOf(pdfScenario, "upload-store")}
+        scenario={pdfScenario}
+        services={levelZeroServices}
+      />,
+    );
+    expect(screen.getByText("Amazon S3")).toBeTruthy();
+    expect(document.querySelector("[data-analogy-limit]")).toBeNull();
   });
 });

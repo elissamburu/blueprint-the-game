@@ -4,7 +4,15 @@ import { cleanup, render, screen, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { afterEach, describe, expect, it, vi } from "vitest";
 import { FeedbackCard, hasFeedback } from "./FeedbackCard";
-import { newSession, pdfScenario, services, slotOf } from "./testing/game-fixture";
+import {
+  levelZeroScenario,
+  levelZeroServices,
+  newSession,
+  pdfScenario,
+  S3_ANALOGY_LIMIT,
+  services,
+  slotOf,
+} from "./testing/game-fixture";
 
 afterEach(cleanup);
 
@@ -109,7 +117,10 @@ describe("FeedbackCard", () => {
   it('incorrect: specific rationale, "Viola: <restricción>" and "Probar otra", no docs', () => {
     const { panel } = renderPanel(play(commands.placeService("api-entry", "ec2")), "api-entry");
     expect(panel.dataset.status).toBe("incorrect");
-    expect(within(panel).getByRole("heading").textContent).toBe("IncorrectoAmazon EC2");
+    // RF-EVAL-07: the title uses the full name of the catalog when there is one.
+    expect(within(panel).getByRole("heading").textContent).toBe(
+      "IncorrectoAmazon Elastic Compute Cloud",
+    );
     expect(tags(panel)).toEqual([
       "violated: Viola: No administrar servidores, sistemas operativos ni parches.",
     ]);
@@ -231,5 +242,105 @@ describe("FeedbackCard", () => {
         `También es óptimo: ${services.get("alb")?.name ?? "alb"}`,
       );
     });
+  });
+});
+
+describe("FeedbackCard: full name and analogy limit (RF-EVAL-07)", () => {
+  const renderLevelZero = (...cmds: Command[]) => {
+    const session = cmds.reduce(
+      (state, command) => applyCommand(state, command).state,
+      newSession(levelZeroScenario),
+    );
+    render(
+      <FeedbackCard
+        session={session}
+        slotId="upload-store"
+        services={levelZeroServices}
+        onAccept={vi.fn()}
+        onRetry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const panel = document.querySelector("section");
+    if (panel === null) throw new Error("no panel");
+    return panel;
+  };
+
+  it("names the service by its full name, not by its plain name, at level 0 too", () => {
+    const panel = renderLevelZero(commands.placeService("upload-store", "s3"));
+    const [title] = within(panel).getAllByRole("heading");
+    expect(title?.textContent).toBe("ÓptimoAmazon Simple Storage Service");
+  });
+
+  it("shows where the analogy breaks below the explanation, with a label, icon and its links", () => {
+    const panel = renderLevelZero(commands.placeService("upload-store", "s3"));
+    const block = within(panel).getByRole("group", { name: "Dónde se rompe la analogía" });
+    expect(within(block).getByRole("heading", { level: 3 }).querySelector("svg")).not.toBeNull();
+    // The same inline markdown as the rationale: React elements, not raw HTML.
+    expect(block.textContent).toContain("acá cada documento es un objeto con su clave.");
+    expect(within(block).getByText("objeto").tagName).toBe("STRONG");
+    // Two references: one link that opens the list, told apart from the rationale's own.
+    const docs = within(block).getByRole("button", {
+      // jsdom joins the sr-only text without the space a browser puts around it.
+      name: /^Documentación ?sobre la analogía/,
+    });
+    expect(docs.textContent).toContain("2 enlaces");
+    // After the explanation, before the objectives.
+    const explanation = within(panel).getByText(/URLs prefirmadas/, { selector: "p" });
+    expect(
+      explanation.compareDocumentPosition(block) & Node.DOCUMENT_POSITION_FOLLOWING,
+    ).toBeTruthy();
+    // Inside the card: the live region reads it with the grade, not as an announcement apart.
+    expect(panel.contains(block)).toBe(true);
+    expect(block.closest("[aria-live]")).toBeNull();
+  });
+
+  it("links a single reference directly", () => {
+    const scenario = {
+      ...levelZeroScenario,
+      diagram: {
+        ...levelZeroScenario.diagram,
+        nodes: levelZeroScenario.diagram.nodes.map((node) =>
+          node.type === "slot" && node.id === "upload-store"
+            ? {
+                ...node,
+                answers: node.answers.map((a) =>
+                  a.service === "s3"
+                    ? {
+                        ...a,
+                        analogyLimit: {
+                          text: "Texto",
+                          references: [S3_ANALOGY_LIMIT.references[0]],
+                        },
+                      }
+                    : a,
+                ),
+              }
+            : node,
+        ),
+      },
+    };
+    render(
+      <FeedbackCard
+        session={
+          applyCommand(newSession(scenario), commands.placeService("upload-store", "s3")).state
+        }
+        slotId="upload-store"
+        services={levelZeroServices}
+        onAccept={vi.fn()}
+        onRetry={vi.fn()}
+        onClose={vi.fn()}
+      />,
+    );
+    const link = screen.getByRole("link", {
+      name: /^Documentación ?sobre la analogía ?\(se abre en otra pestaña\)$/,
+    });
+    expect(link.getAttribute("href")).toBe(S3_ANALOGY_LIMIT.references[0]);
+  });
+
+  it("has no analogy block when the answer has no analogy limit", () => {
+    const panel = renderLevelZero(commands.placeService("upload-store", "efs"));
+    expect(panel.querySelector("[data-analogy-limit]")).toBeNull();
+    expect(within(panel).queryByText("Dónde se rompe la analogía")).toBeNull();
   });
 });

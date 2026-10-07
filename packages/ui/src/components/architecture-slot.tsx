@@ -9,10 +9,12 @@
 // .slot-main-action > p, .architecture-slot > button (src/components/blueprint-app.tsx, styles.css).
 // Motion (RF-PLAY-17, docs/design/motion-spec.md): the service settles and the grade appears when
 // the parent says the slot changed; the grade and its text are there from the first frame.
+import type { ConceptGlyph } from "@blueprint/scenario-schema";
 import * as React from "react";
 import { CircleHelpIcon, PlusIcon } from "lucide-react";
 import { GradeBadge, gradeLabel, type SlotGrade } from "@blueprint/ui/components/grade-badge";
 import { ServiceIcon } from "@blueprint/ui/components/service-icon";
+import { doubleName, ServiceName } from "@blueprint/ui/components/service-name";
 import { motionClass, type MotionMoment } from "@blueprint/ui/lib/motion";
 import { cn } from "@blueprint/ui/lib/utils";
 
@@ -55,6 +57,13 @@ export interface ArchitectureSlotService {
   category: string;
   /** Icon URL (apps/web: icons/<serviceId>.svg); without it, ServiceIcon shows the initials. */
   iconSrc?: string | undefined;
+  /** Glyph of a concept, drawn instead of an icon. */
+  glyph?: ConceptGlyph | undefined;
+  /**
+   * Plain name of a level 0 card (ADR-0027 §6): shown on top, with the name below in 12 px, and
+   * part of the accessible name, «<plainName> (<name>)».
+   */
+  plainName?: string | undefined;
 }
 
 export type ArchitectureSlotProps = Omit<React.ComponentProps<"div">, "children" | "role"> & {
@@ -155,7 +164,10 @@ function ArchitectureSlot({
       role,
       grade,
       number,
-      serviceName: service?.name,
+      serviceName:
+        service?.plainName === undefined
+          ? service?.name
+          : doubleName(service.plainName, service.name),
       emptyText,
     }),
     "aria-describedby": number === undefined ? undefined : roleTextId,
@@ -199,12 +211,24 @@ function ArchitectureSlot({
         >
           <ServiceIcon
             src={service.iconSrc}
+            glyph={service.glyph}
             name={service.name}
             category={service.category}
             decorative
             className="size-[28px] text-[9.28px]"
           />
-          <strong className="line-clamp-2 min-w-0">{service.name}</strong>
+          {service.plainName === undefined ? (
+            <strong className="line-clamp-2 min-w-0">{service.name}</strong>
+          ) : (
+            // The plain name is bigger than the 12 px of the real name below it, the minimum on the
+            // board for it; the slot grows when they need more room.
+            <ServiceName
+              plainName={service.plainName}
+              name={service.name}
+              nameClassName="text-[12px]"
+              className="py-[3.2px] text-[13.6px] font-bold"
+            />
+          )}
         </span>
       ) : (
         <span className="mt-[4.8px] flex min-h-[36px] items-center justify-center gap-[4.8px] rounded-[5px] border border-dashed border-border px-[4.8px] text-left text-[9.76px] leading-tight text-muted-foreground">

@@ -1,6 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Public contract of the board. The board draws what it is told: the app computes each slot
 // state with game-engine and passes it here; the board only emits events.
+import type { ConceptGlyph } from "@blueprint/scenario-schema";
 import type { SlotGrade } from "@blueprint/ui/components/grade-badge";
 
 export type { SlotGrade };
@@ -28,6 +29,13 @@ export interface ServiceInfo {
   category: string;
   /** Icon URL; without it, the initials over the category color. */
   iconSrc?: string | undefined;
+  /** Glyph of a concept (ADR-0027 §1), drawn instead of an icon. */
+  glyph?: ConceptGlyph | undefined;
+  /**
+   * Plain name a revealed slot shows on top of the name (level 0, RF-PAL-06). The app decides
+   * whether to set it; fixed nodes and texts of the board use `name`.
+   */
+  plainName?: string | undefined;
 }
 
 /** What the board tells the app about a slot when it asks for its hint action. */
