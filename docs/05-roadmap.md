@@ -89,6 +89,9 @@ Se implementa en 6 PRs, en este orden (el PR 4 se partió en 4a, juego, y 4b, St
 | 4b · `feat(studio)` (pendiente) | Studio: selector con conceptos y búsqueda por `plainName`, campo `analogyLimit` (obligatorio en el nivel 0) y nivel 0 en el selector de nivel. | RF-STU-19 | — |
 | 5 · `content` | Primeros conceptos (responsabilidad compartida, región, zona de disponibilidad, ubicación de borde, pago por uso, elasticidad, alta disponibilidad…) con fuente oficial verificada y 2 o 3 escenarios de nivel 0 en `beta`. Skill `nuevo-escenario` con las reglas del nivel 0. Usa la [plantilla de PR «Nuevo escenario»](../.github/PULL_REQUEST_TEMPLATE/nuevo-escenario.md), que ya trae el ítem de revisión de analogías. | RF-CNT-09 | — |
 
+**Pendiente después del PR 5**:
+- Tamaño de casillero por nivel: NODE_SIZE por nivel o alto según contenido en el nivel 0, con L007, layout de elk y docs/03 actualizados; decidir con un diseño previo en Lovable.
+
 Todo dato de AWS lleva su referencia oficial; si no se puede verificar, queda como `TODO(verificar)` y el escenario no pasa de `beta`.
 
 **DoD**: un invitado elige «Recién empiezo con la nube», completa los escenarios de nivel 0 y desbloquea el 100; «Recién empiezo» sigue arrancando en 100 y ve el nivel 0 abierto; `content:validate` falla con L021 si una respuesta de nivel 0 no tiene `analogyLimit` y con L005 si un rol repite un `plainName`; el nombre accesible de cada tarjeta del nivel 0 incluye el nombre simple y el real (test e2e); axe sin violaciones `critical` ni `serious` y [pruebas manuales de accesibilidad](accesibilidad.md#7-protocolo-de-pruebas) sobre un escenario de nivel 0; cada analogía revisada por una persona antes de `published`.
