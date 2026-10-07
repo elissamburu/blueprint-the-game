@@ -19,6 +19,7 @@ import { sha256 } from "./content-store.js";
 import {
   createWorkspace,
   realScenarioIds,
+  realUnparsableDraftIds,
   recordingFs,
   studioHeaders,
   testApp,
@@ -58,7 +59,8 @@ describe("GET /api/scenarios", () => {
     const site = scenarios.find((s) => s.id === ID);
     expect(site).toMatchObject({ level: 100, hasErrors: false });
     expect(site?.title).toEqual(expect.any(String));
-    expect(scenarios.filter((s) => s.hasErrors).map((s) => s.id)).toEqual([]);
+    const drafts = await realUnparsableDraftIds();
+    expect(scenarios.filter((s) => s.hasErrors).map((s) => s.id)).toEqual([...drafts]);
   });
 
   it("marks a scenario with errors and keeps listing the others", async () => {
@@ -73,7 +75,10 @@ describe("GET /api/scenarios", () => {
       status: null,
       hasErrors: true,
     });
-    expect(scenarios.filter((s) => s.hasErrors).map((s) => s.id)).toEqual([ID]);
+    const drafts = await realUnparsableDraftIds();
+    expect(scenarios.filter((s) => s.hasErrors && !drafts.has(s.id)).map((s) => s.id)).toEqual([
+      ID,
+    ]);
   });
 });
 
@@ -393,7 +398,9 @@ describe("S10: validation at the border", () => {
 
 describe("PUT /api/scenarios/:id", () => {
   it("opening and saving without changes leaves every scenario and its generated files identical byte for byte", async () => {
-    const ids = await realScenarioIds();
+    const drafts = await realUnparsableDraftIds();
+    // A draft saved with errors has no generated files to keep.
+    const ids = (await realScenarioIds()).filter((id) => !drafts.has(id));
     expect(ids).toEqual(expect.arrayContaining([...FIXTURE_SCENARIO_IDS]));
     const app = testApp(workspace);
     for (const id of ids) {

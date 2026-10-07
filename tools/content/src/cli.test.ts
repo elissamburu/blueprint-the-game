@@ -9,6 +9,9 @@ import { createWorkspace, type Workspace } from "./testing/fixture.js";
 import type { ValidationReport } from "./validate.js";
 
 const CLUB = ["scenarios", "club-photos", "scenario.yaml"];
+const QUEUE = ["scenarios", "photo-queue", "scenario.yaml"];
+const QUEUE_TITLE = 'title: "Pedidos de impresión de fotos"';
+const DRAFT_NOTE = "Es un borrador (status: draft): no bloquea el juego hasta que se commitee";
 
 let ws: Workspace;
 
@@ -168,6 +171,30 @@ describe("content validate", () => {
     expect(leak?.where).toBe("diagram.nodes[1] (store).hints[0]");
   });
 
+  it("reports a draft that does not pass the schema as an error, noting it is a draft", async () => {
+    await ws.edit(QUEUE, QUEUE_TITLE, 'title: ""');
+    const { code, stdout } = await ws.cli("validate");
+    expect(code).toBe(1);
+    expect(stdout).toMatch(
+      /✖ photo-queue .*\n\s+error\s+SCHEMA\s+title: .*\n\s+Es un borrador \(status: draft\)/,
+    );
+    expect(stdout).toContain(DRAFT_NOTE);
+    expect((await validateJson()).scenarios.find((s) => s.id === "photo-queue")).toMatchObject({
+      unparsableDraft: true,
+    });
+  });
+
+  it("does not note a scenario that is not a draft as a draft", async () => {
+    await ws.edit(CLUB, "level: 100", "level: 150");
+    const { code, stdout } = await ws.cli("validate");
+    expect(code).toBe(1);
+    expect(stdout).not.toContain(DRAFT_NOTE);
+    const report = await validateJson();
+    expect(report.scenarios.find((s) => s.id === "club-photos")).not.toHaveProperty(
+      "unparsableDraft",
+    );
+  });
+
   it("reports YAML syntax errors", async () => {
     await ws.write(CLUB, "id: [unclosed\n");
     const report = await validateJson();
@@ -305,6 +332,13 @@ describe("content gen", () => {
     expect(code).toBe(1);
     expect(stdout).toContain('No se generan los archivos de "club-photos"');
   });
+
+  it("--check still fails on a draft that does not pass the schema", async () => {
+    await ws.edit(QUEUE, QUEUE_TITLE, 'title: ""');
+    const { code, stdout } = await ws.cli("gen", "--check");
+    expect(code).toBe(1);
+    expect(stdout).toContain('No se generan los archivos de "photo-queue"');
+  });
 });
 
 describe("content build", () => {
@@ -378,6 +412,42 @@ describe("content build", () => {
       ["photo-queue", "draft"],
       ["regional-backup", "beta"],
     ]);
+  });
+
+  it("with --include-drafts, skips a draft that does not pass the schema with a warning", async () => {
+    await ws.edit(QUEUE, QUEUE_TITLE, 'title: ""');
+    const { code, stdout, stderr } = await ws.cli("build", "--include-drafts");
+    expect(code).toBe(0);
+    expect(stderr).toContain(
+      "warning: se salteó el borrador photo-queue (status: draft, content/scenarios/photo-queue/scenario.yaml) porque no pasa el schema:",
+    );
+    expect(stderr).toMatch(/error\s+SCHEMA\s+title: No puede estar vacío/);
+    expect(stdout).toContain("6 archivos; 2 escenario/s en index.json).\n");
+    expect(await readdir(ws.outDir)).not.toContain("photo-queue.v1.json");
+    expect((await readIndex()).scenarios.map((s) => s.id)).toEqual([
+      "club-photos",
+      "regional-backup",
+    ]);
+  });
+
+  it("with --include-drafts, still fails on other errors and does not skip broken betas", async () => {
+    await ws.edit(QUEUE, QUEUE_TITLE, 'title: ""');
+    await ws.edit(CLUB, "level: 100", "level: 150");
+    const { code, stdout, stderr } = await ws.cli("build", "--include-drafts");
+    expect(code).toBe(1);
+    expect(stderr).toContain("se salteó el borrador photo-queue");
+    expect(stdout).toContain("✖ club-photos");
+    expect(stdout).not.toContain("photo-queue");
+    expect(stdout).toContain("FALLÓ: 1 error, 0 warnings en 2 escenarios.");
+  });
+
+  it("without --include-drafts, a draft that does not pass the schema still fails the build", async () => {
+    await ws.edit(QUEUE, QUEUE_TITLE, 'title: ""');
+    const { code, stdout, stderr } = await ws.cli("build");
+    expect(code).toBe(1);
+    expect(stderr).toBe("");
+    expect(stdout).toContain(DRAFT_NOTE);
+    await expect(stat(ws.outDir)).rejects.toThrow();
   });
 
   it("keeps the JSON of retired scenarios but does not list them", async () => {

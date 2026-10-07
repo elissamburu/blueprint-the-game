@@ -3,7 +3,12 @@
 // their groups and the groups inside their parents, no overlaps, on the grid, inside the canvas
 // with its margin, the flow from left to right, and the same result every time. That the Studio
 // writes only position, rect and canvas (and L007 passes) is tested in apps/studio.
-import { NODE_SIZE, parseScenario, type Diagram } from "@blueprint/scenario-schema";
+import {
+  NODE_SIZE,
+  isUnparsableDraft,
+  parseScenario,
+  type Diagram,
+} from "@blueprint/scenario-schema";
 import { describe, expect, it } from "vitest";
 import { parse as parseYaml } from "yaml";
 import type { Box } from "./geometry";
@@ -22,11 +27,14 @@ const sources = import.meta.glob("../../../content/scenarios/*/scenario.yaml", {
   eager: true,
 });
 
-const diagrams: [string, Diagram][] = Object.entries(sources).map(([path, raw]) => {
-  const parsed = parseScenario(parseYaml(raw));
-  if (!parsed.success) throw new Error(`${path}: ${JSON.stringify(parsed.issues)}`);
-  return [path.split("/").at(-2) ?? path, parsed.data.diagram];
-});
+// A draft saved with errors by the Studio (ADR-0025, S10) has no diagram to lay out.
+const diagrams: [string, Diagram][] = Object.entries(sources)
+  .filter(([, raw]) => !isUnparsableDraft(raw, parseYaml))
+  .map(([path, raw]) => {
+    const parsed = parseScenario(parseYaml(raw));
+    if (!parsed.success) throw new Error(`${path}: ${JSON.stringify(parsed.issues)}`);
+    return [path.split("/").at(-2) ?? path, parsed.data.diagram];
+  });
 
 const inside = (outer: Box, inner: Box) =>
   inner.x >= outer.x &&

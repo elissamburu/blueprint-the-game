@@ -47,7 +47,8 @@ export const USAGE = `Uso:
       Genera el bundle JSON en dist/content (falla si content:validate tiene errores).
       Incluye los escenarios beta, published y retired (retired no se lista en index.json).
       --include-drafts  incluye y lista también los draft (solo desarrollo local; el deploy
-                        nunca lo usa).
+                        nunca lo usa). Un draft que no pasa el schema se saltea
+                        con un warning en lugar de cortar el build.
 
 Opción común: --content <dir> usa otro directorio de contenido (por defecto content/).
 `;
@@ -149,6 +150,16 @@ const run = async (argv: readonly string[], io: CliIo, defaults: CliDefaults): P
         outDir: path.resolve(defaults.cwd, values.out ?? defaults.outDir),
         includeDrafts: values["include-drafts"] === true,
       });
+      for (const draft of result.skippedDrafts) {
+        io.stderr(
+          [
+            `warning: se salteó el borrador ${draft.id} (status: draft, ${draft.file}) porque no pasa el schema:`,
+            ...draft.findings.map((finding) => formatFinding(finding, draft.file)),
+            "  Corregilo en el Studio o corré pnpm content:validate para ver el detalle.",
+            "",
+          ].join("\n"),
+        );
+      }
       if (!result.ok) {
         io.stdout(formatValidationText(result.report));
         io.stdout("FALLÓ: content:build necesita que content:validate pase sin errores.\n");

@@ -3,7 +3,7 @@
 // L007 errors, nothing changes but position, rect and canvas, a second "Ordenar" has nothing left
 // to do, and one undo gives the text back byte for byte (also with CRLF).
 import { autoLayout } from "@blueprint/diagram/layout";
-import { parseDiagramDraft } from "@blueprint/scenario-schema";
+import { isUnparsableDraft, parseDiagramDraft } from "@blueprint/scenario-schema";
 import { history, undo } from "@codemirror/commands";
 import type { EditorState } from "@codemirror/state";
 import { describe, expect, it } from "vitest";
@@ -20,10 +20,10 @@ const sources = import.meta.glob("../../../../content/scenarios/*/scenario.yaml"
   import: "default",
   eager: true,
 });
-const scenarios: [string, string][] = Object.entries(sources).map(([path, text]) => [
-  path.split("/").at(-2) ?? path,
-  text,
-]);
+// A draft saved with errors (ADR-0025, S10) does not reach the lint, so it is left out.
+const scenarios: [string, string][] = Object.entries(sources)
+  .filter(([, text]) => !isUnparsableDraft(text, parseYaml))
+  .map(([path, text]) => [path.split("/").at(-2) ?? path, text]);
 
 /** "Ordenar" over a text: the commands and the counts. */
 const layoutOf = async (text: string) => {

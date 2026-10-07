@@ -2,6 +2,7 @@
 // Fixtures loaded with Vite's ?raw and import.meta.glob (no fs): a small scenario and catalog for
 // the unit tests, and every scenario of content/ with its committed generated files.
 import {
+  isUnparsableDraft,
   parseScenario,
   parseServices,
   type Scenario,
@@ -23,20 +24,6 @@ const parseFixture = (raw: string): Scenario => {
   const result = parseScenario(parse(raw));
   if (!result.success) throw new Error("invalid scenario fixture");
   return result.data;
-};
-
-const isUnparsableDraft = (raw: string): boolean => {
-  let document: unknown;
-  try {
-    document = parse(raw);
-  } catch {
-    return false;
-  }
-  const status =
-    typeof document === "object" && document !== null
-      ? (document as Record<string, unknown>).status
-      : undefined;
-  return status === "draft" && !parseScenario(document).success;
 };
 
 const catalog = parseCatalog(servicesRaw);
@@ -191,7 +178,7 @@ describe("renderGeneratedFiles", () => {
       // The Studio saves drafts with errors (ADR-0025, amendment S10), possibly untracked in a
       // local checkout: a draft that does not parse has no generated files to compare, so it is
       // skipped. Any other scenario that does not parse still fails here.
-      if (isUnparsableDraft(raw)) continue;
+      if (isUnparsableDraft(raw, parse)) continue;
       const generated = renderGeneratedFiles(parseFixture(raw), realCatalog);
       for (const [name, text] of Object.entries(generated)) {
         expect(files[`${dir}${name}`]?.replace(/\r\n/g, "\n"), `${dir}${name}`).toBe(text);
