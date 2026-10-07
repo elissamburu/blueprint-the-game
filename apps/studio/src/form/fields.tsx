@@ -6,6 +6,8 @@
 // shown under it, tied with aria-describedby, and an error marks it with aria-invalid. A message
 // wraps anywhere (a long id or URL never spills out of the form) and, when it appears under the
 // field being edited, it scrolls into view: it is never left cut by the form's scroll container.
+// A text with a maximum length shows its count; screen readers hear it only when it gets close to
+// the limit (at a few thresholds), never on every key.
 import { Button } from "@blueprint/ui/components/button";
 import { Checkbox } from "@blueprint/ui/components/checkbox";
 import { Input } from "@blueprint/ui/components/input";
@@ -20,10 +22,11 @@ import {
 import { Textarea } from "@blueprint/ui/components/textarea";
 import { cn } from "@blueprint/ui/lib/utils";
 import { ArrowDownIcon, ArrowUpIcon, ChevronRightIcon, Trash2Icon } from "lucide-react";
-import { useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
+import { useEffect, useId, useLayoutEffect, useRef, useState, type ReactNode } from "react";
 import type { StudioFinding } from "../../shared/validation";
 import { useTranslation } from "react-i18next";
 import type { EditCommand, EditPath } from "../../shared/document-edit";
+import { FindingNote } from "../validation/ValidationPanel";
 import { listOf, textOf, valueAt } from "./form-data";
 import { useForm } from "./form-context";
 
@@ -88,6 +91,7 @@ function IssueList({ id, findings }: { id: string; findings: readonly StudioFind
             {t(`validation.severity.${finding.severity}`)} {finding.code}:
           </span>{" "}
           {finding.message}
+          <FindingNote code={finding.code} />
         </li>
       ))}
     </ul>
@@ -114,6 +118,42 @@ function Hint({ id, text }: { id: string; text: string | undefined }) {
   );
 }
 
+/** Characters left from which the count is announced, and again at each of these. */
+const COUNT_STEPS = [50, 20] as const;
+
+/** 0: far from the limit; 1, 2: within each of COUNT_STEPS; 3: over the limit. */
+const countStep = (left: number): number =>
+  left < 0 ? COUNT_STEPS.length + 1 : COUNT_STEPS.filter((step) => left <= step).length;
+
+/**
+ * The count of a text with a maximum length: visible (and in the description of the field) on
+ * every key, and said by the status region of the form only when it crosses a step near the limit.
+ */
+function CharacterCount({ id, length, max }: { id: string; length: number; max: number }) {
+  const { t } = useTranslation();
+  const { announce } = useForm();
+  const left = max - length;
+  const step = countStep(left);
+  const previous = useRef(step);
+  useEffect(() => {
+    if (previous.current === step) return;
+    previous.current = step;
+    if (step === 0) return;
+    announce(
+      left < 0
+        ? t("form.count.over", { count: -left, max })
+        : t("form.count.left", { count: left, max }),
+    );
+  }, [announce, left, max, step, t]);
+  return (
+    <p id={id} className={cn("text-sm", left < 0 ? "text-destructive" : "text-muted-foreground")}>
+      {left < 0
+        ? t("form.count.visibleOver", { length, max, count: -left })
+        : t("form.count.visible", { length, max })}
+    </p>
+  );
+}
+
 export function TextField({
   path,
   label,
@@ -124,16 +164,29 @@ export function TextField({
   locked = false,
   optional = false,
   type = "text",
+  maxLength,
+  required = false,
 }: FieldProps & {
   multiline?: boolean;
   locked?: boolean;
   /** Emptying the field removes the key, instead of writing "". */
   optional?: boolean;
   type?: "text" | "url";
+  /** Shows the count of characters; going over is allowed, and the schema reports it. */
+  maxLength?: number;
+  /** Required by the rules of the scenario (said in words by the group, too). */
+  required?: boolean;
 }) {
   const { raw, readOnly, edit, fieldId } = useForm();
   const hintId = useId();
-  const issues = useIssues(path, hint === undefined ? undefined : hintId);
+  const countId = useId();
+  const described = [
+    hint === undefined ? undefined : hintId,
+    maxLength === undefined ? undefined : countId,
+  ]
+    .filter((part): part is string => typeof part === "string")
+    .join(" ");
+  const issues = useIssues(path, described === "" ? undefined : described);
   const id = fieldId(path);
   const value = textOf(valueAt(raw, path));
   const onChange = (next: string) =>
@@ -142,6 +195,7 @@ export function TextField({
     id,
     value,
     readOnly: readOnly || locked,
+    ...(required ? { "aria-required": true } : {}),
     ...ariaOf(issues),
   };
   return (
@@ -162,6 +216,9 @@ export function TextField({
         />
       )}
       <Hint id={hintId} text={hint} />
+      {maxLength !== undefined && (
+        <CharacterCount id={countId} length={value.length} max={maxLength} />
+      )}
       {issues.messages}
     </div>
   );
@@ -220,11 +277,14 @@ export function SelectField({
   options,
   numeric = false,
   none,
+  onChosen,
 }: FieldProps & {
   options: readonly Option[];
   numeric?: boolean;
   /** An option for no value: `null` writes `null`, `undefined` removes the key. */
   none?: { label: string; value: null | undefined };
+  /** After the edit of a chosen option: a follow-up edit, an undo step of its own. */
+  onChosen?: (value: string) => void;
 }) {
   const { t } = useTranslation();
   const { raw, readOnly, edit, fieldId } = useForm();
@@ -245,7 +305,7 @@ export function SelectField({
       <Select
         value={value}
         disabled={readOnly}
-        onValueChange={(next) =>
+        onValueChange={(next) => {
           edit(
             [
               {
@@ -255,8 +315,9 @@ export function SelectField({
               },
             ],
             { isolate: true },
-          )
-        }
+          );
+          onChosen?.(next);
+        }}
       >
         <SelectTrigger id={id} className="w-full" {...ariaOf(issues)}>
           <SelectValue placeholder={t("form.choose")} />

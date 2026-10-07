@@ -146,7 +146,10 @@
     },
     "line": "Línea {{line}}",
     "goToLine": "Ir a la línea {{line}}: {{message}}",
-    "sharedFailed": "No se pudo validar: faltan los archivos compartidos ({{message}})."
+    "sharedFailed": "No se pudo validar: faltan los archivos compartidos ({{message}}).",
+    "notes": {
+      "L022": "El Studio no edita el catálogo: el plainName se agrega con un PR que cambie content/catalog/services.yaml."
+    }
   },
   "draft": {
     "tabs": "Vista del borrador",
@@ -284,6 +287,14 @@
     "moved": "{{item}}: ahora en la posición {{position}} de {{count}}.",
     "removed": "Se quitó {{item}}.",
     "added": "Se agregó {{item}}.",
+    "count": {
+      "visible": "{{length}} de {{max}} caracteres",
+      "visibleOver": "{{length}} de {{max}} caracteres: {{count}} de más",
+      "left_one": "Queda {{count}} carácter de {{max}}.",
+      "left_other": "Quedan {{count}} caracteres de {{max}}.",
+      "over_one": "Sobra {{count}} carácter: el máximo es {{max}}.",
+      "over_other": "Sobran {{count}} caracteres: el máximo es {{max}}."
+    },
     "metadata": {
       "title": "Metadatos",
       "id": "Id",
@@ -293,6 +304,8 @@
       "summary": "Resumen",
       "summaryHint": "Hasta 200 caracteres, para la tarjeta del listado.",
       "level": "Nivel",
+      "levelZero": "0 · Ideas básicas de la nube",
+      "levelZeroArea": "Se marcó el área «{{area}}», la de todo escenario de nivel 0. Podés desmarcarla.",
       "status": "Estado",
       "minutes": "Duración estimada (minutos)",
       "version": "Versión",
@@ -358,6 +371,21 @@
       "addReference": "Agregar referencia",
       "add": "Agregar respuesta"
     },
+    "analogy": {
+      "title": "Dónde se rompe la analogía",
+      "requiredMark": "(obligatorio en el nivel 0)",
+      "requiredHint": "En el nivel 0, cada respuesta dice dónde deja de valer su analogía, con al menos una referencia oficial (docs.aws.amazon.com o aws.amazon.com). Se muestra después de colocar, como la rationale.",
+      "optionalHint": "Opcional: dónde deja de valer la analogía de la explicación, con al menos una referencia oficial (docs.aws.amazon.com o aws.amazon.com). Se muestra después de colocar, como la rationale.",
+      "context": "de «Dónde se rompe la analogía» de la respuesta {{answer}} del casillero {{slot}}",
+      "name": "«Dónde se rompe la analogía» de la respuesta {{answer}} del casillero {{slot}}",
+      "text": "Texto",
+      "references": "Referencias oficiales",
+      "reference": "Referencia {{number}}",
+      "referenceName": "la referencia {{number}} de «Dónde se rompe la analogía» de la respuesta {{answer}} del casillero {{slot}}",
+      "addReference": "Agregar referencia",
+      "add": "Agregar «Dónde se rompe la analogía»",
+      "removeBody": "Se borran del YAML su texto y sus referencias, con sus comentarios. Vaciar el texto no lo quita. Podés deshacerlo con Ctrl + Z."
+    },
     "incorrect": {
       "title": "Incorrectos",
       "lead": "Confusiones típicas, con una explicación específica. Si viola una restricción, marcala.",
@@ -373,10 +401,17 @@
     "service": {
       "none": "Elegir servicio",
       "unknown": "{{id}} (no está en el catálogo)",
+      "chosen": "{{name}} ({{id}})",
+      "chosenConcept": "{{name}} ({{id}}) · concepto",
       "search": "Buscar servicio",
+      "searchConcepts": "Buscar servicio o concepto",
       "list": "Servicios del catálogo",
+      "listConcepts": "Servicios y conceptos del catálogo",
+      "concept": "Concepto",
+      "conceptOption": "{{name}}, concepto{{plainName}} ({{id}})",
       "deprecated": "(obsoleto)",
-      "noResults": "Ningún servicio coincide con la búsqueda."
+      "noResults": "Ningún servicio coincide con la búsqueda.",
+      "noResultsConcepts": "Ningún servicio ni concepto coincide con la búsqueda."
     },
     "diagram": {
       "id": "Id",

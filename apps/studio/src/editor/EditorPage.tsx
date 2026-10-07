@@ -41,6 +41,7 @@ import { useValidation } from "../validation/use-validation";
 import { DraftTabs, type DraftTab } from "../preview/DraftTabs";
 import { EditError, type EditCommand } from "../../shared/document-edit";
 import { ScenarioForm, type ScenarioFormHandle } from "../form/ScenarioForm";
+import { issuePath } from "../form/form-paths";
 import { DiagramTab } from "../diagram/DiagramTab";
 import {
   AUTOSAVE_DELAY_MS,
@@ -256,7 +257,8 @@ export function EditorPage() {
   };
 
   const jump = (finding: StudioFinding) => {
-    if (tab === "form" && finding.path.length > 0 && form.current?.focusPath(finding.path)) return;
+    const path = issuePath(finding);
+    if (tab === "form" && path.length > 0 && form.current?.focusPath(path)) return;
     editor.current?.focusLine(finding.line, finding.column);
   };
   const title = validation.result?.scenario?.title ?? id;

@@ -31,6 +31,7 @@
   },
   "palette": {
     "label": "Paleta de servicios",
+    "labelCards": "Paleta de servicios y conceptos",
     "title": "Servicios",
     "titleCards": "Servicios y conceptos",
     "help": "Arrastrá un servicio a un casillero, o elegí un casillero y después un servicio.",
