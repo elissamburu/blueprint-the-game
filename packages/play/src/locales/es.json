@@ -32,7 +32,9 @@
   "palette": {
     "label": "Paleta de servicios",
     "title": "Servicios",
+    "titleCards": "Servicios y conceptos",
     "help": "Arrastrá un servicio a un casillero, o elegí un casillero y después un servicio.",
+    "helpCards": "Arrastrá una tarjeta a un casillero, o elegí un casillero y después una tarjeta.",
     "forSlot": "Elegí un servicio para «{{role}}». Esc cancela.",
     "pending": "{{service}} elegido: activá un casillero para colocarlo. Esc cancela.",
     "search": "Buscar servicio",

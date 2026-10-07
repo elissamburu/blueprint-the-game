@@ -107,6 +107,8 @@ export function Palette({
     }
   };
 
+  // Level 0 with concepts: the cards are not all services (ADR-0027 §6).
+  const cards = plainNames && serviceIds.some((id) => catalog.get(id)?.type === "concept");
   const help =
     targetRole !== null
       ? t("palette.forSlot", { role: targetRole })
@@ -114,7 +116,7 @@ export function Palette({
         ? t("palette.pending", {
             service: pendingName(catalog.get(pendingServiceId), pendingServiceId, plainNames),
           })
-        : t("palette.help");
+        : t(cards ? "palette.helpCards" : "palette.help");
 
   const toggle = (
     <Button
@@ -171,9 +173,14 @@ export function Palette({
             <div className="flex items-start gap-[0.35rem]">
               <div className="min-w-0">
                 <Kicker>{t("palette.kicker")}</Kicker>
-                <h2 className="mt-1 flex items-center gap-2 text-xl">
-                  {t("palette.title")}
-                  <Badge variant="secondary" className="text-sm">
+                {/* «Servicios y conceptos» takes two lines: the count follows the text, inline,
+                    instead of standing apart at the right edge. */}
+                <h2 className={cn("mt-1 text-xl", !cards && "flex items-center gap-2")}>
+                  {t(cards ? "palette.titleCards" : "palette.title")}
+                  <Badge
+                    variant="secondary"
+                    className={cn("text-sm", cards && "ml-2 align-text-bottom")}
+                  >
                     {serviceIds.length}
                   </Badge>
                 </h2>
@@ -277,6 +284,12 @@ function PaletteItem({
   const { t } = useTranslation("play");
   const { setNodeRef, listeners, isDragging } = useServiceDraggable(service.id);
   const plainName = cardPlainName(service, plainNames);
+  const placedMark = placed && (
+    <span className="ml-auto flex shrink-0 items-center gap-1 text-sm font-normal text-muted-foreground">
+      <CheckIcon aria-hidden className="size-4" />
+      {t("palette.placed")}
+    </span>
+  );
   return (
     <button
       ref={setNodeRef}
@@ -298,20 +311,20 @@ function PaletteItem({
         decorative
       />
       {plainName === undefined ? (
-        <span className="min-w-0 flex-1 break-words">{service.name}</span>
+        <>
+          <span className="min-w-0 flex-1 break-words">{service.name}</span>
+          {placedMark}
+        </>
       ) : (
+        // Two names: the mark goes on the line of the real name, so the plain name keeps the whole
+        // width. It is the same mark, read after both names as before.
         <ServiceName
           plainName={plainName}
           name={service.name}
           nameClassName="text-xs"
-          className="flex-1 break-words"
+          className="flex-1"
+          aside={placedMark}
         />
-      )}
-      {placed && (
-        <span className="flex shrink-0 items-center gap-1 text-sm font-normal text-muted-foreground">
-          <CheckIcon aria-hidden className="size-4" />
-          {t("palette.placed")}
-        </span>
       )}
     </button>
   );

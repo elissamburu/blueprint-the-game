@@ -20,17 +20,19 @@ const renderPalette = ({
   collapsed = false,
   catalog = levelZeroServices,
   placed = [],
+  ids = IDS,
 }: {
   plainNames?: boolean;
   collapsed?: boolean;
   catalog?: ReadonlyMap<string, Service>;
   placed?: string[];
+  ids?: string[];
 }) => {
   const iconSrc = vi.fn((id: string) => `/icons/${id}.svg`);
   render(
     <ServiceDndContext serviceName={(id) => id} slotRole={(id) => id} renderOverlay={() => null}>
       <Palette
-        serviceIds={IDS}
+        serviceIds={ids}
         catalog={catalog}
         iconSrc={iconSrc}
         categories={CATEGORIES}
@@ -73,6 +75,34 @@ describe("Palette at level 0", () => {
     screen.getByRole("button", { name: /^Almacenamiento de archivos \(Amazon S3\) ?En uso$/ });
   });
 
+  it("puts «En uso» on the real name's line, leaving the plain name the whole width", () => {
+    renderPalette({ plainNames: true, placed: ["s3"] });
+    const s3 = card("s3");
+    const real = s3.querySelector('[data-slot="service-name-real"]');
+    // The button holds only the icon and the names: the mark does not sit beside the names.
+    expect([...s3.children].map((child) => child.getAttribute("data-slot"))).toEqual([
+      "service-icon",
+      "service-name",
+    ]);
+    expect(real?.parentElement?.textContent).toBe("Amazon S3En uso");
+  });
+
+  it("calls the palette «Servicios y conceptos» and its cards «tarjetas» when it has concepts", () => {
+    renderPalette({ plainNames: true });
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Servicios y conceptos4");
+    screen.getByText(
+      "Arrastrá una tarjeta a un casillero, o elegí un casillero y después una tarjeta.",
+    );
+  });
+
+  it("keeps «Servicios» at level 0 when the palette has no concepts", () => {
+    renderPalette({ plainNames: true, ids: ["s3", "lambda"] });
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Servicios2");
+    screen.getByText(
+      "Arrastrá un servicio a un casillero, o elegí un casillero y después un servicio.",
+    );
+  });
+
   it("collapsed: the tooltip and the aria-label are the same text", async () => {
     const user = userEvent.setup();
     renderPalette({ plainNames: true, collapsed: true, placed: ["lambda"] });
@@ -108,6 +138,7 @@ describe("Palette at level 0", () => {
 describe("Palette outside level 0", () => {
   it("shows and names each card by its name only, as always", () => {
     renderPalette({});
+    expect(screen.getByRole("heading", { level: 2 }).textContent).toBe("Servicios4");
     const s3 = screen.getByRole("button", { name: "Amazon S3" });
     expect(s3.querySelector('[data-slot="service-name"]')).toBeNull();
     expect(within(s3).queryByText("Almacenamiento de archivos")).toBeNull();
