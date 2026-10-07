@@ -63,9 +63,12 @@ test("recargar conserva el progreso y «Reiniciar progreso» vuelve al onboardin
     await expect(rank).toContainText(RANKS.second);
     await expect(rank).toContainText("300 de 2.000 XP para alcanzar Arquitecto");
     const unlocked = page.getByRole("region", { name: "Niveles desbloqueados" });
+    // Level 0 is open for every experience (ADR-0027); «fundamentos» has no level 100
+    // scenarios, so the level 100 of any area opened its 200 too (CA RF-NAV-03).
     await expect(unlocked.getByRole("definition")).toHaveText([
-      "Nivel 100Nivel 200",
-      "Nivel 100Nivel 200",
+      "Nivel 0Nivel 100Nivel 200",
+      "Nivel 0Nivel 100Nivel 200",
+      "Nivel 0Nivel 100Nivel 200",
     ]);
   });
 

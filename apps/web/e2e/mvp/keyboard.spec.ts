@@ -71,15 +71,19 @@ test("el recorrido completo se hace solo con teclado", async ({ page }) => {
     await page.keyboard.press("Space");
     await expect(area).toHaveAttribute("aria-pressed", "true");
     // A radio group is one stop of the Tab order; the arrows move inside it.
-    const first = page.getByRole("radio", { name: EXPERIENCE.beginner });
+    // With nothing checked, Tab enters the group on its first option.
+    const first = page.getByRole("radio", { name: EXPERIENCE.newcomer, exact: true });
     await tabTo(page, first, "la experiencia");
     await page.keyboard.press("Space");
     await expect(first).toBeChecked();
     // Held for a moment, as a person does: the group checks the option the arrow lands on.
+    const beginner = page.getByRole("radio", { name: EXPERIENCE.beginner, exact: true });
+    await page.keyboard.press("ArrowDown", { delay: KEY_HOLD_MS });
+    await expect(beginner).toBeChecked();
     await page.keyboard.press("ArrowDown", { delay: KEY_HOLD_MS });
     await expect(page.getByRole("radio", { name: EXPERIENCE["aws-user"] })).toBeChecked();
     await page.keyboard.press("ArrowUp", { delay: KEY_HOLD_MS });
-    await expect(first).toBeChecked();
+    await expect(beginner).toBeChecked();
     await tabTo(page, page.getByRole("button", { name: "Ver mi ruta" }), "«Ver mi ruta»");
     await page.keyboard.press("Enter");
     await expect(page.getByRole("heading", { level: 1, name: "Escenarios" })).toBeVisible();

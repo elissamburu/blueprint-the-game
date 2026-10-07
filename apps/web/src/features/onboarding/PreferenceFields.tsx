@@ -2,10 +2,11 @@
 // The two questions of the onboarding (RF-ONB-01, RF-ONB-02), shared with the profile (RF-ONB-03):
 // areas of interest as a group of toggles (aria-pressed) and experience as a radio group,
 // navigable with the arrow keys. The areas come from content/areas.yaml and the experiences from
-// game-rules.yaml, with their texts in i18n.
+// game-rules.yaml, with their texts in i18n. «Recién empiezo con la nube» (`newcomer`, RF-ONB-05)
+// is offered only while there is a level 0 scenario to start with.
 // Lovable: .chip-grid and .experience-list (blueprint-app.tsx, styles.css).
-import type { Experience, GameRules } from "@blueprint/scenario-schema";
-import { EXPERIENCES } from "@blueprint/scenario-schema";
+import type { BundleIndexEntry, Experience, GameRules } from "@blueprint/scenario-schema";
+import { EXPERIENCES, LEVELS } from "@blueprint/scenario-schema";
 import { RadioCardItem } from "@blueprint/ui/components/radio-card";
 import { RadioGroup } from "@blueprint/ui/components/radio-group";
 import { Toggle } from "@blueprint/ui/components/toggle";
@@ -53,14 +54,35 @@ export function AreaToggles({
   );
 }
 
+/**
+ * `newcomer` starts at level 0 (RF-ONB-05): while the index lists no level 0 scenario, choosing it
+ * would lead to an empty listing, so it is not offered (unless it is the player's current value,
+ * in the profile).
+ */
+export const offeredExperiences = (
+  rules: Pick<GameRules, "unlock">,
+  scenarios: readonly Pick<BundleIndexEntry, "level">[],
+  value: Experience | null,
+): Experience[] => {
+  const hasFirstLevel = scenarios.some((scenario) => scenario.level === LEVELS[0]);
+  return EXPERIENCES.filter(
+    (e) =>
+      rules.unlock.byExperience[e] !== undefined &&
+      (e !== "newcomer" || hasFirstLevel || value === e),
+  );
+};
+
 export function ExperienceRadios({
   rules,
+  scenarios,
   value,
   onChange,
   description,
   className,
 }: {
   rules: Pick<GameRules, "unlock">;
+  /** Listed scenarios (the bundle index), to offer `newcomer` only with level 0 content. */
+  scenarios: readonly Pick<BundleIndexEntry, "level">[];
   value: Experience | null;
   onChange: (experience: Experience) => void;
   /** Help text under the question, tied to the group with aria-describedby. */
@@ -69,7 +91,7 @@ export function ExperienceRadios({
 }) {
   const { t } = useTranslation();
   const id = useId();
-  const experiences = EXPERIENCES.filter((e) => rules.unlock.byExperience[e] !== undefined);
+  const experiences = offeredExperiences(rules, scenarios, value);
   return (
     <fieldset className={className}>
       <legend id={`${id}-legend`} className="mb-[0.8rem] font-bold">

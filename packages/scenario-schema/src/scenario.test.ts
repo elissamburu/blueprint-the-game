@@ -58,7 +58,7 @@ describe("parseScenario: clear errors in Spanish", () => {
       {
         path: ["level"],
         where: "level",
-        message: "El nivel 150 no existe: tiene que ser 100, 200, 300 o 400",
+        message: "El nivel 150 no existe: tiene que ser 0, 100, 200, 300 o 400",
       },
     ]);
   });
@@ -278,7 +278,7 @@ describe("formatIssues", () => {
     expect(formatIssues(issuesOf(scenario))).toBe(
       [
         'status: status "live" no es válido: usá "draft", "beta", "published", "retired"',
-        "level: El nivel 150 no existe: tiene que ser 100, 200, 300 o 400",
+        "level: El nivel 150 no existe: tiene que ser 0, 100, 200, 300 o 400",
       ].join("\n"),
     );
   });

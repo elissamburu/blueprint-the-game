@@ -12,7 +12,7 @@ import {
   type ScenarioResult,
   type SessionState,
 } from "@blueprint/game-engine";
-import type { Area, GameRules } from "@blueprint/scenario-schema";
+import { LEVELS, type Area, type GameRules } from "@blueprint/scenario-schema";
 import type { TFunction } from "i18next";
 import * as z from "zod";
 
@@ -69,7 +69,7 @@ export const areaList = (ids: readonly string[], areas: readonly Pick<Area, "id"
 
 const count = z.number().int().nonnegative();
 const RankSchema = z.object({ id: z.string(), name: z.string(), minXp: count });
-const LevelSchema = z.union([z.literal(100), z.literal(200), z.literal(300), z.literal(400)]);
+const LevelSchema = z.literal(LEVELS);
 
 const ProgressEventSchema = z.discriminatedUnion("type", [
   z.object({ type: z.literal("xpGained"), amount: count, total: count }),

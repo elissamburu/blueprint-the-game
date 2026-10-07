@@ -163,7 +163,7 @@ test.describe("forced-colors: active", () => {
     await page.goto("/");
     expect(await page.evaluate(() => matchMedia("(forced-colors: active)").matches)).toBe(true);
     await page.getByRole("button", { name: AREAS.serverless, exact: true }).click();
-    await page.getByRole("radio", { name: EXPERIENCE.beginner }).click();
+    await page.getByRole("radio", { name: EXPERIENCE.beginner, exact: true }).click();
     const route = page.getByRole("button", { name: "Ver mi ruta" });
     await expectVisibleBorder(route);
     await route.click();

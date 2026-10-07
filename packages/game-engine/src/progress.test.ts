@@ -68,7 +68,9 @@ describe("createProgress", () => {
       xp: 0,
       best: {},
       unlocked: [
+        { area: "data", level: 0 },
         { area: "data", level: 100 },
+        { area: "serverless", level: 0 },
         { area: "serverless", level: 100 },
       ],
       started: [],
@@ -83,10 +85,11 @@ describe("createProgress", () => {
         ),
       ),
     ];
-    expect(levels("beginner")).toEqual([100]);
-    expect(levels("aws-user")).toEqual([100, 200]);
-    expect(levels("architect")).toEqual([100, 200, 300]);
-    expect(levels("expert")).toEqual([100, 200, 300, 400]);
+    expect(levels("newcomer")).toEqual([0]);
+    expect(levels("beginner")).toEqual([0, 100]);
+    expect(levels("aws-user")).toEqual([0, 100, 200]);
+    expect(levels("architect")).toEqual([0, 100, 200, 300]);
+    expect(levels("expert")).toEqual([0, 100, 200, 300, 400]);
   });
 
   it("keeps each area of interest once", () => {
@@ -274,10 +277,11 @@ describe("refreshUnlocks", () => {
     );
     const withNewArea = [...scenarios, { id: "ml-100", level: 100 as const, areas: ["ml"] }];
     const { progress: next, events } = refreshUnlocks(progress, withNewArea, gameRules);
-    // 100 and 200 by experience; "ml" has no level-200 scenarios, so 300 waits for "s-200".
-    expect(next.unlocked.filter((u) => u.area === "ml").map((u) => u.level)).toEqual([100, 200]);
+    // 0, 100 and 200 by experience; "ml" has no level-200 scenarios, so 300 waits for "s-200".
+    expect(next.unlocked.filter((u) => u.area === "ml").map((u) => u.level)).toEqual([0, 100, 200]);
     expect(next.unlocked.filter((u) => u.area !== "ml")).toEqual(progress.unlocked);
     expect(events).toEqual([
+      { type: "levelUnlocked", level: 0, areas: ["ml"] },
       { type: "levelUnlocked", level: 100, areas: ["ml"] },
       { type: "levelUnlocked", level: 200, areas: ["ml"] },
     ]);

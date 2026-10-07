@@ -47,9 +47,41 @@ export const PHOTO_QUEUE = {
   },
 } as const;
 
-export const AREAS = { serverless: "Serverless", storage: "Almacenamiento" } as const;
+/**
+ * Level 0 (ADR-0027), area «fundamentos», three slots with only an optimal answer each: two
+ * concepts and a service, all with a plain name. Its palette is curated: the three answers and
+ * four distractors.
+ */
+export const PIZZERIA = {
+  id: "pizzeria",
+  title: "Una pizzería que abre en otra ciudad",
+  slots: {
+    city: {
+      number: 1,
+      role: "La ciudad donde la pizzería abre, elegida por estar cerca de sus clientes.",
+      optimal: "Región de AWS",
+    },
+    kitchens: {
+      number: 2,
+      role: "Dos cocinas en edificios distintos de la misma ciudad, con luz propia cada una.",
+      optimal: "Zona de disponibilidad",
+    },
+    recipes: {
+      number: 3,
+      role: "El lugar donde se guardan las recetas y las fotos del menú.",
+      optimal: "Amazon S3",
+    },
+  },
+} as const;
+
+export const AREAS = {
+  fundamentos: "Fundamentos de la nube",
+  serverless: "Serverless",
+  storage: "Almacenamiento",
+} as const;
 
 export const EXPERIENCE = {
+  newcomer: "Recién empiezo con la nube",
   beginner: "Recién empiezo",
   "aws-user": "Uso AWS",
   architect: "Diseño arquitecturas",

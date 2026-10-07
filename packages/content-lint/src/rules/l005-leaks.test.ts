@@ -2,7 +2,7 @@
 import { describe, expect, it } from "vitest";
 import { createContext } from "../lint.js";
 import { baseInput, catalog, runRule, service, slotById } from "../testing/fixtures.js";
-import { l005, leakRegExp } from "./l005-leaks.js";
+import { l005, leakRegExp, plainNameLeaks } from "./l005-leaks.js";
 
 describe("L005 leaks", () => {
   it("passes when no text names a hidden service", () => {
@@ -125,6 +125,80 @@ describe("L005 leaks", () => {
     input.catalog = catalog.filter((s) => s.id !== "s3");
     input.scenario.title = "Todo en S3";
     expect(l005.check(createContext(input))).toEqual([]);
+  });
+});
+
+describe("L005 plainName at level 0 (ADR-0027 §5)", () => {
+  /** Level 0 input whose S3 and EFS have a plain name. */
+  const levelZero = (mutate: (input: ReturnType<typeof baseInput>) => void) => {
+    const input = baseInput();
+    input.scenario.level = 0;
+    input.catalog = catalog.map((entry) =>
+      entry.id === "s3"
+        ? { ...entry, plainName: "Almacenamiento de archivos" }
+        : entry.id === "efs"
+          ? { ...entry, plainName: "Depósito compartido" }
+          : entry,
+    );
+    mutate(input);
+    return l005.check(createContext(input));
+  };
+
+  it("fails when a text repeats the whole plain name of an answer", () => {
+    const issues = levelZero((input) => {
+      slotById(input.scenario, "store").role = "El almacenamiento de archivos de la pizzería.";
+    });
+    expect(issues).toEqual([
+      {
+        code: "L005",
+        severity: "error",
+        message:
+          'El texto nombra "Almacenamiento de archivos", que delata Amazon S3, respuesta del casillero "store". Reformulalo sin nombrar el servicio.',
+        path: ["diagram", "nodes", 1, "role"],
+      },
+    ]);
+  });
+
+  it("does not flag a single word of the plain name", () => {
+    expect(
+      levelZero((input) => {
+        slotById(input.scenario, "store").role = "Donde quedan los archivos de la pizzería.";
+        input.scenario.context = "Un almacenamiento que no se pierde.";
+      }),
+    ).toEqual([]);
+  });
+
+  it("ignores case and diacritics, on both sides", () => {
+    expect(
+      levelZero((input) => {
+        input.scenario.summary = "Todo va al ALMACENAMIENTO DE ÁRCHIVOS.";
+      }).map((issue) => [issue.severity, issue.path]),
+    ).toEqual([["error", ["summary"]]]);
+    expect(
+      levelZero((input) => {
+        input.scenario.context = "Hoy usan un deposito compartido.";
+      }).map((issue) => [issue.severity, issue.path]),
+    ).toEqual([["warning", ["context"]]]);
+  });
+
+  it("only checks plain names at level 0", () => {
+    expect(
+      runRule(l005, (scenario, input) => {
+        input.catalog = input.catalog.map((entry) =>
+          entry.id === "s3" ? { ...entry, plainName: "Almacenamiento de archivos" } : entry,
+        );
+        scenario.summary = "El almacenamiento de archivos del club.";
+      }),
+    ).toEqual([]);
+  });
+});
+
+describe("plainNameLeaks", () => {
+  it("matches the whole phrase on word boundaries", () => {
+    expect(plainNameLeaks("Lugar del mundo", "un lugar del mundo cercano")).toBe(true);
+    expect(plainNameLeaks("Lugar del mundo", "un lugar del mundial")).toBe(false);
+    expect(plainNameLeaks("Región elegida", "la region\nelegida")).toBe(true);
+    expect(plainNameLeaks("Año", "el ano")).toBe(true);
   });
 });
 

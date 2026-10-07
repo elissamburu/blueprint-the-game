@@ -65,7 +65,7 @@ id: serverless-pdf-processing    # = nombre de carpeta
 version: 1                       # versión del CONTENIDO; incrementar si cambian respuestas/grados
 status: draft                    # draft | beta | published | retired
 lang: es
-level: 200                       # 100 | 200 | 300 | 400
+level: 200                       # 0 | 100 | 200 | 300 | 400
 areas: [serverless, storage]     # ids de content/areas.yaml (≥1)
 title: "…"                       # ≤ 80 caracteres, sin nombres de servicios ocultos
 summary: "…"                     # ≤ 200 caracteres, para la tarjeta del listado
@@ -137,7 +137,8 @@ diagram:
 palette:                         # opcional
   mode: auto                     # auto | curated | categories | categories-plus | full
   maxSize: 12                    # solo con mode curated o auto; con auto aplica solo si el nivel
-                                 # resuelve a curated (game-rules). Default: palette.defaultMaxSize
+                                 # resuelve a curated (game-rules). Default: palette.maxSizeByLevel
+                                 # del nivel o, si no lo define, palette.defaultMaxSize
   extra: [efs]                   # distractores extra sin explicación específica
 references:                      # opcional: lecturas generales del escenario
   - title: "…"
@@ -166,7 +167,7 @@ El modo de paleta **resuelto** es `palette.mode` si es explícito, o `game-rules
 3. `palette.extra`.
 4. Los compañeros de grupos de confusión de las respuestas, salvo los `deprecated`.
 
-Dentro de cada paso se respeta el orden de aparición (nodos en orden del diagrama y, dentro de cada uno, el orden de sus listas; grupos de confusión en el orden del archivo). Se omiten los servicios ya agregados, los servicios de nodos `fixed` como distractores y los que no están en el catálogo (L002 los reporta). Servicios `deprecated` (RF-PAL-05): aparecen si el autor los eligió explícitamente (respuesta, `incorrect` o `palette.extra`; L010 lo advierte cuando no es `optimal`), pero nunca llegan solo por el relleno automático del paso 4. Los distractores (pasos 2–4) se recortan al llegar a `maxSize` (`palette.maxSize` o `palette.defaultMaxSize` de game-rules).
+Dentro de cada paso se respeta el orden de aparición (nodos en orden del diagrama y, dentro de cada uno, el orden de sus listas; grupos de confusión en el orden del archivo). Se omiten los servicios ya agregados, los servicios de nodos `fixed` como distractores y los que no están en el catálogo (L002 los reporta). Servicios `deprecated` (RF-PAL-05): aparecen si el autor los eligió explícitamente (respuesta, `incorrect` o `palette.extra`; L010 lo advierte cuando no es `optimal`), pero nunca llegan solo por el relleno automático del paso 4. Los distractores (pasos 2–4) se recortan al llegar a `maxSize`, con esta precedencia (`curatedMaxSize`): `palette.maxSize` del escenario > `palette.maxSizeByLevel[level]` de game-rules > `palette.defaultMaxSize` de game-rules.
 
 ### Semántica de la evaluación
 
@@ -206,11 +207,11 @@ Un `acceptable` referencia **solo** objetivos `soft` (L020): una restricción `h
 | L002 | error | Todo `service` existe en `content/catalog/services.yaml` (nodos `fixed`, `answers`, `incorrect` y `palette.extra`). |
 | L003 | error | Cada `slot` tiene ≥ 1 respuesta `optimal`. |
 | L004 | error | Cada `optimal`/`acceptable` referencia objetivos (`objectives[].id`) existentes. Que la `rationale` no esté vacía y que haya ≥ 1 objetivo lo valida el schema. |
-| **L005** | **error / warning** | **Sin filtraciones**: ningún `leakPattern` aparece en `title`, `summary`, `context`, `objectives[].text`, `role`, `hints`, `label` de grupos, `label` de nodos `actor`/`external` o `label`/`description` de aristas. Case-insensitive, por límites de palabra que reconocen acentos y ñ. **Error** si nombra una respuesta (`optimal` o `acceptable`) de cualquier casillero: un `acceptable` también confirma que el jugador va bien. **Warning** si nombra un servicio de `incorrect` o de `palette.extra`: filtra por eliminación, pero puede haber usos narrativos legítimos (decide el autor). Los servicios de nodos `fixed` se ignoran siempre, aunque sean respuesta de otro casillero, porque ya son visibles. Los servicios que no participan del escenario no tienen restricción. |
+| **L005** | **error / warning** | **Sin filtraciones**: ningún `leakPattern` aparece en `title`, `summary`, `context`, `objectives[].text`, `role`, `hints`, `label` de grupos, `label` de nodos `actor`/`external` o `label`/`description` de aristas. Case-insensitive, por límites de palabra que reconocen acentos y ñ. **Error** si nombra una respuesta (`optimal` o `acceptable`) de cualquier casillero: un `acceptable` también confirma que el jugador va bien. **Warning** si nombra un servicio de `incorrect` o de `palette.extra`: filtra por eliminación, pero puede haber usos narrativos legítimos (decide el autor). Los servicios de nodos `fixed` se ignoran siempre, aunque sean respuesta de otro casillero, porque ya son visibles. Los servicios que no participan del escenario no tienen restricción. **En el nivel 0** también cuenta el `plainName` de cada entrada como un patrón más, con la misma severidad, pero por **frase completa**, sin distinguir mayúsculas ni tildes: «Almacenamiento de archivos» filtra en «el almacenamiento de archivos de la pizzería», pero «archivos» solo no ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md) §5). |
 | L006 | error | Aristas referencian nodos existentes; `step` sin huecos (1..n). Que `step` sea entero ≥ 1 lo valida el schema. |
 | L007 | error / warning | Con las cajas de `NODE_SIZE` (§2). **Error**: un nodo o un grupo fuera del `canvas`; un nodo con `group` fuera del `rect` de su grupo; un grupo hijo fuera del `rect` de su `parent`; dos nodos cualesquiera superpuestos (compartir solo el borde no cuenta). **Warning**: grupos hermanos (mismo `parent`) superpuestos, porque hay superposiciones legítimas (p. ej. un grupo `generic` transversal a varias subredes) pero casi siempre es un descuido; un nodo **sin** `group` cuya caja queda dentro del `rect` de un grupo (suele ser un `group` olvidado). |
 | L008 | error | Un servicio no aparece dos veces en el mismo casillero (entre `answers` e `incorrect`). |
-| L009 | warning | Cantidad de casilleros recomendada por nivel — 100: 2–4 · 200: 4–7 · 300: 6–10 · 400: 8–14. |
+| L009 | warning | Cantidad de casilleros recomendada por nivel — 0: 3–5 · 100: 2–4 · 200: 4–7 · 300: 6–10 · 400: 8–14. |
 | L010 | error / warning | Servicio `deprecated`: error si es `optimal`; warning en otros usos. |
 | L011 | warning | Cada `optimal` tiene ≥ 1 `reference` a documentación oficial (dominios permitidos, por coincidencia exacta del host: `docs.aws.amazon.com`, `aws.amazon.com`). |
 | L012 | error | `diagram.mmd` y `README.md` sincronizados (`content:gen --check`). `content-lint` exporta la comparación pura (`checkGeneratedFiles`, ignora finales de línea CRLF); el CLI lee los archivos y corre el generador. |
@@ -222,6 +223,8 @@ Un `acceptable` referencia **solo** objetivos `soft` (L020): una restricción `h
 | L018 | error | Ids únicos dentro de cada colección (`objectives`, `diagram.groups`, `diagram.nodes`, `diagram.edges`); `node.group` y `group.parent` apuntan a grupos existentes, sin ciclos de anidamiento. Las demás referencias viven en una sola regla: `answers[].objectives` en L004, `incorrect[].violates` en L015 y `from`/`to` de aristas en L006. |
 | L019 | error | Cada id de `areas` existe en `content/areas.yaml`. |
 | L020 | error | En una respuesta `acceptable`, `objectives` referencia solo objetivos `kind: soft`: son las metas que cumple a medias (§2 "Objetivos de cada respuesta"). Una restricción `hard` no se cumple a medias: si no se cumple, el servicio va en `incorrect` con `violates`. Los ids inexistentes los reporta L004. |
+| L021 | error | En el nivel 0, toda respuesta `optimal` o `acceptable` tiene `analogyLimit` (dónde se rompe la analogía; el schema ya exige ≥ 1 referencia oficial en él). |
+| L022 | error | En el nivel 0, toda entrada de la paleta **resuelta** (la misma que arma el motor, `buildPalette`) y de los nodos `fixed` tiene `plainName` en el catálogo: la tarjeta del nivel 0 muestra primero el nombre simple. Las entradas que no están en el catálogo las reporta L002. |
 
 ### Integridad entre archivos compartidos (C0xx)
 
@@ -236,7 +239,7 @@ Un `acceptable` referencia **solo** objetivos `soft` (L020): una restricción `h
 | C005 | error | Ids únicos en cada archivo: servicios, categorías, grupos de confusión, áreas, insignias y rangos de `game-rules.yaml`. |
 | C006 | error | El `area` de las reglas de insignias (`complete_count`, `area_mastery`) existe en `areas.yaml`. Que `level` y `minLevel` sean niveles válidos (100, 200, 300, 400) lo valida el schema. |
 | C007 | error | Los `ranks` de `game-rules.yaml` empiezan en `minXp: 0` y siguen ordenados por `minXp` estrictamente creciente (sin umbrales repetidos). |
-| C008 | error | En `unlock.byExperience` de `game-rules.yaml`, cada experiencia incluye el nivel 100 y sus niveles son contiguos, sin saltos (p. ej. `[100, 300]` falla). El orden dentro de la lista no importa. |
+| C008 | error | En `unlock.byExperience` de `game-rules.yaml`, cada experiencia incluye el nivel 0 y sus niveles son contiguos, sin saltos (p. ej. `[0, 100, 300]` o `[100, 200]` fallan). El nivel 0 no tiene un nivel anterior que lo abra: una experiencia sin él dejaría sus escenarios bloqueados para siempre ([ADR-0027](adr/0027-nivel-0-y-conceptos-en-el-catalogo.md) §3). El orden dentro de la lista no importa. |
 | C009 | warning | Un grupo de confusión incluye un servicio `deprecated`. La paleta curated no lo agrega como compañero de grupo (paso 4 de "Paleta curated"), así que el grupo pierde ese distractor salvo que el escenario lo nombre explícitamente. |
 | C010 | warning | El mismo `leakPattern`, comparado sin distinguir mayúsculas, aparece en más de un servicio: L005 no puede distinguir cuál de los dos filtra. Las repeticiones dentro de un mismo servicio no se reportan. |
 | C011 | error | Un concepto (`type: concept`) va en una categoría `kind: concept` y un servicio en una `kind: service`. Si la categoría no existe, lo reporta C001. |
@@ -349,7 +352,7 @@ scoring:
   acceptedAcceptable: 50          # naranja aceptado por el jugador
   hintCost: 15                    # por pista usada (el puntaje del casillero no baja de 0)
   revealedSolution: 0             # casillero con la solución vista (RF-PLAY-14); ≤ acceptedAcceptable y ≤ greenAfterErrors.min
-levelMultipliers: { 100: 1, 200: 1.5, 300: 2, 400: 3 }   # los cuatro niveles son obligatorios
+levelMultipliers: { 0: 0.5, 100: 1, 200: 1.5, 300: 2, 400: 3 }   # los cinco niveles son obligatorios
 ranks:                            # ≥ 1, umbral de XP acumulada
   - { id: aprendiz, name: Aprendiz, minXp: 0 }
   - { id: constructor, name: Constructor, minXp: 1000 }
@@ -358,14 +361,17 @@ unlock:
                                   # para abrir N+1 en esa área; si el área no tiene escenarios de N,
                                   # min(3, escenarios de N de cualquier área) de cualquier área; si no
                                   # hay escenarios de N en ninguna, no se abre (RF-NAV-03)
-  byExperience:                   # niveles desbloqueados al inicio en todas las áreas (las 4 claves)
-    beginner: [100]
-    aws-user: [100, 200]
-    architect: [100, 200, 300]
-    expert: [100, 200, 300, 400]
+  byExperience:                   # niveles desbloqueados al inicio en todas las áreas (las 5 claves);
+                                  # todas incluyen el 0 (C008)
+    newcomer: [0]                 # Recién empiezo con la nube (RF-ONB-05)
+    beginner: [0, 100]
+    aws-user: [0, 100, 200]
+    architect: [0, 100, 200, 300]
+    expert: [0, 100, 200, 300, 400]
 palette:
-  modeByLevel: { 100: curated, 200: categories, 300: categories-plus, 400: full }  # a qué resuelve `auto`
+  modeByLevel: { 0: curated, 100: curated, 200: categories, 300: categories-plus, 400: full }  # a qué resuelve `auto`
   defaultMaxSize: 12              # maxSize de curated si el escenario no lo define
+  maxSizeByLevel: { 0: 8 }        # opcional, por nivel: palette.maxSize del escenario > maxSizeByLevel > defaultMaxSize
 ```
 
 `modeByLevel` acepta `curated`, `categories`, `categories-plus` y `full` (no `auto`, que es justamente lo que se resuelve con esta tabla).

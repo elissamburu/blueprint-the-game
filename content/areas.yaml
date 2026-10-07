@@ -2,6 +2,9 @@
 # Áreas de interés (RF-ONB-01, docs/03 §6). Los escenarios las referencian en `areas` y el
 # jugador las elige en el onboarding.
 
+- id: fundamentos
+  name: Fundamentos de la nube
+  description: "Las ideas básicas de la nube explicadas con situaciones cotidianas."
 - id: serverless
   name: Serverless
   description: "Arquitecturas sin servidores que administrar, que escalan y cobran por uso."

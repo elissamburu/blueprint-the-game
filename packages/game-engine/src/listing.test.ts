@@ -161,6 +161,8 @@ describe("lockReason", () => {
       level: 200,
       area: "data",
     });
-    expect(lockReason([], { level: 100, areas: [] }, listed)).toEqual({ level: 100, area: null });
+    expect(lockReason([], { level: 100, areas: [] }, listed)).toEqual({ level: 0, area: null });
+    // Level 0 has no previous level: its own level is the step.
+    expect(lockReason([], { level: 0, areas: [] }, listed)).toEqual({ level: 0, area: null });
   });
 });

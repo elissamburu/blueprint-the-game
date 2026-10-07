@@ -32,6 +32,15 @@ describe("L009 slot count by level", () => {
     ]);
   });
 
+  it("recommends 3 to 5 slots at level 0", () => {
+    const issues = runRule(l009, (scenario) => {
+      scenario.level = 0;
+    });
+    expect(issues.map((issue) => issue.message)).toEqual([
+      "El escenario tiene 2 casilleros; para el nivel 0 se recomiendan entre 3 y 5.",
+    ]);
+  });
+
   it("uses the singular for one slot", () => {
     const issues = runRule(l009, (scenario) => {
       scenario.diagram.nodes.splice(2, 1);

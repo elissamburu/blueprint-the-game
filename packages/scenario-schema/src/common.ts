@@ -14,7 +14,7 @@ export const MAX_LENGTH = {
   analogyLimit: 300,
 } as const;
 
-export const LEVELS = [100, 200, 300, 400] as const;
+export const LEVELS = [0, 100, 200, 300, 400] as const;
 
 /**
  * Hosts of official AWS documentation, matched exactly (lint L011, `analogyLimit.references`,
@@ -66,7 +66,7 @@ export const level = () =>
     error: (iss) =>
       iss.input === undefined
         ? undefined
-        : `El nivel ${JSON.stringify(iss.input)} no existe: tiene que ser 100, 200, 300 o 400`,
+        : `El nivel ${JSON.stringify(iss.input)} no existe: tiene que ser 0, 100, 200, 300 o 400`,
   });
 
 export const positiveInt = () =>

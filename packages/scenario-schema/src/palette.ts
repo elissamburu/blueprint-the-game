@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Palette resolution shared by content-lint (L016) and game-engine (docs/03 §2, RF-128).
+// Palette resolution shared by content-lint (L016, L022) and game-engine (docs/03 §2, RF-128).
 import type { Category, ConfusionGroup, Service } from "./catalog.js";
 import type { CONCRETE_PALETTE_MODES, LEVELS } from "./common.js";
 import type { GameRules } from "./game.js";
@@ -18,8 +18,24 @@ export const resolvePaletteMode = (
   return gameRules.palette.modeByLevel[level];
 };
 
+/**
+ * Size limit of a curated palette: the scenario's `palette.maxSize`, else
+ * `gameRules.palette.maxSizeByLevel[level]`, else `gameRules.palette.defaultMaxSize`.
+ */
+export const curatedMaxSize = (
+  scenario: Pick<Scenario, "level" | "palette">,
+  gameRules: Pick<GameRules, "palette">,
+): number => {
+  const palette = scenario.palette;
+  if (palette !== undefined && "maxSize" in palette && palette.maxSize !== undefined) {
+    return palette.maxSize;
+  }
+  const level = String(scenario.level) as `${(typeof LEVELS)[number]}`;
+  return gameRules.palette.maxSizeByLevel?.[level] ?? gameRules.palette.defaultMaxSize;
+};
+
 export interface CuratedPalette {
-  /** `palette.maxSize`, or `gameRules.palette.defaultMaxSize` when the scenario has none. */
+  /** Size limit from `curatedMaxSize`. */
   maxSize: number;
   /** Final palette: every answer first, then the distractors that fit. */
   services: string[];
@@ -43,7 +59,7 @@ export interface CuratedPalette {
  * missing from the catalog (lint L002 reports those). Distractors are cut at `maxSize`.
  */
 export const buildCuratedPalette = (
-  scenario: Pick<Scenario, "diagram" | "palette">,
+  scenario: Pick<Scenario, "level" | "diagram" | "palette">,
   catalog: readonly Pick<Service, "id" | "status">[],
   confusionGroups: readonly Pick<ConfusionGroup, "services">[],
   gameRules: Pick<GameRules, "palette">,
@@ -53,10 +69,7 @@ export const buildCuratedPalette = (
     catalog.filter((service) => service.status === "deprecated").map((service) => service.id),
   );
   const palette = scenario.palette;
-  const maxSize =
-    palette !== undefined && "maxSize" in palette && palette.maxSize !== undefined
-      ? palette.maxSize
-      : gameRules.palette.defaultMaxSize;
+  const maxSize = curatedMaxSize(scenario, gameRules);
 
   const nodes = scenario.diagram.nodes;
   const answers = unique(
@@ -87,6 +100,73 @@ export const buildCuratedPalette = (
     answers,
     distractors,
     dropped: allDistractors.slice(room),
+  };
+};
+
+export interface PaletteContent {
+  readonly catalog: readonly Pick<Service, "id" | "type" | "category" | "status">[];
+  readonly categories: readonly Pick<Category, "id" | "adjacent">[];
+  readonly confusionGroups: readonly Pick<ConfusionGroup, "services">[];
+  readonly rules: Pick<GameRules, "palette">;
+}
+
+export interface ScenarioPalette {
+  readonly mode: ConcretePaletteMode;
+  /** Service ids. `curated` keeps its build order; the other modes follow the catalog order. */
+  readonly services: readonly string[];
+}
+
+/**
+ * Palette of a scenario by resolved mode (RF-PAL-01, RF-PAL-05, docs/01 "Modos de paleta"),
+ * used by game-engine to play and by content-lint (L022):
+ * - `curated`: `buildCuratedPalette`.
+ * - `categories`: every service of the categories of the answers.
+ * - `categories-plus`: `categories` plus the adjacent categories.
+ * - `full`: the whole catalog.
+ * The last three also include the services the scenario uses (answers, `incorrect`,
+ * `palette.extra`); `deprecated` services (RF-PAL-05) and concepts (RF-PAL-07) appear only if
+ * the scenario uses them: concepts never fill these modes.
+ */
+export const buildPalette = (
+  scenario: Pick<Scenario, "level" | "diagram" | "palette">,
+  content: PaletteContent,
+): ScenarioPalette => {
+  const mode = resolvePaletteMode(scenario, content.rules);
+  if (mode === "curated") {
+    const curated = buildCuratedPalette(
+      scenario,
+      content.catalog,
+      content.confusionGroups,
+      content.rules,
+    );
+    return { mode, services: curated.services };
+  }
+
+  const slots = scenario.diagram.nodes.flatMap((node) => (node.type === "slot" ? [node] : []));
+  const answers = new Set(slots.flatMap((slot) => slot.answers.map((a) => a.service)));
+  const used = new Set([
+    ...answers,
+    ...slots.flatMap((slot) => slot.incorrect.map((i) => i.service)),
+    ...(scenario.palette?.extra ?? []),
+  ]);
+  const answerCategories = content.catalog
+    .filter((service) => answers.has(service.id))
+    .map((service) => service.category);
+  const categories = new Set(
+    mode === "categories-plus"
+      ? answerCategories.flatMap((id) => [id, ...adjacentCategories(content.categories, id)])
+      : answerCategories,
+  );
+  const inMode = (service: PaletteContent["catalog"][number]) =>
+    mode === "full" || categories.has(service.category);
+
+  return {
+    mode,
+    services: content.catalog
+      .filter(
+        (s) => used.has(s.id) || (s.status !== "deprecated" && s.type !== "concept" && inMode(s)),
+      )
+      .map((s) => s.id),
   };
 };
 

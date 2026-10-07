@@ -360,6 +360,7 @@ function Preferences({
       />
       <ExperienceRadios
         rules={bundle.rules}
+        scenarios={bundle.index.scenarios}
         value={experience}
         onChange={editExperience}
         description={t("profile.experienceHelp")}

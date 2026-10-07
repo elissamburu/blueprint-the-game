@@ -1,6 +1,8 @@
-# Minimal catalog of the e2e fixture bundle: real services, only the ones its scenarios use.
+# Minimal catalog of the e2e fixture bundle: real services and concepts, only the ones its
+# scenarios use. The plain names (plainName) are for the level 0 scenario (pizzeria).
 - id: s3
   name: Amazon S3
+  plainName: Almacenamiento de archivos
   category: storage
   leakPatterns: ["S3", "Simple Storage Service"]
   short: "Almacenamiento de objetos durable y escalable, pago por uso."
@@ -9,6 +11,7 @@
   status: active
 - id: efs
   name: Amazon EFS
+  plainName: Disco compartido
   category: storage
   leakPatterns: ["EFS", "Elastic File System"]
   short: "Sistema de archivos compartido para cómputo."
@@ -33,6 +36,7 @@
   status: active
 - id: ec2
   name: Amazon EC2
+  plainName: Computadora alquilada
   category: compute
   leakPatterns: ["EC2", "Elastic Compute Cloud"]
   short: "Máquinas virtuales administradas por el cliente."
@@ -62,4 +66,46 @@
   short: "Colas de mensajes administradas."
   docs: https://docs.aws.amazon.com/sqs/
   icon: Arch_Amazon-Simple-Queue-Service_48
+  status: active
+
+# ── Conceptos (ADR-0027) ──
+- id: region
+  type: concept
+  name: Región de AWS
+  plainName: Lugar del mundo
+  category: concept-global-infrastructure
+  leakPatterns: ["Región de AWS", "AWS Region"]
+  short: "Área geográfica con varias zonas de disponibilidad aisladas entre sí."
+  docs: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html
+  glyph: region
+  status: active
+- id: availability-zone
+  type: concept
+  name: Zona de disponibilidad
+  plainName: Centro de datos aparte
+  category: concept-global-infrastructure
+  leakPatterns: ["zona de disponibilidad", "zonas de disponibilidad", "Availability Zone"]
+  short: "Uno o más centros de datos con energía y red propias dentro de una región."
+  docs: https://docs.aws.amazon.com/AWSEC2/latest/UserGuide/using-regions-availability-zones.html
+  glyph: availability-zone
+  status: active
+- id: edge-location
+  type: concept
+  name: Ubicación de borde
+  plainName: Punto de entrega cercano
+  category: concept-global-infrastructure
+  leakPatterns: ["ubicación de borde", "edge location"]
+  short: "Sitio cercano a los usuarios que entrega contenido con baja latencia."
+  docs: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/global-infrastructure.html
+  glyph: edge-location
+  status: active
+- id: pay-as-you-go
+  type: concept
+  name: Pago por uso
+  plainName: Pagar solo lo que usás
+  category: concept-cloud-economics
+  leakPatterns: ["pago por uso", "pay-as-you-go"]
+  short: "Se paga por los recursos que se consumen, sin compromisos a largo plazo."
+  docs: https://aws.amazon.com/pricing/
+  glyph: pay-as-you-go
   status: active

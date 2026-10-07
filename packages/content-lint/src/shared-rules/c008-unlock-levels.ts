@@ -2,11 +2,14 @@
 import { EXPERIENCES, LEVELS } from "@blueprint/scenario-schema";
 import type { Issue, SharedRule } from "../types.js";
 
-/** The schema already requires the four experiences, valid levels and ≥ 1 level each. */
+/**
+ * The schema already requires every experience, valid levels and ≥ 1 level each. The first level
+ * (0) has no previous level to open it, so an experience without it would lock its scenarios
+ * forever (ADR-0027 §3).
+ */
 export const c008: SharedRule = {
   code: "C008",
-  description:
-    "Cada experiencia de unlock.byExperience incluye el nivel 100 y sus niveles son contiguos.",
+  description: `Cada experiencia de unlock.byExperience incluye el nivel ${LEVELS[0]} y sus niveles son contiguos.`,
   check: ({ gameRules }) =>
     EXPERIENCES.flatMap((experience): Issue[] => {
       const levels = gameRules.unlock.byExperience[experience];
@@ -22,7 +25,7 @@ export const c008: SharedRule = {
             {
               code: "C008",
               severity: "error",
-              message: `La experiencia "${experience}" no desbloquea el nivel ${LEVELS[0]}: todo jugador tiene que poder empezar por ahí.`,
+              message: `La experiencia "${experience}" no desbloquea el nivel ${LEVELS[0]}: ningún nivel anterior lo abre, así que sus escenarios quedarían bloqueados para siempre. Sumá ${LEVELS[0]} a sus niveles.`,
               path,
             },
           ];
@@ -33,7 +36,7 @@ export const c008: SharedRule = {
               {
                 code: "C008",
                 severity: "error",
-                message: `La experiencia "${experience}" desbloquea hasta el nivel ${highest} pero salta ${holes.join(", ")}: los niveles tienen que ser contiguos.`,
+                message: `La experiencia "${experience}" desbloquea hasta el nivel ${highest} pero salta ${holes.join(", ")}: los niveles tienen que ser contiguos, desde el ${LEVELS[0]} sin saltos.`,
                 path,
               },
             ];

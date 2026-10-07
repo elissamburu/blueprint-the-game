@@ -39,7 +39,7 @@ scoring:
   acceptedAcceptable: 50
   hintCost: 15
   revealedSolution: 0
-levelMultipliers: { 100: 1, 200: 1.5, 300: 2, 400: 3 }
+levelMultipliers: { 0: 0.5, 100: 1, 200: 1.5, 300: 2, 400: 3 }
 ranks:
   - { id: aprendiz, name: Aprendiz, minXp: 0 }
   - { id: constructor, name: Constructor, minXp: 1000 }
@@ -49,13 +49,15 @@ ranks:
 unlock:
   scenariosRequired: 3
   byExperience:
-    beginner: [100]
-    aws-user: [100, 200]
-    architect: [100, 200, 300]
-    expert: [100, 200, 300, 400]
+    newcomer: [0]
+    beginner: [0, 100]
+    aws-user: [0, 100, 200]
+    architect: [0, 100, 200, 300]
+    expert: [0, 100, 200, 300, 400]
 palette:
-  modeByLevel: { 100: curated, 200: categories, 300: categories-plus, 400: full }
+  modeByLevel: { 0: curated, 100: curated, 200: categories, 300: categories-plus, 400: full }
   defaultMaxSize: 12
+  maxSizeByLevel: { 0: 8 }
 `;
 
 const gameRules = (): Json => parseYaml(gameRulesYaml) as Json;
@@ -66,17 +68,35 @@ describe("parseGameRules", () => {
   it("accepts the initial game rules", () => {
     const rules = ok(parseGameRules(gameRules()));
     expect(rules.levelMultipliers["200"]).toBe(1.5);
+    expect(rules.levelMultipliers["0"]).toBe(0.5);
     expect(rules.palette.modeByLevel["100"]).toBe("curated");
+    expect(rules.palette.modeByLevel["0"]).toBe("curated");
+    expect(rules.palette.maxSizeByLevel).toEqual({ "0": 8 });
+    expect(rules.unlock.byExperience.newcomer).toEqual([0]);
   });
 
   it("requires every level and every experience", () => {
     const rules = gameRules();
     delete section(rules, "levelMultipliers")["400"];
+    delete section(rules, "levelMultipliers")["0"];
     delete section(rules, "unlock", "byExperience")["expert"];
+    delete section(rules, "unlock", "byExperience")["newcomer"];
     expect(messages(parseGameRules(rules))).toEqual([
+      'levelMultipliers.0: Falta el campo obligatorio "0"',
       'levelMultipliers.400: Falta el campo obligatorio "400"',
+      'unlock.byExperience.newcomer: Falta el campo obligatorio "newcomer"',
       'unlock.byExperience.expert: Falta el campo obligatorio "expert"',
     ]);
+  });
+
+  it("takes maxSizeByLevel as optional, for some levels only, with positive sizes", () => {
+    const without = gameRules();
+    delete section(without, "palette")["maxSizeByLevel"];
+    expect(ok(parseGameRules(without)).palette.maxSizeByLevel).toBeUndefined();
+
+    const invalid = gameRules();
+    section(invalid, "palette")["maxSizeByLevel"] = { 0: 0, 150: 4 };
+    expect(messages(parseGameRules(invalid))).toHaveLength(2);
   });
 
   it("requires the points of a viewed solution, never above solving the slot", () => {
@@ -185,7 +205,7 @@ describe("parseBadges", () => {
     ];
     expect(messages(parseBadges(badges))).toEqual([
       '[0] (a-1).rule.type: Falta el campo obligatorio "type": usá "complete_count", "perfect_scenario", "no_hints", "streak", "area_mastery", "level_complete"',
-      "[1] (b-1).rule.level: El nivel 250 no existe: tiene que ser 100, 200, 300 o 400",
+      "[1] (b-1).rule.level: El nivel 250 no existe: tiene que ser 0, 100, 200, 300 o 400",
       "[2] (c-1).rule.percent: Tiene que ser como máximo 100",
     ]);
   });

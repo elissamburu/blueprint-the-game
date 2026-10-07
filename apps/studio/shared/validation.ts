@@ -153,6 +153,7 @@ export const validateScenarioText = (
     scenario: parsed.data,
     folderName,
     catalog: shared.catalog,
+    categories: shared.categories,
     confusionGroups: shared.confusionGroups,
     gameRules: shared.gameRules,
     areas: shared.areas,
