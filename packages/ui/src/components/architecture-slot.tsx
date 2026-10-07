@@ -205,6 +205,8 @@ function ArchitectureSlot({
           data-slot="architecture-slot-service"
           className={cn(
             "mt-[4.8px] flex min-h-[36px] items-center gap-[6.4px] rounded-[5px] bg-card px-[4.8px] text-[10.88px] leading-tight",
+            // Two names: the icon sits at the top, level with the first line, in every slot.
+            service.plainName !== undefined && "items-start py-[4px]",
             settles && motionClass("settle", reducedMotion),
           )}
           onAnimationEnd={ended(settles && gradeMotion === null)}
@@ -226,7 +228,7 @@ function ArchitectureSlot({
               plainName={service.plainName}
               name={service.name}
               nameClassName="text-[12px]"
-              className="py-[3.2px] text-[13.6px] font-bold"
+              className="flex-1 text-[13.6px] font-bold"
             />
           )}
         </span>

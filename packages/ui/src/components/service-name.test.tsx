@@ -30,6 +30,34 @@ describe("ServiceName", () => {
   });
 });
 
+describe("ServiceName with an aside", () => {
+  it("puts it on the real name's line and reads it after both names", () => {
+    render(
+      <button type="button">
+        <ServiceName
+          plainName="Almacenamiento de archivos"
+          name="Amazon S3"
+          aside={<span>En uso</span>}
+        />
+      </button>,
+    );
+    const button = screen.getByRole("button", {
+      // jsdom joins the parts without the spaces a browser puts between blocks.
+      name: /^Almacenamiento de archivos \(Amazon S3\) ?En uso$/,
+    });
+    const real = button.querySelector('[data-slot="service-name-real"]');
+    expect(real?.parentElement?.textContent).toBe("Amazon S3En uso");
+  });
+
+  it("never cuts a name: it hyphenates it and, as a last resort, breaks it anywhere", () => {
+    const { container } = render(<ServiceName plainName="Almacenamiento" name="Amazon S3" />);
+    const root = container.querySelector<HTMLElement>('[data-slot="service-name"]');
+    expect(root?.classList).toContain("hyphens-auto");
+    expect(root?.classList).toContain("wrap-anywhere");
+    expect(root?.className).not.toMatch(/truncate|line-clamp/);
+  });
+});
+
 describe("doubleName", () => {
   it("joins both names", () => {
     expect(doubleName("Lugar del mundo", "Región de AWS")).toBe("Lugar del mundo (Región de AWS)");
