@@ -25,6 +25,20 @@ const parseFixture = (raw: string): Scenario => {
   return result.data;
 };
 
+const isUnparsableDraft = (raw: string): boolean => {
+  let document: unknown;
+  try {
+    document = parse(raw);
+  } catch {
+    return false;
+  }
+  const status =
+    typeof document === "object" && document !== null
+      ? (document as Record<string, unknown>).status
+      : undefined;
+  return status === "draft" && !parseScenario(document).success;
+};
+
 const catalog = parseCatalog(servicesRaw);
 const scenario = parseFixture(scenarioRaw);
 
@@ -173,10 +187,12 @@ describe("renderGeneratedFiles", () => {
       .map((file) => file.slice(0, -"scenario.yaml".length));
     expect(dirs.length).toBeGreaterThanOrEqual(8);
     for (const dir of dirs) {
-      const generated = renderGeneratedFiles(
-        parseFixture(files[`${dir}scenario.yaml`] ?? ""),
-        realCatalog,
-      );
+      const raw = files[`${dir}scenario.yaml`] ?? "";
+      // The Studio saves drafts with errors (ADR-0025, amendment S10), possibly untracked in a
+      // local checkout: a draft that does not parse has no generated files to compare, so it is
+      // skipped. Any other scenario that does not parse still fails here.
+      if (isUnparsableDraft(raw)) continue;
+      const generated = renderGeneratedFiles(parseFixture(raw), realCatalog);
       for (const [name, text] of Object.entries(generated)) {
         expect(files[`${dir}${name}`]?.replace(/\r\n/g, "\n"), `${dir}${name}`).toBe(text);
       }
