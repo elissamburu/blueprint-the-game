@@ -76,9 +76,9 @@ describe("GET /api/scenarios", () => {
       hasErrors: true,
     });
     const drafts = await realUnparsableDraftIds();
-    expect(
-      scenarios.filter((s) => s.hasErrors && !drafts.has(s.id)).map((s) => s.id),
-    ).toEqual([ID]);
+    expect(scenarios.filter((s) => s.hasErrors && !drafts.has(s.id)).map((s) => s.id)).toEqual([
+      ID,
+    ]);
   });
 });
 
