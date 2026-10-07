@@ -1,0 +1,17 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: escuela-notas v1
+flowchart LR
+  n_teachers(["Docentes"])
+  n_school(["Dirección de la escuela"])
+  n_responsibility["Modelo de responsabilidad compartida"]
+  subgraph g_cloud["Nube"]
+    n_permissions["Privilegio mínimo"]
+    n_server["Amazon EC2"]
+    n_availability["Alta disponibilidad"]
+  end
+  n_school --o|"1. Sabe qué parte le toca"| n_responsibility
+  n_teachers -->|"2. Entran a cargar notas"| n_permissions
+  n_permissions --o|"3. Deja pasar solo a sus cursos"| n_server
+  n_availability --o|"4. Sigue andando si algo falla"| n_server
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_responsibility,n_permissions,n_server,n_availability slot

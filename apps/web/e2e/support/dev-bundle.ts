@@ -42,6 +42,8 @@ export interface SlotAnswer {
   readonly role: string;
   /** Name of the first optimal service, as the palette shows it. */
   readonly optimal: string;
+  /** Text that finds that service in the palette search: its name. */
+  readonly query: string;
 }
 
 export interface DevBundle {
@@ -59,7 +61,7 @@ export const loadDevBundle = (): DevBundle => {
   const index = load("index.json", parseBundleIndex);
   const catalog = load("catalog.json", parseBundleCatalog);
   const rules = load("game-rules.json", parseGameRules);
-  const names = new Map(catalog.services.map((service) => [service.id, service.name]));
+  const services = new Map(catalog.services.map((service) => [service.id, service]));
   return {
     scenarios: index.scenarios,
     areas: index.areas.map((area) => area.name),
@@ -70,13 +72,24 @@ export const loadDevBundle = (): DevBundle => {
         .filter((node) => node.type === "slot")
         .map((node, index) => {
           const optimal = node.answers.find((answer) => answer.grade === "optimal");
-          const name = optimal === undefined ? undefined : names.get(optimal.service);
-          if (name === undefined) {
+          const service = optimal === undefined ? undefined : services.get(optimal.service);
+          if (service === undefined) {
             throw new Error(
               `${scenario.id} / ${node.id}: no tiene un óptimo que esté en el catálogo`,
             );
           }
-          return { slotId: node.id, number: index + 1, role: node.role, optimal: name };
+          // Level 0 names each card «<plainName> (<name>)» (RF-PAL-06).
+          const shown =
+            scenario.level === 0 && service.plainName !== undefined
+              ? `${service.plainName} (${service.name})`
+              : service.name;
+          return {
+            slotId: node.id,
+            number: index + 1,
+            role: node.role,
+            optimal: shown,
+            query: service.name,
+          };
         }),
   };
 };

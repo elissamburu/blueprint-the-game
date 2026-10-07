@@ -1,0 +1,157 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: escuela-notas
+version: 1
+status: beta
+lang: es
+level: 0
+areas: [fundamentos, security]
+title: "Una escuela que pasa sus notas a la nube"
+summary: "Una escuela lleva su sistema de notas a la nube: cada docente ve solo sus cursos y en la semana de cierre el sistema no se puede caer."
+estimatedMinutes: 4
+authors:
+  - github: elissamburu
+
+context: |
+  Una escuela secundaria va a llevar su sistema de notas a un equipo en la nube. Cada docente
+  tiene que ver solo sus cursos, y en la semana de cierre de notas el sistema no se puede caer.
+
+objectives:
+  - id: own-courses-only
+    kind: hard
+    category: security
+    text: "Cada docente ve y carga solo las notas de sus cursos."
+  - id: security-split
+    kind: hard
+    category: security
+    text: "La escuela sabe qué parte de la seguridad le toca a ella y cuál al proveedor."
+  - id: survives-failure
+    kind: soft
+    category: availability
+    text: "Si falla una computadora en la semana de cierre, el sistema sigue andando."
+  - id: no-own-hardware
+    kind: soft
+    category: cost
+    text: "El sistema de notas corre en la nube sin que la escuela compre equipos propios."
+
+diagram:
+  canvas: { width: 1240, height: 700 }
+  groups:
+    - id: cloud
+      kind: aws-cloud
+      label: "Nube"
+      rect: { x: 460, y: 40, w: 720, h: 620 }
+      parent: null
+
+  nodes:
+    - id: teachers
+      type: actor
+      label: "Docentes"
+      icon: users
+      position: { x: 40, y: 160 }
+
+    - id: school
+      type: actor
+      label: "Dirección de la escuela"
+      icon: user
+      position: { x: 40, y: 480 }
+
+    - id: responsibility
+      type: slot
+      role: "Quién se ocupa de qué en la seguridad: una parte la escuela, otra el proveedor."
+      position: { x: 240, y: 440 }
+      answers:
+        - service: shared-responsibility
+          grade: optimal
+          objectives: [security-split]
+          rationale: >
+            AWS se ocupa de la seguridad *de* la nube (equipos, edificios y red) y la escuela, de la
+            seguridad *en* la nube: sus datos, sus usuarios y cómo configura lo que usa.
+          references:
+            - https://aws.amazon.com/compliance/shared-responsibility-model/
+          analogyLimit:
+            text: "El reparto no es fijo: cambia según el servicio. En un servidor virtual, los parches del sistema operativo son de la escuela; en un servicio administrado, AWS se ocupa de más."
+            references:
+              - https://aws.amazon.com/compliance/shared-responsibility-model/
+      incorrect:
+        - service: least-privilege
+          violates: [security-split]
+          rationale: "Ordena los permisos, pero no dice qué parte de la seguridad le toca a cada uno."
+
+    - id: permissions
+      type: slot
+      role: "Que cada docente solo pueda tocar las notas de sus cursos, nada más."
+      position: { x: 520, y: 120 }
+      group: cloud
+      answers:
+        - service: least-privilege
+          grade: optimal
+          objectives: [own-courses-only]
+          rationale: >
+            Cada docente recibe solo los permisos que necesita para su tarea: ver y cargar las
+            notas de sus cursos, y nada más.
+          references:
+            - https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html
+          analogyLimit:
+            text: "Un permiso no es solo qué puerta: define qué acciones, sobre qué recursos y bajo qué condiciones. Y es normal empezar con permisos amplios e ir achicándolos."
+            references:
+              - https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html
+      incorrect:
+        - service: shared-responsibility
+          violates: [own-courses-only]
+          rationale: "Reparte la seguridad entre la escuela y el proveedor, pero no limita lo que puede hacer cada docente."
+
+    - id: server
+      type: slot
+      role: "El equipo en la nube donde corre el sistema de notas."
+      position: { x: 900, y: 120 }
+      group: cloud
+      answers:
+        - service: ec2
+          grade: optimal
+          objectives: [no-own-hardware]
+          rationale: >
+            Es un servidor virtual donde la escuela instala y corre su sistema de notas, sin
+            comprar equipos propios. El sistema operativo, sus parches y lo que se instala quedan
+            a cargo de la escuela.
+          references:
+            - https://docs.aws.amazon.com/ec2/
+          analogyLimit:
+            text: "No es una PC que te prestan: el sistema operativo, sus parches y lo que instalás son responsabilidad tuya; AWS cuida el hardware y el edificio."
+            references:
+              - https://aws.amazon.com/compliance/shared-responsibility-model/
+      incorrect:
+        - service: s3
+          rationale: "Guarda archivos, pero no corre el sistema."
+
+    - id: availability
+      type: slot
+      role: "Que el sistema siga andando aunque una computadora falle en plena semana de cierre."
+      position: { x: 900, y: 420 }
+      group: cloud
+      answers:
+        - service: high-availability
+          grade: optimal
+          objectives: [survives-failure]
+          rationale: >
+            Con recursos repetidos, si falla una computadora otra sigue atendiendo y el sistema no
+            se cae en la semana de cierre.
+          references:
+            - https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/availability.html
+          analogyLimit:
+            text: "Nunca es 100 %: la disponibilidad es un porcentaje. Y el repuesto no aparece solo: hay que tener recursos redundantes, por ejemplo en otra zona de disponibilidad."
+            references:
+              - https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/availability.html
+      incorrect:
+        - service: elasticity
+          rationale: "Suma capacidad cuando hay más gente, no reemplaza lo que falla."
+
+  edges:
+    - { id: e1, from: school,       to: responsibility, step: 1, style: control, label: "Sabe qué parte le toca" }
+    - { id: e2, from: teachers,     to: permissions,    step: 2, style: sync,    label: "Entran a cargar notas" }
+    - { id: e3, from: permissions,  to: server,         step: 3, style: control, label: "Deja pasar solo a sus cursos" }
+    - { id: e4, from: availability, to: server,         step: 4, style: control, label: "Sigue andando si algo falla" }
+
+palette:
+  mode: auto

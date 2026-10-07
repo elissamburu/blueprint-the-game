@@ -48,10 +48,17 @@ const REGION = CatalogEntrySchema.parse({
   status: "active",
 });
 
-const withConcepts: SharedContent = {
+// The real catalog already has concepts: these tests build their own catalogs so they do not
+// depend on the content.
+const withoutConcepts: SharedContent = {
   ...shared,
+  catalog: shared.catalog.filter((entry) => entry.type !== "concept"),
+};
+
+const withConcepts: SharedContent = {
+  ...withoutConcepts,
   catalog: [
-    ...shared.catalog.map((entry) =>
+    ...withoutConcepts.catalog.map((entry) =>
       entry.id === "s3" ? { ...entry, plainName: "Almacenamiento de archivos" } : entry,
     ),
     REGION,
@@ -182,7 +189,7 @@ describe("service picker with concepts", () => {
 
   it("keeps the names of a catalog without concepts", async () => {
     const user = userEvent.setup();
-    setup({ initial: pdfYaml });
+    setup({ initial: pdfYaml, content: withoutConcepts });
     await openFirstSlot(user);
     await user.click(
       screen.getByRole("button", { name: /^Servicio de la respuesta 1 del casillero 1/ }),

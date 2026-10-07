@@ -8,7 +8,7 @@ description: Genera o edita un escenario del juego en content/scenarios/<id>/sce
 Mismo resultado que el Studio con IA, pero desde Claude Code.
 
 ## Entradas a pedir si faltan
-- Caso de uso (1–3 frases), **nivel** (100/200/300/400), **áreas** (de `content/areas.yaml`).
+- Caso de uso (1–3 frases), **nivel** (0/100/200/300/400), **áreas** (de `content/areas.yaml`).
 - Objetivos que el usuario ya tenga en mente (costo, tráfico, operación, seguridad, etc.).
 
 ## Pasos
@@ -28,7 +28,21 @@ Mismo resultado que el Studio con IA, pero desde Claude Code.
 9. **Autorevisión crítica** (en un mensaje aparte, antes de terminar): ¿algún `acceptable` debería ser `optimal` o viceversa según los objetivos? ¿Hay datos de servicios de AWS que no puedas respaldar con documentación? Marcalos con `TODO(verificar)` en `notes.md`.
 10. Creá `notes.md` con la intención pedagógica y las decisiones de calibración discutibles.
 
+## Nivel 0 («La nube en la vida real», ADR-0027)
+Una situación cotidiana (una panadería, un club, una escuela) donde cada casillero es un rol de la vida real y se completa con un **concepto** o un servicio del catálogo.
+- **3–5 casilleros** (L009) y área `fundamentos`, más 1 o 2 áreas técnicas cuando aplique.
+- **Paleta `curated` de hasta 8 tarjetas** (`maxSizeByLevel` en `game-rules.yaml`): las 3–5 respuestas y al menos 3 distractores (L016). Contá la paleta resuelta antes de sumar `incorrect` o `palette.extra`: los compañeros de grupo de confusión también entran.
+- **`plainName`**: toda entrada de la paleta resuelta y de los nodos `fixed` necesita su nombre simple en el catálogo (L022). Se agrega en `content/catalog/services.yaml`, no en el escenario: cotidiano, ≤ 40 caracteres y sin repetir otro (C013). Listá cada `plainName` nuevo en el PR para que lo revise el mantenedor.
+- **`analogyLimit` obligatorio** en toda respuesta `optimal` y `acceptable` (L021): dónde se rompe la analogía, ≤ 300 caracteres, con ≥ 1 referencia oficial (`docs.aws.amazon.com` o `aws.amazon.com`).
+- **L005 por frase completa**: en el nivel 0, ningún `title`, `summary`, `context`, objetivo, `role`, pista ni etiqueta puede contener el `plainName` completo de una entrada del escenario (sin distinguir mayúsculas ni tildes). Las palabras sueltas sí se pueden usar.
+- La `rationale` y el `analogyLimit` se muestran después de colocar: no nombran otros servicios ni conceptos ocultos, tampoco por su `plainName`.
+- **Revisión humana (RF-CNT-09)**: toda analogía (la `rationale` y el `analogyLimit` de cada respuesta) la revisa una persona contra la referencia oficial antes de `published`. No cambies el sentido de una analogía ya revisada: si no entra o choca con el lint, frená y proponé.
+- Conceptos: solo los que existen en el catálogo (`type: concept`). Si falta uno, proponelo en un PR de catálogo con su fuente oficial (C012), su categoría `concept-…` (C011) y su grupo de confusión.
+
 ## No hacer
 - No marques `published`.
 - No inventes límites, precios ni capacidades de servicios. Ante la duda, `TODO(verificar)`.
 - No edites `diagram.mmd` ni `README.md` a mano.
+
+## Al abrir el PR
+Usá la plantilla de escenarios: `gh pr create --template nuevo-escenario.md`. Completá el checklist y, en el nivel 0, la sección «Solo nivel 0».

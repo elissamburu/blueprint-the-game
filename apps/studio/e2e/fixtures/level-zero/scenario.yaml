@@ -1,8 +1,8 @@
 # SPDX-License-Identifier: CC-BY-NC-SA-4.0
 # Fixture of the Studio e2e suite (level-zero.spec.ts), never published: the level 0 scenario of
 # the game's e2e (apps/web/e2e/fixtures), with problems on purpose. The answer of «kitchens» has no
-# analogyLimit (L021), the role of «city» repeats the plain name of its answer (L005), and the
-# services have no plainName in the real catalog (L022).
+# analogyLimit (L021), the role of «city» repeats the plain name of its answer (L005), and S3 has
+# no plainName in the spec's copy of the catalog (L022).
 # yaml-language-server: $schema=../../../../../packages/scenario-schema/dist/scenario.schema.json
 schemaVersion: 1
 id: pizzeria-nivel-0

@@ -1,0 +1,19 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: club-cuotas-online v1
+flowchart LR
+  n_members(["Socios"])
+  n_club(["Comisión del club"])
+  subgraph g_system["Sistema de cuotas"]
+    n_receipts["Amazon S3"]
+  end
+  subgraph g_bill["Cómo paga el club"]
+    n_first_year["Pago por uso"]
+    n_later_years["Savings Plans"]
+    n_why_cheaper["Economías de escala"]
+  end
+  n_members -->|"1. Pagan la cuota online"| n_receipts
+  n_club --o|"2. Paga el primer año"| n_first_year
+  n_club --o|"3. Paga desde el segundo año"| n_later_years
+  n_why_cheaper --o|"4. Explica el precio bajo"| n_later_years
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_first_year,n_later_years,n_why_cheaper,n_receipts slot

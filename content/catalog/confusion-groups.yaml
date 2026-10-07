@@ -72,3 +72,15 @@
 - id: multi-account-governance
   services: [organizations, control-tower, ram]
   note: "Organizar cuentas y aplicar políticas a nivel organización vs landing zone gobernada con controles y cuentas estandarizadas vs compartir recursos entre cuentas sin duplicarlos."
+- id: global-infrastructure
+  services: [region, availability-zone, edge-location]
+  note: "Dónde funciona la aplicación vs dónde está su copia aislada vs dónde se guardan copias cerca de los usuarios."
+- id: cloud-pricing
+  services: [pay-as-you-go, savings-plans, economies-of-scale]
+  note: "Pagar por lo que se usa vs comprometerse a un gasto a cambio de descuento vs por qué la nube puede cobrar menos."
+- id: cloud-principles
+  services: [elasticity, high-availability]
+  note: "Sumar o sacar capacidad según la demanda vs seguir andando cuando algo falla."
+- id: cloud-security-concepts
+  services: [shared-responsibility, least-privilege]
+  note: "Qué parte de la seguridad le toca a cada uno vs qué permisos recibe cada persona."

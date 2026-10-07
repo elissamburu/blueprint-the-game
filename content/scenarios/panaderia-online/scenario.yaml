@@ -1,0 +1,173 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: panaderia-online
+version: 1
+status: beta
+lang: es
+level: 0
+areas: [fundamentos, networking]
+title: "Una panadería que vende online en todo el país"
+summary: "Una panadería de Rosario vende online a todo el país: tiene que seguir vendiendo si falla un edificio, mostrar las fotos rápido y aguantar la Navidad."
+estimatedMinutes: 4
+authors:
+  - github: elissamburu
+
+context: |
+  Una panadería de Rosario empezó a vender online y le compran de todo el país. En Navidad
+  recibe diez veces más pedidos que en enero. Si se corta la luz en el edificio donde funciona
+  la tienda, no quiere quedarse sin vender.
+
+objectives:
+  - id: building-failure
+    kind: hard
+    category: availability
+    text: "Si falla un edificio entero, la tienda sigue vendiendo."
+  - id: fast-everywhere
+    kind: soft
+    category: latency
+    text: "La tienda y las fotos de los productos cargan rápido en cualquier provincia."
+  - id: seasonal-demand
+    kind: soft
+    category: scalability
+    text: "En las fiestas atiende todos los pedidos y en enero no paga capacidad de más."
+
+diagram:
+  canvas: { width: 1240, height: 700 }
+  groups:
+    - id: store
+      kind: generic
+      label: "Tienda online"
+      rect: { x: 460, y: 20, w: 720, h: 640 }
+      parent: null
+
+  nodes:
+    - id: customers
+      type: actor
+      label: "Clientes de todo el país"
+      icon: users
+      position: { x: 40, y: 260 }
+
+    - id: bakery
+      type: actor
+      label: "Panadería"
+      icon: user
+      position: { x: 40, y: 520 }
+
+    - id: main-place
+      type: slot
+      role: "El punto del mapa donde funciona la tienda, elegido por estar cerca de la mayoría de los clientes."
+      position: { x: 520, y: 240 }
+      group: store
+      answers:
+        - service: region
+          grade: optimal
+          objectives: [fast-everywhere]
+          rationale: >
+            Elegir una región cerca de la mayoría de los clientes baja la latencia: los pedidos y
+            las fotos viajan menos.
+          references:
+            - https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html
+          analogyLimit:
+            text: "No es una sola ciudad con todo adentro: cada región está aislada de las demás y AWS no copia tus datos de una región a otra; si querés una copia en otra, la configurás vos."
+            references:
+              - https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html
+      incorrect:
+        - service: edge-location
+          rationale: "Solo guarda copias de lo más pedido; ahí no funciona la tienda."
+
+    - id: backup
+      type: slot
+      role: "Una segunda copia de la tienda en otro edificio, cerca del primero, por si ese falla."
+      position: { x: 960, y: 240 }
+      group: store
+      answers:
+        - service: availability-zone
+          grade: optimal
+          objectives: [building-failure]
+          rationale: >
+            Cada región tiene varias zonas, separadas físicamente y con energía y red propias. Con
+            una copia de la tienda en otra zona, la falla de un edificio entero no la deja sin
+            vender.
+          references:
+            - https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html
+          analogyLimit:
+            text: "Una zona puede ser más de un centro de datos, con energía y red propias. Están separadas físicamente: un incendio o una inundación afecta a una sola. Pero tener la copia lista lo configurás vos."
+            references:
+              - https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html
+        - service: region
+          grade: acceptable
+          objectives: [fast-everywhere]
+          rationale: >
+            Una copia en otra región también sobrevive a la falla de un edificio, pero queda más
+            lejos de los clientes y los datos no se copian solos de una región a otra.
+          references:
+            - https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html
+          analogyLimit:
+            text: "No es una sola ciudad con todo adentro: cada región está aislada de las demás y AWS no copia tus datos de una región a otra; si querés una copia en otra, la configurás vos."
+            references:
+              - https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html
+      incorrect:
+        - service: edge-location
+          violates: [building-failure]
+          rationale: "No puede tomar pedidos si la tienda se cae: solo guarda copias de lo más pedido."
+
+    - id: photos
+      type: slot
+      role: "Copias de las fotos de los productos repartidas por el país, para que carguen rápido."
+      position: { x: 240, y: 40 }
+      answers:
+        - service: edge-location
+          grade: optimal
+          objectives: [fast-everywhere]
+          rationale: >
+            Guarda copias de las fotos cerca de quien las pide: cada pedido se atiende desde la
+            ubicación más cercana y las fotos cargan más rápido en cualquier provincia.
+          references:
+            - https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/HowCloudFrontWorks.html
+          analogyLimit:
+            text: "Solo tiene copias de lo que se pide seguido. Si alguien pide una foto que no está, la busca en el origen y recién ahí la guarda para el próximo."
+            references:
+              - https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/HowCloudFrontWorks.html
+      incorrect:
+        - service: s3
+          rationale: "Guarda las fotos, pero en un solo lugar: no las acerca a cada provincia."
+
+    - id: scaling
+      type: slot
+      role: "Sumar capacidad en las fiestas y sacarla en enero, sin comprar equipos."
+      position: { x: 740, y: 460 }
+      group: store
+      answers:
+        - service: elasticity
+          grade: optimal
+          objectives: [seasonal-demand]
+          rationale: >
+            La tienda usa tanta capacidad como necesita: la suma en las fiestas, cuando llegan diez
+            veces más pedidos, y la saca en enero, sin comprar equipos ni pagar capacidad que no
+            usa.
+          references:
+            - https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
+          analogyLimit:
+            text: "No es instantáneo ni automático de entrada: se configuran reglas que suman o sacan recursos, y sumar capacidad lleva minutos."
+            references:
+              - https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
+              - https://docs.aws.amazon.com/wellarchitected/latest/framework/rel_adapt_to_changes_autoscale_adapt.html
+      incorrect:
+        - service: high-availability
+          rationale: "Sirve para seguir andando ante fallas, no para atender más pedidos."
+        - service: pay-as-you-go
+          rationale: "Dice cómo pagás, no suma capacidad."
+
+  edges:
+    - { id: e1, from: bakery,     to: main-place, step: 1, style: data,    label: "Carga productos y fotos" }
+    - { id: e2, from: customers,  to: photos,     step: 2, style: sync,    label: "Miran las fotos" }
+    - { id: e3, from: photos,     to: main-place, step: 3, style: data,    label: "Pide las fotos que no tiene",
+        description: "Las fotos que se piden seguido ya están cerca de cada cliente; las demás se buscan en la tienda." }
+    - { id: e4, from: customers,  to: main-place, step: 4, style: sync,    label: "Hacen un pedido" }
+    - { id: e5, from: main-place, to: backup,     step: 5, style: data,    label: "Copia los pedidos",
+        description: "Si falla el edificio principal, la copia sigue vendiendo." }
+    - { id: e6, from: scaling,    to: main-place, step: 6, style: control, label: "Suma capacidad en las fiestas" }
+
+palette:
+  mode: auto
