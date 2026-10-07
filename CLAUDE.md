@@ -37,6 +37,7 @@ pnpm e2e                 # Playwright
 - No inventes comportamientos de servicios de AWS: cada `optimal` lleva referencia a documentación oficial. Si no estás seguro de un dato, dejalo marcado como `TODO(verificar)` y avisá.
 - Cambiar respuestas o grados de un escenario `published` ⇒ incrementar `version`.
 - No edites archivos generados (`diagram.mmd`, `README.md` de escenarios, `dist/`).
+- Los PR de escenarios siguen `.github/PULL_REQUEST_TEMPLATE/nuevo-escenario.md`: el cuerpo se arma copiando la plantilla sección por sección en un archivo y se pasa con `gh pr create --body-file` (gh no combina `--template` con `--body-file`). Desde la web, se puede usar `?template=nuevo-escenario.md`.
 
 ## Reglas de seguridad
 - Nunca agregues credenciales, account IDs reales ni ARNs concretos al repo; usá variables.

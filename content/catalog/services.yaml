@@ -20,6 +20,7 @@
 - id: ec2
   name: Amazon EC2
   fullName: Amazon Elastic Compute Cloud
+  plainName: Computadora alquilada
   category: compute
   aliases: [ec2, máquina virtual, instancia, servidor]
   leakPatterns: ["EC2", "Elastic Compute Cloud"]
@@ -40,6 +41,7 @@
   status: active
 - id: lambda
   name: AWS Lambda
+  plainName: Código que corre cuando pasa algo
   category: compute
   aliases: [lambda, funciones, serverless]
   leakPatterns: ["Lambda"]
@@ -106,6 +108,7 @@
   status: active
 - id: fargate
   name: AWS Fargate
+  plainName: Contenedores sin administrar servidores
   category: containers
   aliases: [fargate, contenedores serverless]
   leakPatterns: ["Fargate"]
@@ -130,6 +133,7 @@
 - id: s3
   name: Amazon S3
   fullName: Amazon Simple Storage Service
+  plainName: Almacenamiento de archivos
   category: storage
   aliases: [s3, simple storage, buckets, objetos]
   leakPatterns: ["S3", "Simple Storage Service"]
@@ -141,6 +145,7 @@
 - id: ebs
   name: Amazon EBS
   fullName: Amazon Elastic Block Store
+  plainName: Disco para una computadora
   category: storage
   aliases: [ebs, disco, volumen, almacenamiento en bloque]
   leakPatterns: ["EBS", "Elastic Block Store"]
@@ -152,6 +157,7 @@
 - id: efs
   name: Amazon EFS
   fullName: Amazon Elastic File System
+  plainName: Carpeta compartida en red
   category: storage
   aliases: [efs, nfs, sistema de archivos compartido]
   leakPatterns: ["EFS", "Elastic File System"]
@@ -162,6 +168,7 @@
   status: active
 - id: fsx
   name: Amazon FSx
+  plainName: Servidor de archivos listo para usar
   category: storage
   aliases: [fsx, lustre, windows file server, ontap, openzfs]
   leakPatterns: ["FSx"]
@@ -880,4 +887,108 @@
   docs: https://docs.aws.amazon.com/xray/
   ssmNamespaces: [xray]
   icon: Arch_AWS-X-Ray_48
+  status: active
+
+# ── Conceptos (ADR-0027) ─────────────────────────────────────────────────────────────────────
+# Ideas de la nube que no son servicios. `docs` es su fuente oficial (C012); `glyph` toma un
+# valor de CONCEPT_GLYPHS. Se usan en escenarios igual que un servicio.
+- id: region
+  type: concept
+  name: Región de AWS
+  plainName: Lugar del mundo
+  category: concept-global-infrastructure
+  leakPatterns: ["Región de AWS", "AWS Region"]
+  short: "Área geográfica separada de las demás, formada por varias zonas de disponibilidad aisladas entre sí."
+  docs: https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html
+  glyph: region
+  status: active
+- id: availability-zone
+  type: concept
+  name: Zona de disponibilidad
+  plainName: Local aparte en la misma ciudad
+  category: concept-global-infrastructure
+  leakPatterns: ["Zona de disponibilidad", "Availability Zone"]
+  short: "Uno o más centros de datos con energía, red y conectividad redundantes, dentro de una región."
+  docs: https://docs.aws.amazon.com/global-infrastructure/latest/regions/aws-regions-availability-zones.html
+  glyph: availability-zone
+  status: active
+- id: edge-location
+  type: concept
+  name: Ubicación de borde
+  plainName: Sucursal cerca tuyo
+  category: concept-global-infrastructure
+  leakPatterns: ["Ubicación de borde", "Edge location"]
+  short: "Centro de datos de la red de distribución que guarda copias en caché cerca de los usuarios para responder más rápido."
+  docs: https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/HowCloudFrontWorks.html
+  glyph: edge-location
+  status: active
+- id: pay-as-you-go
+  type: concept
+  name: Pago por uso
+  plainName: Pagar solo lo que usás
+  category: concept-cloud-economics
+  leakPatterns: ["Pago por uso", "Pay-as-you-go"]
+  short: "Pagás cada servicio solo por lo que usás y mientras lo usás, sin contratos de largo plazo."
+  docs: https://docs.aws.amazon.com/whitepapers/latest/how-aws-pricing-works/key-principles.html
+  glyph: pay-as-you-go
+  status: active
+- id: economies-of-scale
+  type: concept
+  name: Economías de escala
+  plainName: Comprar al por mayor
+  category: concept-cloud-economics
+  leakPatterns: ["Economías de escala", "Economies of scale"]
+  short: "Al juntar el uso de cientos de miles de clientes, AWS logra costos variables más bajos que los de hacerlo por cuenta propia."
+  docs: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
+  glyph: global-network
+  status: active
+- id: savings-plans
+  type: concept
+  name: Savings Plans
+  plainName: Abono con descuento
+  category: concept-cloud-economics
+  leakPatterns: ["Savings Plans"]
+  short: "Modelo de precios con descuento a cambio de comprometerse a un gasto por hora constante durante 1 o 3 años."
+  docs: https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html
+  glyph: savings
+  status: active
+- id: elasticity
+  type: concept
+  name: Elasticidad
+  plainName: Crecer y achicarse según la demanda
+  category: concept-cloud-principles
+  leakPatterns: ["Elasticidad", "Elasticity"]
+  short: "Usar tanta o tan poca capacidad como haga falta, sumándola o sacándola con pocos minutos de aviso."
+  docs: https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
+  glyph: elasticity
+  status: active
+- id: high-availability
+  type: concept
+  name: Alta disponibilidad
+  plainName: Tener un repuesto listo
+  category: concept-cloud-principles
+  leakPatterns: ["Alta disponibilidad", "High availability"]
+  short: "Que una carga de trabajo esté disponible para usarse el mayor porcentaje de tiempo posible."
+  docs: https://docs.aws.amazon.com/wellarchitected/latest/reliability-pillar/availability.html
+  glyph: high-availability
+  status: active
+- id: shared-responsibility
+  type: concept
+  name: Modelo de responsabilidad compartida
+  plainName: Cada uno cuida su parte
+  category: concept-security-compliance
+  leakPatterns: ["Modelo de responsabilidad compartida", "Shared Responsibility Model"]
+  short: "AWS se ocupa de la seguridad de la nube y el cliente, de la seguridad de lo que pone en la nube."
+  docs: https://aws.amazon.com/compliance/shared-responsibility-model/
+  glyph: shared-responsibility
+  status: active
+- id: least-privilege
+  type: concept
+  name: Privilegio mínimo
+  plainName: Cada llave abre solo su puerta
+  category: concept-security-compliance
+  leakPatterns: ["Privilegio mínimo", "Least privilege"]
+  short: "Dar solo los permisos necesarios para hacer cada tarea, y nada más."
+  docs: https://docs.aws.amazon.com/IAM/latest/UserGuide/best-practices.html
+  glyph: security
   status: active

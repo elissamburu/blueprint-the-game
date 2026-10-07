@@ -36,14 +36,14 @@ for (const entry of bundle.scenarios) {
     await playFromListing(page, scenario.title);
     const search = palette(page).getByRole("searchbox", { name: "Buscar servicio" });
 
-    for (const { slotId, number, role, optimal } of answers) {
+    for (const { slotId, number, role, optimal, query } of answers) {
       const where = `${entry.id} / ${slotId}`;
       const target = slot(page, role);
       await expect(target, `${where}: el casillero no está en el tablero`).toHaveCount(1);
       // With the keyboard, as it works for a slot the board has not scrolled into view.
       await target.press("Enter");
       await expect(search, `${where}: el casillero no quedó elegido`).toBeFocused();
-      await search.fill(optimal);
+      await search.fill(query);
       await expect(
         paletteService(page, optimal),
         `${where}: el óptimo «${optimal}» no está en la paleta`,

@@ -1,0 +1,170 @@
+# SPDX-License-Identifier: CC-BY-NC-SA-4.0
+# yaml-language-server: $schema=../../../packages/scenario-schema/dist/scenario.schema.json
+schemaVersion: 1
+id: club-cuotas-online
+version: 1
+status: beta
+lang: es
+level: 0
+areas: [fundamentos, storage]
+title: "Un club de barrio que cobra las cuotas online"
+summary: "Un club de barrio cobra las cuotas online: el primer año no sabe cuánto lo van a usar y después el uso es parejo todo el año."
+estimatedMinutes: 4
+authors:
+  - github: elissamburu
+
+context: |
+  Un club de barrio va a cobrar las cuotas con un sistema que corre en la nube y guardar los
+  comprobantes. El primer año no sabe cuántos socios lo van a usar. Después, el uso va a ser
+  parejo todo el año.
+
+objectives:
+  - id: no-fixed-commitment
+    kind: hard
+    category: cost
+    text: "El primer año no se compromete a ningún gasto fijo: todavía no sabe cuánto va a usar."
+  - id: steady-savings
+    kind: soft
+    category: cost
+    text: "Cuando el uso ya es estable, pagar menos."
+  - id: cheaper-than-own-server
+    kind: soft
+    category: cost
+    text: "Gastar menos que lo que le costaría comprar y mantener su propio servidor."
+
+diagram:
+  canvas: { width: 1240, height: 700 }
+  groups:
+    - id: system
+      kind: generic
+      label: "Sistema de cuotas"
+      rect: { x: 240, y: 40, w: 940, h: 240 }
+      parent: null
+    - id: bill
+      kind: generic
+      label: "Cómo paga el club"
+      rect: { x: 240, y: 320, w: 940, h: 340 }
+      parent: null
+
+  nodes:
+    - id: members
+      type: actor
+      label: "Socios"
+      icon: users
+      position: { x: 40, y: 120 }
+
+    - id: club
+      type: actor
+      label: "Comisión del club"
+      icon: user
+      position: { x: 40, y: 450 }
+
+    - id: first-year
+      type: slot
+      role: "Cómo se paga el primer año, mientras no se sabe cuántos socios van a usar el sistema."
+      position: { x: 300, y: 400 }
+      group: bill
+      answers:
+        - service: pay-as-you-go
+          grade: optimal
+          objectives: [no-fixed-commitment]
+          rationale: >
+            Se paga solo por lo que se usa, mientras se usa y sin contratos de largo plazo: si el
+            primer año hay pocos socios, la cuenta es chica.
+          references:
+            - https://docs.aws.amazon.com/whitepapers/latest/how-aws-pricing-works/key-principles.html
+          analogyLimit:
+            text: "No es solo \"si no lo usás, no pagás\": lo guardado se cobra por GB aunque nadie lo mire, y los datos que salen hacia internet también se cobran."
+            references:
+              - https://docs.aws.amazon.com/whitepapers/latest/how-aws-pricing-works/key-principles.html
+      incorrect:
+        - service: savings-plans
+          violates: [no-fixed-commitment]
+          rationale: "Es un compromiso de 1 o 3 años: justo lo que el club no quiere el primer año."
+
+    - id: later-years
+      type: slot
+      role: "Cómo se paga desde el segundo año, cuando el uso ya es parejo."
+      position: { x: 620, y: 400 }
+      group: bill
+      answers:
+        - service: savings-plans
+          grade: optimal
+          objectives: [steady-savings]
+          rationale: >
+            Con el uso ya parejo, el club puede comprometerse a un gasto por hora durante 1 o 3
+            años a cambio de precios más bajos en el cómputo donde corre el sistema de cobro.
+          references:
+            - https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html
+          analogyLimit:
+            text: "Te comprometés a un gasto por hora durante 1 o 3 años, y solo en ciertos servicios, como cómputo y bases de datos. Lo que no usás en una hora se pierde, y lo que pasás del compromiso se paga a precio normal."
+            references:
+              - https://docs.aws.amazon.com/savingsplans/latest/userguide/what-is-savings-plans.html
+              - https://docs.aws.amazon.com/savingsplans/latest/userguide/sp-applying.html
+              - https://docs.aws.amazon.com/savingsplans/latest/userguide/plan-types.html
+        - service: pay-as-you-go
+          grade: acceptable
+          objectives: [steady-savings]
+          rationale: "Sigue funcionando, pero con el uso ya estable paga más que con un compromiso."
+          references:
+            - https://docs.aws.amazon.com/whitepapers/latest/how-aws-pricing-works/key-principles.html
+          analogyLimit:
+            text: "No es solo \"si no lo usás, no pagás\": lo guardado se cobra por GB aunque nadie lo mire, y los datos que salen hacia internet también se cobran."
+            references:
+              - https://docs.aws.amazon.com/whitepapers/latest/how-aws-pricing-works/key-principles.html
+
+    - id: why-cheaper
+      type: slot
+      role: "Por qué al club le sale más barato que tener su propio servidor: el proveedor atiende a muchísimos clientes a la vez."
+      position: { x: 940, y: 400 }
+      group: bill
+      answers:
+        - service: economies-of-scale
+          grade: optimal
+          objectives: [cheaper-than-own-server]
+          rationale: >
+            AWS junta el uso de cientos de miles de clientes, y eso le permite costos variables más
+            bajos que los que el club lograría comprando y manteniendo su propio servidor.
+          references:
+            - https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
+          analogyLimit:
+            text: "El club no compra nada al por mayor: AWS junta el uso de cientos de miles de clientes y por eso puede ofrecer precios más bajos."
+            references:
+              - https://docs.aws.amazon.com/whitepapers/latest/aws-overview/six-advantages-of-cloud-computing.html
+      incorrect:
+        - service: elasticity
+          rationale: "Explica cómo se adapta la capacidad, no por qué el precio es bajo."
+
+    - id: receipts
+      type: slot
+      role: "Donde quedan guardados los comprobantes de pago de cada socio."
+      position: { x: 620, y: 80 }
+      group: system
+      answers:
+        - service: s3
+          grade: optimal
+          objectives: [no-fixed-commitment]
+          rationale: >
+            Guarda cada comprobante como un objeto y cobra por lo que queda guardado, sin
+            comprometerse a un gasto fijo: si el primer año hay pocos socios, se guarda poco y se
+            paga poco.
+          references:
+            - https://docs.aws.amazon.com/s3/
+          analogyLimit:
+            text: "No es una caja de archivos con dueño: guardás objetos y pagás por GB guardado. Quién puede verlos lo definís vos con permisos."
+            references:
+              - https://docs.aws.amazon.com/s3/
+              - https://docs.aws.amazon.com/whitepapers/latest/how-aws-pricing-works/key-principles.html
+      incorrect:
+        - service: efs
+          rationale: "Es un disco compartido para computadoras, no un depósito de comprobantes."
+
+  edges:
+    - { id: e1, from: members,     to: receipts,    step: 1, style: sync,    label: "Pagan la cuota online",
+        description: "Cada pago deja un comprobante guardado." }
+    - { id: e2, from: club,        to: first-year,  step: 2, style: control, label: "Paga el primer año" }
+    - { id: e3, from: club,        to: later-years, step: 3, style: control, label: "Paga desde el segundo año" }
+    - { id: e4, from: why-cheaper, to: later-years, step: 4, style: control, label: "Explica el precio bajo" }
+
+palette:
+  mode: auto

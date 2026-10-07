@@ -1,7 +1,7 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Level 0 in the Studio (RF-STU-19, ADR-0027 §6) over the temporary copy of content/, with the
-// concepts of the game's e2e appended to its catalog and a level 0 scenario with problems on
-// purpose (e2e/fixtures/level-zero): the service picker lists concepts with «Concepto» and finds
+// concepts of the real catalog (S3 without its plain name) and a level 0 scenario with problems
+// on purpose (e2e/fixtures/level-zero): the service picker lists concepts with «Concepto» and finds
 // them by plain name; «Dónde se rompe la analogía» is required, with L021 tied to it, and is
 // created, filled and removed with the keyboard, each edit one undo step; L005 with a plain name
 // and L022 take you to their fields; the preview names the palette «… y conceptos»; and a new
@@ -65,8 +65,10 @@ let catalog = "";
 
 test.beforeAll(async () => {
   catalog = await readFile(CATALOG, "utf8");
-  const concepts = await readFile(path.join(FIXTURES, "concepts.yaml"), "utf8");
-  await writeFile(CATALOG, `${catalog}${concepts}`, "utf8");
+  // Without the plain name of S3, the fixture has an L022 to show.
+  const S3_PLAIN_NAME = "  plainName: Almacenamiento de archivos\n";
+  if (!catalog.includes(S3_PLAIN_NAME)) throw new Error("S3 no tiene el plainName esperado");
+  await writeFile(CATALOG, catalog.replace(S3_PLAIN_NAME, ""), "utf8");
   await cp(path.join(FIXTURES, "scenario.yaml"), path.join(FOLDER, "scenario.yaml"));
   const pdf = await readFile(
     path.join(REPO_ROOT, "content", "scenarios", SCENARIOS.pdf.id, "scenario.yaml"),
@@ -103,9 +105,9 @@ test("el selector de servicio muestra los conceptos y busca por nombre simple", 
   await expect(search).toBeFocused();
   const list = page.getByRole("listbox", { name: "Servicios y conceptos del catálogo" });
 
-  await search.fill("centro de DATOS");
+  await search.fill("local APARTE");
   const zone = list.getByRole("option", {
-    name: "Zona de disponibilidad, concepto, Centro de datos aparte (availability-zone)",
+    name: "Zona de disponibilidad, concepto, Local aparte en la misma ciudad (availability-zone)",
   });
   await expect(zone).toBeVisible();
   await expect(zone).toContainText("Concepto");

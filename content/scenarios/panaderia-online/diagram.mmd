@@ -1,0 +1,19 @@
+%% Archivo generado por pnpm content:gen a partir de scenario.yaml. No se edita a mano.
+%% Escenario: panaderia-online v1
+flowchart LR
+  n_customers(["Clientes de todo el país"])
+  n_bakery(["Panadería"])
+  n_photos["Ubicación de borde"]
+  subgraph g_store["Tienda online"]
+    n_main_place["Región de AWS"]
+    n_backup["Zona de disponibilidad"]
+    n_scaling["Elasticidad"]
+  end
+  n_bakery ==>|"1. Carga productos y fotos"| n_main_place
+  n_customers -->|"2. Miran las fotos"| n_photos
+  n_photos ==>|"3. Pide las fotos que no tiene"| n_main_place
+  n_customers -->|"4. Hacen un pedido"| n_main_place
+  n_main_place ==>|"5. Copia los pedidos"| n_backup
+  n_scaling --o|"6. Suma capacidad en las fiestas"| n_main_place
+  classDef slot stroke-dasharray: 6 4,stroke-width:2px
+  class n_main_place,n_backup,n_photos,n_scaling slot
