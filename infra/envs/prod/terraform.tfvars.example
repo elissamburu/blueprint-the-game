@@ -1,0 +1,18 @@
+# Only for a local terraform plan with administrator credentials. deploy.yml does not read this file:
+# it takes the same values from the GitHub variables and secrets (step 4 of
+# docs/guias/configurar-aws-en-tu-fork.md). Copy to terraform.tfvars (ignored by git) and fill in.
+# Never commit the real values.
+
+account_id = "<ACCOUNT_ID>" # 12 digits
+aws_region = "us-east-2"    # the same as the bootstrap
+
+# The same as the bootstrap: its roles are scoped to the prefix and its boundary requires the tag.
+name_prefix = "blueprint"
+project_tag = "blueprint"
+
+domain              = "beta.example.com"
+acm_certificate_arn = "arn:aws:acm:us-east-1:<ACCOUNT_ID>:certificate/<CERTIFICATE_ID>"
+price_class         = "PriceClass_All"
+
+budget_usd   = 10
+budget_email = "<EMAIL>"

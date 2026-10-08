@@ -40,7 +40,8 @@ export const USAGE = `Uso:
       crea una invalidación de CloudFront de /index.html y /content/*. Variables de entorno:
         ${ENV.bucket}           nombre del bucket
         ${ENV.distributionId}  ID de la distribución de CloudFront
-        ${ENV.profile}           perfil del AWS CLI
+        ${ENV.profile}           perfil del AWS CLI (sin perfil, usa las credenciales del
+                              entorno, como el job deploy de deploy.yml)
       --dry-run  muestra los comandos que ejecutaría, sin ejecutar nada ni contactar a AWS.
 `;
 

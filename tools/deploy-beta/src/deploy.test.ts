@@ -118,6 +118,19 @@ describe("readTarget", () => {
     expect(readTarget(env, true)).toEqual(TARGET);
     expect(() => readTarget({ BETA_BUCKET: "Not A Bucket" }, true)).toThrow(DeployError);
   });
+
+  it("without a profile uses the credentials of the environment (deploy.yml), never a default", () => {
+    const ci = {
+      BETA_BUCKET: "blueprint-beta-site",
+      BETA_DISTRIBUTION_ID: "E1ABCDEFGHIJKL",
+      AWS_ACCESS_KEY_ID: "ASIAEXAMPLE",
+    };
+    expect(readTarget(ci, false)).toEqual({ ...TARGET, profile: undefined });
+    expect(readTarget(ci, true)).toEqual({ ...TARGET, profile: undefined });
+    expect(() => readTarget({ ...ci, AWS_ACCESS_KEY_ID: " " }, false)).toThrow("Falta AWS_PROFILE");
+    // An explicit profile still wins over credentials in the environment.
+    expect(readTarget({ ...ci, AWS_PROFILE: "beta-admin" }, false)).toEqual(TARGET);
+  });
 });
 
 describe("planUploads", () => {
@@ -210,6 +223,18 @@ describe("AWS CLI arguments", () => {
       "--profile",
       "beta-admin",
     ]);
+  });
+
+  it("passes no --profile when the credentials come from the environment", () => {
+    const ci = { ...TARGET, profile: undefined };
+    for (const args of [
+      uploadArgs(planUploads(["index.html"])[0]!, siteDir, ci),
+      listArgs(ci),
+      removeArgs("index.html", ci),
+      invalidationArgs(ci),
+    ]) {
+      expect(args).not.toContain("--profile");
+    }
   });
 });
 
