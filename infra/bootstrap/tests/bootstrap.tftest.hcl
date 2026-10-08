@@ -231,11 +231,12 @@ run "policies_fit_iam_limits" {
   variables {
     route53_zone_id                        = "Z0123456789ABCDEFGHIJ"
     route53_record_names                   = ["beta.example.com", "_*.beta.example.com"]
-    cloudfront_oac_ids                     = ["E1ABCDEFGHIJKL", "E2ABCDEFGHIJKL"]
-    cloudfront_response_headers_policy_ids = ["11111111-2222-3333-4444-555555555555", "66666666-7777-8888-9999-000000000000"]
+    cloudfront_oac_ids                     = ["E1ABCDEFGHIJKL"]
+    cloudfront_response_headers_policy_ids = ["11111111-2222-3333-4444-555555555555"]
   }
 
   # Managed policies: 6,144 characters without whitespace. Inline policies: 10,240 per role.
+  # The worst case the variables allow: one ID of each type (see their validation).
   assert {
     condition     = length(aws_iam_policy.boundary.policy) <= 6144
     error_message = "The boundary exceeds the size of a managed policy (${length(aws_iam_policy.boundary.policy)} characters)."
@@ -664,5 +665,67 @@ run "auth_google_identity_provider" {
       "cognito-idp:*IdentityProvider",
     )
     error_message = "The boundary allows the identity provider actions on tagged user pools."
+  }
+}
+
+# The boundary only fits with one ID of each type.
+run "rejects_two_cloudfront_ids" {
+  command = plan
+
+  variables {
+    cloudfront_oac_ids                     = ["E1ABCDEFGHIJKL", "E2ABCDEFGHIJKL"]
+    cloudfront_response_headers_policy_ids = ["11111111-2222-3333-4444-555555555555", "66666666-7777-8888-9999-000000000000"]
+  }
+
+  expect_failures = [var.cloudfront_oac_ids, var.cloudfront_response_headers_policy_ids]
+}
+
+# IAM refuses a wildcard in the service of an ARN ("Resource vendor must be fully qualified and
+# cannot contain regexes"), and a wildcard in the partition, the region or the account would reach
+# other accounts or services. Only the resource part (6th segment on) may have * or ?.
+run "arns_have_no_wildcards_before_the_resource" {
+  variables {
+    route53_zone_id                        = "Z0123456789ABCDEFGHIJ"
+    route53_record_names                   = ["beta.example.com", "_*.beta.example.com"]
+    cloudfront_oac_ids                     = ["E1ABCDEFGHIJKL"]
+    cloudfront_response_headers_policy_ids = ["11111111-2222-3333-4444-555555555555"]
+  }
+
+  assert {
+    condition = alltrue(flatten([
+      for policy in [
+        aws_iam_role_policy.github["plan"].policy,
+        aws_iam_role_policy.github["apply"].policy,
+        aws_iam_role_policy.github["deploy_content"].policy,
+        aws_iam_policy.apply_auth.policy,
+        aws_iam_policy.boundary.policy,
+        ] : [
+        for s in jsondecode(policy).Statement : [
+          for arn in flatten([try(s.Resource, []), try(s.NotResource, [])]) :
+          length(regexall("[*?]", split(":", arn)[2])) == 0
+          if startswith(arn, "arn:")
+        ]
+      ]
+    ]))
+    error_message = "An ARN has a wildcard in its service (3rd segment): IAM rejects the policy."
+  }
+
+  assert {
+    condition = alltrue(flatten([
+      for policy in [
+        aws_iam_role_policy.github["plan"].policy,
+        aws_iam_role_policy.github["apply"].policy,
+        aws_iam_role_policy.github["deploy_content"].policy,
+        aws_iam_policy.apply_auth.policy,
+        aws_iam_policy.boundary.policy,
+        ] : [
+        for s in jsondecode(policy).Statement : [
+          for arn in flatten([try(s.Resource, []), try(s.NotResource, [])]) :
+          length(regexall("[*?]", join(":", slice(split(":", arn), 0, 5)))) == 0
+          if startswith(arn, "arn:")
+        ]
+      ]
+    ]))
+    error_message = "An ARN has a wildcard in its partition, service, region or account."
   }
 }

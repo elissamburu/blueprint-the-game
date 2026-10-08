@@ -155,6 +155,13 @@ variable "cloudfront_oac_ids" {
     condition     = alltrue([for id in var.cloudfront_oac_ids : can(regex("^[A-Z0-9]{1,64}$", id))])
     error_message = "Each origin access control ID must be the bare ID (uppercase letters and digits, e.g. E1ABCDEFGHIJKL), not an ARN or a wildcard."
   }
+
+  # Each ID adds its full ARN to the boundary, which is a managed policy of at most 6,144
+  # characters: with one ID of each type it has 6,046 (ADR-0029). envs/prod creates one of each.
+  validation {
+    condition     = length(var.cloudfront_oac_ids) <= 1
+    error_message = "At most one origin access control ID: the permissions boundary would exceed the 6,144 characters of a managed policy."
+  }
 }
 
 variable "cloudfront_response_headers_policy_ids" {
@@ -168,5 +175,11 @@ variable "cloudfront_response_headers_policy_ids" {
       can(regex("^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$", id))
     ])
     error_message = "Each response headers policy ID must be the bare ID (a lowercase UUID), not an ARN or a wildcard."
+  }
+
+  # Same limit as cloudfront_oac_ids: the size of the boundary.
+  validation {
+    condition     = length(var.cloudfront_response_headers_policy_ids) <= 1
+    error_message = "At most one response headers policy ID: the permissions boundary would exceed the 6,144 characters of a managed policy."
   }
 }

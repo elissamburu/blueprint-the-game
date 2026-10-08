@@ -427,9 +427,11 @@ El MVP de F4 ([ADR-0029](../adr/0029-perfil-con-cognito-y-dynamodb-desde-el-nave
    git fetch origin
    git switch <rama-del-PR>
    terraform plan -out bootstrap.tfplan
-   # esperado: 2 to add, 3 to change, 0 to destroy
+   # esperado la primera vez: 2 to add, 3 to change, 0 to destroy
    #   + aws_iam_policy.apply_auth                  (<prefijo>-gh-apply-auth)
    #   + aws_iam_role_policy_attachment.apply_auth  (a <prefijo>-gh-apply)
+   # Si un apply anterior falló con MalformedPolicyDocument después de crear apply_auth:
+   # 1 to add (el attachment), 3 to change, 0 to destroy.
    #   ~ aws_iam_policy.boundary                    (techo de Cognito, DynamoDB y el rol player)
    #   ~ aws_iam_role_policy.github["plan"]         (lecturas de Cognito y DynamoDB)
    #   ~ aws_iam_role_policy.github["apply"]        (las mismas lecturas)
@@ -804,6 +806,8 @@ Lo mismo se puede revisar en local, antes de subir nada: `pnpm build:site` y `pn
 ### 5.1 Acotá los OAC y las response headers policies
 
 Es el paso **e)** del primer despliegue. El primer `apply` crea el *origin access control* y la *response headers policy* del sitio, pero `gh-apply` todavía no los puede cambiar ni borrar: con las variables vacías, el boundary lo niega para todos. Antes de cambiar cualquiera de los dos (por ejemplo, los headers de seguridad o la CSP del [issue #44](https://github.com/elissamburu/blueprint-the-game/issues/44)), re-aplicá el bootstrap con sus IDs.
+
+Cada lista admite **un solo ID**: cada ID suma su ARN al permissions boundary, que como managed policy tiene un máximo de 6.144 caracteres (con un ID de cada tipo ocupa 6.046). Si alguna vez `envs/prod` reemplaza el OAC o la política, cambiá el ID viejo por el nuevo en lugar de agregarlo.
 
 Los dos IDs están en el resumen del job `apply` (`cloudfront_oac_ids` y `cloudfront_response_headers_policy_ids`). También los podés buscar con la sesión de administrador del paso 3.1 (los nombres que pone `infra/envs/prod` empiezan con el prefijo: `<prefijo>-site` y `<prefijo>-security-headers`):
 

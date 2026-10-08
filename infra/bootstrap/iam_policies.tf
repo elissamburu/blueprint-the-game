@@ -537,11 +537,6 @@ locals {
   # --- Permissions boundary of the three roles and of every role they create. It is the ceiling:
   # nothing outside these Allow statements is possible, whatever policy a role gets.
   auth_arns = [local.project_user_pool_arn, local.project_identity_pool_arn, local.project_table_arn]
-  # The same in the boundary, shorter: one pattern for the user pools and the identity pools
-  # (cognito-idp:...:userpool/* and cognito-identity:...:identitypool/*). The boundary only grants
-  # cognito-idp and cognito-identity actions, so the pattern matching other cognito-* services
-  # grants nothing more.
-  boundary_auth_arns = ["arn:${local.partition}:cognito-*:${var.aws_region}:${local.account}:*pool/*", local.project_table_arn]
   # No resource type (Service Authorization Reference): only "*".
   auth_unscoped_actions = ["cognito-idp:CreateUserPool", "cognito-idp:DescribeUserPoolDomain", "cognito-identity:CreateIdentityPool", "cognito-identity:SetIdentityPoolRoles"]
   auth_tag_actions      = ["cognito-idp:TagResource", "cognito-identity:TagResource", "dynamodb:TagResource"]
@@ -605,7 +600,7 @@ locals {
         )
         Resource = concat(
           [local.distribution_arn, local.project_function_arn, local.project_budget_arn, local.project_role_arn, local.project_policy_arn],
-          local.boundary_auth_arns,
+          local.auth_arns,
         )
       },
       # F4 (ADR-0029): no service wildcards. Suffix wildcards keep the boundary under the 6,144
@@ -642,7 +637,7 @@ locals {
           "cognito-identity:UntagResource",
           "dynamodb:UntagResource",
         ]
-        Resource  = local.boundary_auth_arns
+        Resource  = local.auth_arns
         Condition = local.resource_is_project
       },
       # The state bucket: objects only (state and lock files); never its configuration or history.
