@@ -59,6 +59,29 @@ run "immutable_subject_per_environment" {
     error_message = "gh-plan must trust only the prod-plan environment."
   }
 
+  # The content upload has its own environment (no reviewers, only main): merges that do not change
+  # the infrastructure publish without an approval, and gh-deploy-content no longer trusts prod.
+  assert {
+    condition = (
+      jsondecode(aws_iam_role.github["deploy_content"].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+      == "repo:octo-org@1001/blueprint-fork@2002:environment:prod-content"
+    )
+    error_message = "gh-deploy-content must trust only the prod-content environment."
+  }
+
+  assert {
+    condition = length(distinct([
+      for role in aws_iam_role.github :
+      jsondecode(role.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+    ])) == 3
+    error_message = "Each role trusts a different environment."
+  }
+
+  assert {
+    condition     = alltrue([for role in aws_iam_role.github : length(jsondecode(role.assume_role_policy).Statement) == 1])
+    error_message = "Each trust policy has a single statement (one subject per role)."
+  }
+
   assert {
     condition = alltrue([
       for role in aws_iam_role.github :
@@ -92,10 +115,70 @@ run "legacy_subject" {
   assert {
     condition = (
       jsondecode(aws_iam_role.github["deploy_content"].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
-      == "repo:octo-org/blueprint-fork:environment:prod"
+      == "repo:octo-org/blueprint-fork:environment:prod-content"
     )
     error_message = "The legacy format has no numeric IDs."
   }
+
+  assert {
+    condition = (
+      jsondecode(aws_iam_role.github["apply"].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+      == "repo:octo-org/blueprint-fork:environment:prod"
+    )
+    error_message = "gh-apply stays on prod in the legacy format too."
+  }
+}
+
+run "custom_environments" {
+  variables {
+    plan_environment           = "staging-plan"
+    apply_environment          = "staging"
+    deploy_content_environment = "staging-content"
+  }
+
+  assert {
+    condition = [
+      for key in ["plan", "apply", "deploy_content"] :
+      jsondecode(aws_iam_role.github[key].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+      ] == [
+      "repo:octo-org@1001/blueprint-fork@2002:environment:staging-plan",
+      "repo:octo-org@1001/blueprint-fork@2002:environment:staging",
+      "repo:octo-org@1001/blueprint-fork@2002:environment:staging-content",
+    ]
+    error_message = "Each role trusts the environment of its variable."
+  }
+}
+
+# gh-apply is the only role behind reviewers: sharing its environment with one of the others would
+# let that environment, without reviewers, assume it.
+run "rejects_shared_apply_environment" {
+  command = plan
+
+  variables {
+    deploy_content_environment = "prod"
+  }
+
+  expect_failures = [var.apply_environment]
+}
+
+run "rejects_content_on_plan_environment" {
+  command = plan
+
+  variables {
+    deploy_content_environment = "prod-plan"
+  }
+
+  expect_failures = [var.deploy_content_environment]
+}
+
+run "rejects_bad_environment_name" {
+  command = plan
+
+  variables {
+    deploy_content_environment = "prod:*"
+  }
+
+  expect_failures = [var.deploy_content_environment]
 }
 
 run "reuses_existing_oidc_provider" {

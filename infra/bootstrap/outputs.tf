@@ -1,17 +1,17 @@
 # Identifiers, not secrets: they go to the GitHub repository as variables (not secrets), and never
 # into the repository itself.
 output "role_plan_arn" {
-  description = "AWS_ROLE_PLAN_ARN: role of terraform plan (environment prod-plan)."
+  description = "AWS_ROLE_PLAN_ARN: role of terraform plan (environment plan_environment, prod-plan by default)."
   value       = aws_iam_role.github["plan"].arn
 }
 
 output "role_apply_arn" {
-  description = "AWS_ROLE_APPLY_ARN: role of terraform apply (environment prod)."
+  description = "AWS_ROLE_APPLY_ARN: role of terraform apply (environment apply_environment, prod by default)."
   value       = aws_iam_role.github["apply"].arn
 }
 
 output "role_deploy_content_arn" {
-  description = "AWS_ROLE_DEPLOY_ARN: role of the site upload and the CloudFront invalidation (environment prod)."
+  description = "AWS_ROLE_DEPLOY_ARN: role of the site upload and the CloudFront invalidation (environment deploy_content_environment, prod-content by default)."
   value       = aws_iam_role.github["deploy_content"].arn
 }
 
