@@ -5,6 +5,7 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
+import { CSP_HEADER, loadCsp } from "./csp.js";
 import { startPreview } from "./preview.js";
 
 let root: string;
@@ -65,6 +66,20 @@ describe("preview server", () => {
   it("does not serve files outside the site", async () => {
     const response = await fetch(`${origin}/%2e%2e/secret.json`);
     expect(response.status).toBe(403);
+  });
+
+  it("sends the Content-Security-Policy of the policy file on every response, errors included", async () => {
+    const policy = await loadCsp();
+    expect(CSP_HEADER).toBe("Content-Security-Policy-Report-Only");
+    for (const route of ["/", "/escenarios", "/assets/index-BFQKd29Q.js", "/icons/s3.svg"]) {
+      const response = await fetch(`${origin}${route}`);
+      expect(response.headers.get(CSP_HEADER), route).toBe(policy);
+    }
+    const missing = await fetch(`${origin}/content/no-existe.v1.json`);
+    expect(missing.status).toBe(403);
+    expect(missing.headers.get(CSP_HEADER)).toBe(policy);
+    // Report-Only in phase 1: nothing is enforced yet.
+    expect(missing.headers.get("content-security-policy")).toBeNull();
   });
 
   it("only answers GET and HEAD", async () => {

@@ -23,11 +23,35 @@ resource "aws_cloudfront_function" "spa_rewrite" {
 
 # The headers of the managed SecurityHeadersPolicy that the beta uses, with the same values and the
 # same "override origin" settings (Use managed response headers policies:
-# https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-response-headers-policies.html#managed-response-headers-policies-security).
-# A policy of its own so the Content-Security-Policy can be added later (#44); not yet.
+# https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/using-managed-response-headers-policies.html#managed-response-headers-policies-security),
+# plus the Content-Security-Policy of the site (#44, ADR-0028).
+#
+# Phase 1 of #44: the policy goes as Content-Security-Policy-Report-Only, which only reports. That
+# header is not one of the security headers of the policy (content_security_policy always sends
+# Content-Security-Policy), so it is a custom header: CloudFront adds any custom header to every
+# response, with a value of up to 1,783 characters (Understand response headers policies, Custom
+# headers, and Quotas on headers:
+# https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/understanding-response-headers-policies.html#understanding-response-headers-policies-custom
+# https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cloudfront-limits.html#limits-custom-headers).
+# Phase 2 moves the same value to security_headers_config.content_security_policy.
 resource "aws_cloudfront_response_headers_policy" "security" {
   name    = "${var.name_prefix}-security-headers"
-  comment = "Security headers of the site (those of the managed SecurityHeadersPolicy; no CSP yet)"
+  comment = "Security headers of the site (those of the managed SecurityHeadersPolicy and the CSP in Report-Only)"
+
+  lifecycle {
+    precondition {
+      condition     = length(local.content_security_policy) <= 1783
+      error_message = "The Content-Security-Policy is longer than the 1,783 characters CloudFront accepts in a header."
+    }
+  }
+
+  custom_headers_config {
+    items {
+      header   = "Content-Security-Policy-Report-Only"
+      value    = local.content_security_policy
+      override = true
+    }
+  }
 
   security_headers_config {
     strict_transport_security {

@@ -645,8 +645,26 @@ Con `$Site = "https://$Domain"`:
 - [ ] **"Contanos qué te pareció"** (aviso de beta) abre la plantilla "Feedback de la beta" en GitHub, o tu formulario si definiste `VITE_FEEDBACK_URL`.
 - [ ] En una ventana de menos de 1024 px de ancho aparece el aviso de "pensado para escritorio" y se puede cerrar.
 - [ ] El código fuente de la página tiene `<meta name="robots" content="noindex">`.
+- [ ] **La Content-Security-Policy no reporta violaciones**: ver [Revisar la Content-Security-Policy](#revisar-la-content-security-policy).
 
 Repetí el checklist después de cada `deploy` que cambie la web.
+
+#### Revisar la Content-Security-Policy
+
+La política del sitio está en `tools/deploy-site/cloudfront/content-security-policy.txt` ([ADR-0028](../adr/0028-content-security-policy.md)). Por ahora va en modo **Report-Only**: el navegador no bloquea nada, solo avisa en la consola lo que bloquearía. No hay endpoint de reportes, así que la única forma de ver una violación es la consola.
+
+1. Confirmá el header:
+
+   ```powershell
+   curl.exe -sI "$Site/" | Select-String "content-security-policy"
+   # content-security-policy-report-only: default-src 'self'; script-src 'self'; ...
+   ```
+
+2. Abrí `$Site` en Chrome o Edge, **F12** → pestaña **Console**. Recorré el juego: onboarding, el listado (recargá con F5), un escenario (arrastrá una carta, abrí una pista, el menú «⋯» y la versión imprimible).
+3. Cada violación aparece como un error que empieza con **`[Report Only] Refused to …`** e indica la directiva (`script-src`, `style-src-elem`, `img-src`…) y el archivo y la línea que la causaron. Para ver solo esas, escribí `Report Only` en el filtro de la consola. La pestaña **Issues** de DevTools también las lista, agrupadas.
+4. Si aparece alguna, no cambies la política en la consola de AWS: abrí un issue con el mensaje completo y la página donde ocurrió. La política se cambia por PR, en el archivo, y la prueba e2e `apps/web/e2e/site/csp.spec.ts` (con `pnpm e2e`) tiene que pasar.
+
+Lo mismo se puede revisar en local, antes de subir nada: `pnpm build:site` y `pnpm preview:site` sirven `dist/site` con el mismo header.
 
 ### 5.1 Acotá los OAC y las response headers policies
 
@@ -675,7 +693,7 @@ Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos re
 
 ### Deploys siguientes
 
-- Un PR que toca `infra/**` (desde una rama de tu repo) corre `plan`: revisalo en el log antes de aprobar el merge.
+- Un PR que toca `infra/**` o `tools/deploy-site/cloudfront/**` (la función y la CSP, que Terraform lee de ahí), desde una rama de tu repo, corre `plan`: revisalo en el log antes de aprobar el merge.
 - Cada push a `main` corre `plan` y `deploy`. Si el plan tiene cambios de infraestructura, en el medio corre `apply`, que espera tu aprobación; si no, `apply` se saltea y `deploy` publica la web y el contenido de ese commit sin pedir nada. Lo que llega a `main` se publica: la revisión del PR es el control.
 - Para volver atrás, revertí el commit en `main` (o corré `deploy.yml` sobre `main` después del revert): el sitio se regenera completo desde el código.
 
