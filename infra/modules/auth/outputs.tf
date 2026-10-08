@@ -30,3 +30,8 @@ output "table_name" {
   description = "Name of the profiles table."
   value       = aws_dynamodb_table.profiles.name
 }
+
+output "google_enabled" {
+  description = "Whether sign-in with Google is configured (the web shows its button)."
+  value       = local.google_enabled
+}

@@ -637,3 +637,32 @@ run "auth_boundary" {
     error_message = "The Project tag of the F4 resources cannot be removed."
   }
 }
+
+# Sign-in with Google: the identity provider of the user pool, only on pools with the Project tag.
+run "auth_google_identity_provider" {
+  assert {
+    condition = length(setintersection(
+      one([for s in jsondecode(aws_iam_policy.apply_auth.policy).Statement : s.Action if s.Sid == "AuthManageTagged"]),
+      ["cognito-idp:CreateIdentityProvider", "cognito-idp:UpdateIdentityProvider", "cognito-idp:DeleteIdentityProvider"],
+    )) == 3
+    error_message = "gh-apply manages the identity provider of a user pool with the Project tag."
+  }
+
+  assert {
+    condition = contains(
+      one([for s in jsondecode(aws_iam_role_policy.github["plan"].policy).Statement : s.Action if s.Sid == "UserPoolsRead"]),
+      "cognito-idp:DescribeIdentityProvider",
+    )
+    error_message = "gh-plan reads the identity provider (refresh of aws_cognito_identity_provider)."
+  }
+
+  # Suffix wildcard: in the Service Authorization Reference it matches only Create, Delete,
+  # Describe and Update IdentityProvider. Behind the tag condition.
+  assert {
+    condition = contains(
+      one([for s in jsondecode(aws_iam_policy.boundary.policy).Statement : s.Action if s.Sid == "CeilingAuthTagged"]),
+      "cognito-idp:*IdentityProvider",
+    )
+    error_message = "The boundary allows the identity provider actions on tagged user pools."
+  }
+}

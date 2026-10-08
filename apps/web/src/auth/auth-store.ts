@@ -8,7 +8,14 @@ import { create } from "zustand";
 import { listLocalAttempts } from "../progress/local-storage-attempt-repository";
 import { LocalStorageProgressRepository } from "../progress/local-storage-progress-repository";
 import { localBackend, useProgressStore } from "../progress/progress-store";
-import { authConfig, CALLBACK_PATH, FAKE_AUTH, hasStoredSession, type AuthConfig } from "./config";
+import {
+  authConfig,
+  CALLBACK_PATH,
+  FAKE_AUTH,
+  hasStoredSession,
+  type AuthConfig,
+  type IdentityProvider,
+} from "./config";
 import type { connectCloud } from "./cloud/cloud-backend";
 import type { AuthSession, CloudStore } from "./session";
 
@@ -34,7 +41,7 @@ export interface AuthState {
    * or a session to restore); otherwise the layout hydrates the local progress.
    */
   init: () => boolean;
-  signIn: (returnTo: string) => Promise<void>;
+  signIn: (returnTo: string, provider?: IdentityProvider) => Promise<void>;
   signOut: () => Promise<void>;
   /** Deletes every item of the profile, then the Cognito user. */
   deleteAccount: () => Promise<boolean>;
@@ -140,10 +147,10 @@ export const createAuthStore = (deps: AuthDeps = defaultDeps()) =>
         });
         return true;
       },
-      signIn: async (returnTo) => {
+      signIn: async (returnTo, provider) => {
         set({ status: "working", error: null });
         try {
-          await (await sessionOnce()).signIn(returnTo);
+          await (await sessionOnce()).signIn(returnTo, provider);
         } catch (error) {
           console.warn(`Sign-in failed: ${String(error)}`);
           set({ status: "signed-out", error: "sign-in" });

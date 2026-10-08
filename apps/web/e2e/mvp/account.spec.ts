@@ -168,3 +168,15 @@ test("«Eliminar mi cuenta» borra el perfil de la nube y vuelve a invitado", as
   await expect(page.getByRole("button", { name: "Ingresar o crear cuenta" })).toBeVisible();
   expect(await fakeTable(page)).toEqual({});
 });
+
+test("«Continuar con Google» ingresa por el mismo callback, sin la página de email", async ({
+  page,
+}) => {
+  await onboard(page, { areas: [AREAS.serverless], experience: EXPERIENCE.beginner });
+  // Both ways to sign in, side by side: email and password, and straight to Google.
+  await expect(page.getByRole("button", { name: "Ingresar o crear cuenta" })).toBeVisible();
+  await page.getByRole("button", { name: "Continuar con Google" }).click();
+  await expect(page).toHaveURL(/\/escenarios$/);
+  await expect(accountButton(page)).toBeVisible();
+  await expect(page.getByRole("button", { name: "Continuar con Google" })).toBeHidden();
+});

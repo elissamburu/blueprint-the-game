@@ -40,3 +40,28 @@ variable "local_origin" {
   type        = string
   default     = "http://localhost:5173"
 }
+
+# Sign-in with Google (ADR-0029). Both empty: no Google. The OAuth client is created by hand in the
+# Google Cloud console (guide, step 3.9).
+variable "google_client_id" {
+  description = "Client ID of the Google OAuth client (<number>-<id>.apps.googleusercontent.com), or empty for no sign-in with Google."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.google_client_id == "" || can(regex("^[0-9]+-[a-z0-9]+\\.apps\\.googleusercontent\\.com$", var.google_client_id))
+    error_message = "google_client_id must be empty or a Google OAuth client ID (<number>-<id>.apps.googleusercontent.com)."
+  }
+}
+
+variable "google_client_secret" {
+  description = "Client secret of the Google OAuth client. Stored in the state (encrypted bucket of the bootstrap)."
+  type        = string
+  default     = ""
+  sensitive   = true
+
+  validation {
+    condition     = (var.google_client_id == "") == (var.google_client_secret == "")
+    error_message = "google_client_id and google_client_secret go together: both set or both empty."
+  }
+}

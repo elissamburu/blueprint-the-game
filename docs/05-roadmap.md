@@ -133,11 +133,12 @@ La beta ya está publicada en una cuenta **compartida** con otros proyectos, con
 - Web: «Ingresar o crear cuenta», menú de la cuenta (nombre visible, XP, cerrar sesión, «Eliminar mi cuenta»), progreso y partidas en curso en la tabla con `GameHost` sin cambios. Al ingresar: nube vacía → sube el progreso del navegador; si no, usa la nube (sin merge). `oidc-client-ts` y el SDK con `import()`; tokens en `sessionStorage`.
 - CSP: `connect-src` con los endpoints exactos de Cognito y DynamoDB de la región; la política pasa a ser un template que leen Terraform y el preview.
 - e2e con un login falso que solo existe en `vite build --mode e2e`.
-- RF: RF-AUTH-02, RF-AUTH-06 y una versión simplificada de RF-AUTH-04 y RF-AUTH-05 (ver consecuencias de ADR-0029).
+- Ingreso con Google opcional (`GOOGLE_CLIENT_ID` y `GOOGLE_CLIENT_SECRET`): «Continuar con Google» al lado del ingreso con email. Un mismo email por las dos vías son dos cuentas.
+- RF: RF-AUTH-02, RF-AUTH-03, RF-AUTH-06 y una versión simplificada de RF-AUTH-04 y RF-AUTH-05 (ver consecuencias de ADR-0029).
 
 **DoD**: un invitado juega, crea su cuenta (verificación por email), su progreso sube a la nube, lo ve al ingresar en otro navegador, cambia su nombre visible y elimina su cuenta sin que queden ítems suyos en la tabla ni su usuario en Cognito; sin sesión el juego funciona igual que antes; JS inicial < 250 KB gzip; el e2e de la CSP sigue en 0 violaciones.
 
-**Pendiente para F4 completo**: re-evaluación en el servidor (el cliente hoy puede escribir su propio XP), alias único, Google, exportar datos, insignias.
+**Pendiente para F4 completo**: re-evaluación en el servidor (el cliente hoy puede escribir su propio XP), alias único, vincular la cuenta de Google con la de contraseña del mismo email, exportar datos, insignias.
 
 ## F4 · Cuentas, progreso y gamificación
 **Objetivo**: registro, progreso en la nube, insignias.

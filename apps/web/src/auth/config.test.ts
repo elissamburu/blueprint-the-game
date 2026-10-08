@@ -1,6 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 import { describe, expect, it, vi } from "vitest";
-import { CALLBACK_PATH, hasStoredSession, readAuthConfig, safeReturnPath } from "./config";
+import {
+  CALLBACK_PATH,
+  hasStoredSession,
+  readAuthConfig,
+  readGoogleSignIn,
+  safeReturnPath,
+} from "./config";
 
 const ENV = {
   VITE_AUTH_REGION: "us-east-2",
@@ -75,5 +81,14 @@ describe("hasStoredSession", () => {
         throw new Error("SecurityError");
       }),
     ).toBe(false);
+  });
+});
+
+describe("readGoogleSignIn", () => {
+  it("shows Google only with a login and VITE_AUTH_GOOGLE=true", () => {
+    expect(readGoogleSignIn(true, "true")).toBe(true);
+    expect(readGoogleSignIn(true, "false")).toBe(false);
+    expect(readGoogleSignIn(true, undefined)).toBe(false);
+    expect(readGoogleSignIn(false, "true")).toBe(false);
   });
 });

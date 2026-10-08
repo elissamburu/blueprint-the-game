@@ -47,6 +47,7 @@ locals {
     "cognito-idp:DescribeUserPoolClient",
     "cognito-idp:GetUserPoolMfaConfig",
     "cognito-idp:ListTagsForResource",
+    "cognito-idp:DescribeIdentityProvider",
   ]
   user_pool_write_actions = [
     "cognito-idp:UpdateUserPool",
@@ -58,6 +59,11 @@ locals {
     "cognito-idp:CreateUserPoolDomain",
     "cognito-idp:UpdateUserPoolDomain",
     "cognito-idp:DeleteUserPoolDomain",
+    # Sign-in with Google (ADR-0029): the identity provider of the user pool, authorized against
+    # the userpool resource (Service Authorization Reference: no condition keys of their own).
+    "cognito-idp:CreateIdentityProvider",
+    "cognito-idp:UpdateIdentityProvider",
+    "cognito-idp:DeleteIdentityProvider",
   ]
   identity_pool_read_actions = [
     "cognito-identity:DescribeIdentityPool",
@@ -606,6 +612,8 @@ locals {
       # characters of a managed policy; in the Service Authorization Reference each one matches only
       # these actions: *UserPool (Create, Delete, Describe, Update), *UserPoolClient and
       # *UserPoolDomain (Create, Delete, Describe, Update), *UserPoolMfaConfig (Get, Set),
+      # *IdentityProvider (Create, Delete, Describe, Update; not ListIdentityProviders nor
+      # GetIdentityProviderByIdentifier),
       # *IdentityPool (Create, Delete, Describe, Update), *ContinuousBackups and *TimeToLive
       # (Describe, Update), and *Table (Create, Delete, Describe, Update and Import Table, and
       # Create, Describe and Update GlobalTable). Every change needs the Project tag here
@@ -621,6 +629,7 @@ locals {
           "cognito-idp:*UserPoolClient",
           "cognito-idp:*UserPoolDomain",
           "cognito-idp:*UserPoolMfaConfig",
+          "cognito-idp:*IdentityProvider",
           "cognito-idp:ListTagsForResource",
           "cognito-identity:*IdentityPool",
           "cognito-identity:GetIdentityPoolRoles",

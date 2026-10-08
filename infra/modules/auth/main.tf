@@ -25,6 +25,9 @@ locals {
   # Prefix domain: <prefix>.auth.<region>.amazoncognito.com
   # (https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-assign-domain-prefix.html).
   auth_domain = "${aws_cognito_user_pool_domain.login.domain}.auth.${local.region}.amazoncognito.com"
+
+  # Sign-in with Google only when its OAuth client is configured.
+  google_enabled = var.google_client_id != ""
 }
 
 resource "aws_cognito_user_pool" "players" {
@@ -90,7 +93,7 @@ resource "aws_cognito_user_pool_client" "web" {
   allowed_oauth_flows_user_pool_client = true
   allowed_oauth_flows                  = ["code"]
   allowed_oauth_scopes                 = ["openid", "email", "profile", "aws.cognito.signin.user.admin"]
-  supported_identity_providers         = ["COGNITO"]
+  supported_identity_providers         = concat(["COGNITO"], local.google_enabled ? ["Google"] : [])
   callback_urls                        = [for origin in local.origins : "${origin}${local.callback_path}"]
   logout_urls                          = [for origin in local.origins : "${origin}/"]
   explicit_auth_flows                  = ["ALLOW_REFRESH_TOKEN_AUTH"]
@@ -105,6 +108,50 @@ resource "aws_cognito_user_pool_client" "web" {
     access_token  = "minutes"
     id_token      = "minutes"
     refresh_token = "days"
+  }
+
+  # The client can only name an identity provider that already exists.
+  depends_on = [aws_cognito_identity_provider.google]
+}
+
+# Sign-in with Google (ADR-0029), only with google_client_id. The client secret is stored in the
+# state (the state bucket of the bootstrap: SSE, versioning, no public access, TLS only); the
+# variable is sensitive, so plans print the whole provider_details as (sensitive value).
+# Attribute mapping: Google's email, email_verified and name, and username from sub (the source
+# Cognito uses for Google: Mapping IdP attributes to profiles and tokens,
+# https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-specifying-attribute-mapping.html).
+# email_verified matters: a mapped email is unverified otherwise. The app client writes every
+# attribute (no write_attributes), as mapped attributes require.
+resource "aws_cognito_identity_provider" "google" {
+  count = local.google_enabled ? 1 : 0
+
+  user_pool_id  = aws_cognito_user_pool.players.id
+  provider_name = "Google"
+  provider_type = "Google"
+
+  provider_details = {
+    client_id        = var.google_client_id
+    client_secret    = var.google_client_secret
+    authorize_scopes = "openid email profile"
+  }
+
+  attribute_mapping = {
+    email          = "email"
+    email_verified = "email_verified"
+    name           = "name"
+    username       = "sub"
+  }
+
+  # Cognito fills in the endpoints of Google in provider_details: not ours to change.
+  lifecycle {
+    ignore_changes = [
+      provider_details["attributes_url"],
+      provider_details["attributes_url_add_attributes"],
+      provider_details["authorize_url"],
+      provider_details["oidc_issuer"],
+      provider_details["token_request_method"],
+      provider_details["token_url"],
+    ]
   }
 }
 

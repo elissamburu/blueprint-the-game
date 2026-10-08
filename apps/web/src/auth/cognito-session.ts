@@ -106,9 +106,14 @@ export const createCognitoSession = (config: AuthConfig): AuthSession => {
   };
 
   return {
-    signIn: async (returnTo) => {
+    signIn: async (returnTo, provider) => {
       await users.clearStaleState();
-      await users.signinRedirect({ state: { returnTo } });
+      // identity_provider skips the page of the hosted UI and goes to Google (Authorize endpoint:
+      // https://docs.aws.amazon.com/cognito/latest/developerguide/authorization-endpoint.html).
+      await users.signinRedirect({
+        state: { returnTo },
+        ...(provider === undefined ? {} : { extraQueryParams: { identity_provider: provider } }),
+      });
     },
     completeSignIn: async (url) => {
       const user = await users.signinRedirectCallback(url);

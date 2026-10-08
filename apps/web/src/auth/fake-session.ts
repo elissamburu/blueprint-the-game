@@ -67,8 +67,9 @@ export const createFakeSession = (): AuthSession => {
   const signedIn = (): Account | null =>
     window.sessionStorage.getItem(FAKE_USER_KEY) === null ? null : FAKE_ACCOUNT;
   return {
-    signIn: (returnTo) => {
-      window.sessionStorage.setItem(PENDING_KEY, JSON.stringify({ returnTo }));
+    signIn: (returnTo, provider) => {
+      // The provider is kept for the tests: the fake has no Google page to go through.
+      window.sessionStorage.setItem(PENDING_KEY, JSON.stringify({ returnTo, provider }));
       window.location.assign(`${CALLBACK_PATH}?code=fake&state=fake`);
       return Promise.resolve();
     },

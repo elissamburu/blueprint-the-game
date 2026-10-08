@@ -63,3 +63,8 @@ output "profiles_table" {
   description = "VITE_AUTH_TABLE."
   value       = module.auth.table_name
 }
+
+output "auth_google_enabled" {
+  description = "VITE_AUTH_GOOGLE: whether sign-in with Google is configured."
+  value       = module.auth.google_enabled
+}

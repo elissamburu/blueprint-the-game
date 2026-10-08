@@ -23,6 +23,9 @@ module "auth" {
   account_id         = var.account_id
   domain             = var.domain
   auth_domain_prefix = var.auth_domain_prefix
+
+  google_client_id     = var.google_client_id
+  google_client_secret = var.google_client_secret
 }
 
 module "observability" {

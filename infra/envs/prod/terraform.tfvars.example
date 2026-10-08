@@ -20,3 +20,7 @@ budget_email = "<EMAIL>"
 # Login (ADR-0029): <prefix>.auth.<region>.amazoncognito.com. Unique per region across AWS; do not
 # use the account ID.
 auth_domain_prefix = "<PREFIX>"
+
+# Optional: sign-in with Google (guide, step 3.9). Both empty: no Google.
+google_client_id     = "" # <number>-<id>.apps.googleusercontent.com
+google_client_secret = "" # sensitive: never commit it

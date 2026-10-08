@@ -296,6 +296,7 @@
   },
   "auth": {
     "signIn": "Ingresar o crear cuenta",
+    "google": "Continuar con Google",
     "working": "Un momento…",
     "menu": "Tu cuenta",
     "menuLabel": "Cuenta de {{name}}",

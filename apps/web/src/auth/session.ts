@@ -5,6 +5,7 @@
 // implementations are loaded with import() after the player chooses to sign in.
 import type { PlayerProgress, SavedAttempt } from "@blueprint/game-engine";
 import type { ProgressLoad } from "../progress/progress-repository";
+import type { IdentityProvider } from "./config";
 
 export interface Account {
   /** sub of the ID token. */
@@ -14,8 +15,11 @@ export interface Account {
 }
 
 export interface AuthSession {
-  /** Goes to the hosted UI (the page is left). */
-  signIn(returnTo: string): Promise<void>;
+  /**
+   * Goes to the hosted UI (the page is left). With a provider, straight to it (identity_provider of
+   * the authorize endpoint) instead of the page of email and password.
+   */
+  signIn(returnTo: string, provider?: IdentityProvider): Promise<void>;
   /** On CALLBACK_PATH: exchanges the code (PKCE). Where to go back is a path of this site. */
   completeSignIn(url: string): Promise<{ account: Account; returnTo: string }>;
   /** The session of this tab, if any. */

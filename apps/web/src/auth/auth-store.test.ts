@@ -171,6 +171,13 @@ describe("auth store (ADR-0029)", () => {
     const signIn = vi.fn(() => Promise.resolve());
     const store = createAuthStore(deps(fakeSession(new MemoryTable(), { signIn })));
     await store.getState().signIn("/escenarios");
-    expect(signIn).toHaveBeenCalledWith("/escenarios");
+    expect(signIn).toHaveBeenCalledWith("/escenarios", undefined);
+  });
+
+  it("signs in straight with Google when asked", async () => {
+    const signIn = vi.fn(() => Promise.resolve());
+    const store = createAuthStore(deps(fakeSession(new MemoryTable(), { signIn })));
+    await store.getState().signIn("/perfil", "Google");
+    expect(signIn).toHaveBeenCalledWith("/perfil", "Google");
   });
 });

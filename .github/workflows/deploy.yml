@@ -43,7 +43,8 @@ env:
   AUTH_OUTPUTS: >-
     {VITE_AUTH_REGION: (.auth_region.value // ""), VITE_AUTH_USER_POOL_ID: (.auth_user_pool_id.value // ""),
     VITE_AUTH_CLIENT_ID: (.auth_user_pool_client_id.value // ""), VITE_AUTH_IDENTITY_POOL_ID: (.auth_identity_pool_id.value // ""),
-    VITE_AUTH_DOMAIN: (.auth_domain.value // ""), VITE_AUTH_TABLE: (.profiles_table.value // "")}
+    VITE_AUTH_DOMAIN: (.auth_domain.value // ""), VITE_AUTH_TABLE: (.profiles_table.value // ""),
+    VITE_AUTH_GOOGLE: (if (.auth_google_enabled.value // false) then "true" else "false" end)}
 
 jobs:
   # terraform plan with gh-plan (reads the project and the state, takes the lock). prod-plan has no
@@ -77,6 +78,10 @@ jobs:
       TF_VAR_price_class: ${{ vars.PRICE_CLASS || 'PriceClass_All' }}
       TF_VAR_budget_usd: ${{ vars.BUDGET_USD || '10' }}
       TF_VAR_auth_domain_prefix: ${{ vars.AUTH_DOMAIN_PREFIX }}
+      # Optional sign-in with Google (ADR-0029). The secret ends up in the state (encrypted bucket);
+      # Terraform prints it as (sensitive value) and GitHub masks it.
+      TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
+      TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
     steps:
       # Fails with the names of what is missing instead of a credentials error further down. Only
       # checks that each value is set: their values are never printed.
@@ -202,6 +207,10 @@ jobs:
       TF_VAR_price_class: ${{ vars.PRICE_CLASS || 'PriceClass_All' }}
       TF_VAR_budget_usd: ${{ vars.BUDGET_USD || '10' }}
       TF_VAR_auth_domain_prefix: ${{ vars.AUTH_DOMAIN_PREFIX }}
+      # Optional sign-in with Google (ADR-0029). The secret ends up in the state (encrypted bucket);
+      # Terraform prints it as (sensitive value) and GitHub masks it.
+      TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
+      TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
     steps:
       # Fails with the names of what is missing instead of a credentials error further down. Only
       # checks that each value is set: their values are never printed.

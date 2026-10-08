@@ -86,6 +86,22 @@ export const authConfig = readAuthConfig(import.meta.env);
  */
 export const FAKE_AUTH = __BLUEPRINT_FAKE_AUTH__;
 
+/**
+ * "Continuar con Google" (ADR-0029): VITE_AUTH_GOOGLE comes from the output auth_google_enabled of
+ * infra/envs/prod, true only when the user pool has the Google identity provider. Without a login
+ * there is no button either.
+ */
+export const readGoogleSignIn = (enabled: boolean, value: string | undefined): boolean =>
+  enabled && value === "true";
+
+export const GOOGLE_SIGN_IN = readGoogleSignIn(
+  authConfig !== null || FAKE_AUTH,
+  import.meta.env.VITE_AUTH_GOOGLE,
+);
+
+/** Identity providers of the hosted UI besides the user pool's own users. */
+export type IdentityProvider = "Google";
+
 /** Whether this tab may have a session to restore (tokens of the login in sessionStorage). */
 export const hasStoredSession = (storage: () => Storage = () => window.sessionStorage): boolean => {
   try {

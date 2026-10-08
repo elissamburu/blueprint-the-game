@@ -406,6 +406,21 @@ El MVP de F4 ([ADR-0029](../adr/0029-perfil-con-cognito-y-dynamodb-desde-el-nave
    gh variable set AUTH_DOMAIN_PREFIX --body "<prefijo-del-login>"
    ```
 
+   **Opcional, ingreso con Google.** En la [consola de Google Cloud](https://console.cloud.google.com/), *APIs and Services* → *OAuth consent screen* (con `amazoncognito.com` en *Authorized domains* y los scopes `openid`, `.../auth/userinfo.email` y `.../auth/userinfo.profile`) y después *Credentials* → *Create credentials* → *OAuth client ID* (*Web application*) con ([Using social identity providers, Google](https://docs.aws.amazon.com/cognito/latest/developerguide/cognito-user-pools-social-idp.html)):
+   - *Authorized JavaScript origins*: `https://<prefijo-del-login>.auth.<región>.amazoncognito.com`
+   - *Authorized redirect URIs*: `https://<prefijo-del-login>.auth.<región>.amazoncognito.com/oauth2/idpresponse`
+
+   Cargá el client ID como variable y el secret como **secret** (sin ellos no hay botón de Google y nada más cambia):
+
+   ```powershell
+   gh variable set GOOGLE_CLIENT_ID --body "<número>-<id>.apps.googleusercontent.com"
+   $GoogleSecret = Read-Host -AsSecureString "Client secret de Google" | ConvertFrom-SecureString -AsPlainText
+   gh secret set GOOGLE_CLIENT_SECRET --body $GoogleSecret
+   $GoogleSecret = $null
+   ```
+
+   El secret termina en el **state** de `infra/envs/prod` (en `provider_details` del identity provider): vive en el bucket de state del bootstrap, cifrado, versionado y sin acceso público, y en los planes sale como `(sensitive value)`. Quien pueda leer el state puede leerlo; si alguna vez se filtra, rotalo en Google y actualizá el secret. Mientras la pantalla de consentimiento de Google esté en modo *Testing*, solo ingresan los *test users* que cargues ahí.
+
 2. **Re-aplicá el bootstrap desde la rama del PR** (con la sesión de administrador del paso 3.1, desde `infra/bootstrap`):
 
    ```powershell
@@ -418,13 +433,14 @@ El MVP de F4 ([ADR-0029](../adr/0029-perfil-con-cognito-y-dynamodb-desde-el-nave
    #   ~ aws_iam_policy.boundary                    (techo de Cognito, DynamoDB y el rol player)
    #   ~ aws_iam_role_policy.github["plan"]         (lecturas de Cognito y DynamoDB)
    #   ~ aws_iam_role_policy.github["apply"]        (las mismas lecturas)
+   # (incluye los permisos del identity provider de Google, se use o no)
    terraform apply bootstrap.tfplan
    Remove-Item bootstrap.tfplan
    ```
 
    Si el plan toca otra cosa (un rol que se reemplaza, el bucket de state, `gh-deploy-content`), no apliques. Resguardá el state otra vez (paso 3.6).
 3. **Verificá los permisos nuevos** con las simulaciones de abajo.
-4. **Volvé a correr el plan del PR** (*Re-run jobs* en la pestaña *Checks*, o un push a la rama). Esperado en `infra/envs/prod`: `8 to add, 1 to change, 0 to destroy` (los 8 recursos de `module.auth` y la *response headers policy*, por el `connect-src` nuevo de la CSP).
+4. **Volvé a correr el plan del PR** (*Re-run jobs* en la pestaña *Checks*, o un push a la rama). Esperado en `infra/envs/prod`: `8 to add, 1 to change, 0 to destroy` sin Google, o `9 to add, 1 to change, 0 to destroy` con `GOOGLE_CLIENT_ID` (los recursos de `module.auth`, más `aws_cognito_identity_provider.google[0]` con Google, y la *response headers policy*, por el `connect-src` nuevo de la CSP).
 5. **Mergeá el PR** y aprobá el `apply`. El job `deploy` arma la web con los `VITE_AUTH_*` que salen de Terraform: el botón «Ingresar o crear cuenta» aparece solo cuando están.
 
 Simulaciones, con las variables y la función `Test-Permission` del [paso 3.5](#35-verificá-los-permisos):
@@ -458,6 +474,11 @@ Test-Permission $RoleApply "dynamodb:PutItem"                      $Table @($Tag
 Test-Permission $RoleApply "iam:PassRole"                          $PlayerRole @($ToCognito) # allowed
 Test-Permission $RoleApply "iam:PassRole"                          $PlayerRole @($ToLambda)  # implicitDeny
 Test-Permission $RoleApply "iam:PassRole"                          $TestRole @($ToCognito)   # implicitDeny
+Test-Permission $RoleApply "cognito-idp:CreateIdentityProvider"    $UserPool @($Tagged)      # allowed
+Test-Permission $RoleApply "cognito-idp:UpdateIdentityProvider"    $UserPool                 # implicitDeny
+Test-Permission $RolePlan  "cognito-idp:DescribeIdentityProvider"  $UserPool @($Tagged)      # allowed
+Test-Permission $RolePlan  "cognito-idp:CreateIdentityProvider"    $UserPool @($Tagged)      # implicitDeny
+Test-Permission $RoleApply "cognito-idp:ListIdentityProviders"     $UserPool @($Tagged)      # implicitDeny
 ```
 
 | Rol | Acción | Recurso | Esperado | Por qué |
@@ -472,6 +493,9 @@ Test-Permission $RoleApply "iam:PassRole"                          $TestRole @($
 | `gh-apply` | `dynamodb:PutItem` | la tabla | `implicitDeny` | Los ítems son solo del rol player. |
 | `gh-apply` | `iam:PassRole` | `role/<prefijo>-player` a Cognito / a Lambda | `allowed` / `implicitDeny` | Solo ese rol, solo a `cognito-identity.amazonaws.com`. |
 | `gh-apply` | `iam:PassRole` | otro rol del proyecto | `implicitDeny` | Ídem. |
+| `gh-apply` | `cognito-idp:CreateIdentityProvider` | user pool con / sin `Project` | `allowed` / `implicitDeny` | El identity provider de Google se autoriza contra el user pool. |
+| `gh-plan` | `cognito-idp:DescribeIdentityProvider` / `CreateIdentityProvider` | user pool del proyecto | `allowed` / `implicitDeny` | `gh-plan` solo lee. |
+| `gh-apply` | `cognito-idp:ListIdentityProviders` | user pool del proyecto | `implicitDeny` | Terraform no lo usa, y el comodín del boundary (`*IdentityProvider`) no lo cubre. |
 
 Después del primer `apply`, el rol player existe y también se puede simular. El simulador no conoce el identity ID: se le pasan la variable de la política (`cognito-identity.amazonaws.com:sub`) y la clave de la request (`dynamodb:LeadingKeys`):
 
@@ -506,6 +530,8 @@ El repo es **público**, y los logs de GitHub Actions también: cualquiera puede
 | Variable | `TF_STATE_BUCKET` | Salida `state_bucket` del bootstrap | Sí |
 | Variable | `NAME_PREFIX`, `PROJECT_TAG` | Los mismos `name_prefix` y `project_tag` del bootstrap | Sí |
 | Variable | `SITE_DOMAIN` | Dominio del sitio, p. ej. `beta.example.com` | Sí |
+| Variable | `GOOGLE_CLIENT_ID` | Client ID del cliente OAuth de Google, para «Continuar con Google» ([paso 3.9](#39-si-ya-tenías-el-bootstrap-aplicado-cuentas-y-perfil-f4-mvp)) | No |
+| Secret | `GOOGLE_CLIENT_SECRET` | Su client secret (queda en el state cifrado) | Solo con `GOOGLE_CLIENT_ID` |
 | Variable | `AUTH_DOMAIN_PREFIX` | Prefijo del dominio del login: `<prefijo>.auth.<región>.amazoncognito.com` ([paso 3.9](#39-si-ya-tenías-el-bootstrap-aplicado-cuentas-y-perfil-f4-mvp)). Minúsculas, números y guiones; único en la región; nunca el account ID | Sí |
 | Variable | `BUDGET_USD` | Límite mensual del presupuesto, en USD | No (10) |
 | Variable | `PRICE_CLASS` | `PriceClass_All`, `PriceClass_200` o `PriceClass_100` | No (`PriceClass_All`, incluye Sudamérica) |
@@ -754,6 +780,7 @@ Con `$Site = "https://$Domain"`:
   4. Abrí el sitio en **otro navegador**, ingresá con la misma cuenta: aparece tu progreso.
   5. «Cerrar sesión» vuelve al progreso de invitado de ese navegador. Volvé a ingresar y probá «Eliminar mi cuenta»: después, ingresar con ese mail ya no funciona.
   6. En la consola, ninguna violación de la CSP y ningún error de CORS.
+  7. Con Google configurado: «Continuar con Google» va directo a Google y vuelve con la sesión iniciada. Con el mismo mail que una cuenta de contraseña es **otra** cuenta, con su propio progreso (ADR-0029).
 
 Repetí el checklist después de cada `deploy` que cambie la web.
 

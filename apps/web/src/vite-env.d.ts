@@ -22,6 +22,8 @@ interface ImportMetaEnv {
   readonly VITE_AUTH_IDENTITY_POOL_ID?: string;
   readonly VITE_AUTH_DOMAIN?: string;
   readonly VITE_AUTH_TABLE?: string;
+  /** "true" when the user pool has sign-in with Google (output auth_google_enabled). */
+  readonly VITE_AUTH_GOOGLE?: string;
   /** "true" only in `vite build --mode e2e` (.env.e2e): the fake login of the e2e tests. */
   readonly VITE_AUTH_FAKE?: string;
 }

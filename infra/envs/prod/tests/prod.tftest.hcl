@@ -616,3 +616,107 @@ run "rejects_a_reserved_auth_domain_prefix" {
 
   expect_failures = [var.auth_domain_prefix]
 }
+
+# --- Sign-in with Google (ADR-0029): only with google_client_id and google_client_secret.
+run "auth_without_google" {
+  module {
+    source = "../../modules/auth"
+  }
+
+  override_data {
+    target = data.aws_partition.current
+    values = { partition = "aws" }
+  }
+
+  override_resource {
+    target = aws_iam_role.player
+    values = { arn = "arn:aws:iam::111111111111:role/acme-player" }
+  }
+
+  override_resource {
+    target = aws_dynamodb_table.profiles
+    values = { arn = "arn:aws:dynamodb:us-east-2:111111111111:table/acme-profiles" }
+  }
+
+  assert {
+    condition = (
+      length(aws_cognito_identity_provider.google) == 0
+      && aws_cognito_user_pool_client.web.supported_identity_providers == toset(["COGNITO"])
+      && output.google_enabled == false
+    )
+    error_message = "Without a Google client there is no identity provider and the app client only has Cognito users."
+  }
+}
+
+run "auth_with_google" {
+  module {
+    source = "../../modules/auth"
+  }
+
+  variables {
+    google_client_id     = "123456789012-abcdefghijklmnop.apps.googleusercontent.com"
+    google_client_secret = "not-a-real-secret"
+  }
+
+  override_data {
+    target = data.aws_partition.current
+    values = { partition = "aws" }
+  }
+
+  override_resource {
+    target = aws_iam_role.player
+    values = { arn = "arn:aws:iam::111111111111:role/acme-player" }
+  }
+
+  override_resource {
+    target = aws_dynamodb_table.profiles
+    values = { arn = "arn:aws:dynamodb:us-east-2:111111111111:table/acme-profiles" }
+  }
+
+  assert {
+    condition = (
+      aws_cognito_identity_provider.google[0].provider_name == "Google"
+      && aws_cognito_identity_provider.google[0].provider_type == "Google"
+      && aws_cognito_identity_provider.google[0].provider_details["authorize_scopes"] == "openid email profile"
+      && aws_cognito_identity_provider.google[0].provider_details["client_id"] == "123456789012-abcdefghijklmnop.apps.googleusercontent.com"
+    )
+    error_message = "The Google provider of the user pool, with the openid, email and profile scopes."
+  }
+
+  assert {
+    condition = aws_cognito_identity_provider.google[0].attribute_mapping == tomap({
+      email          = "email"
+      email_verified = "email_verified"
+      name           = "name"
+      username       = "sub"
+    })
+    error_message = "Google's email, email_verified and name, and the username from sub."
+  }
+
+  assert {
+    condition = (
+      aws_cognito_user_pool_client.web.supported_identity_providers == toset(["COGNITO", "Google"])
+      && output.google_enabled
+    )
+    error_message = "The app client offers Google besides Cognito users, and the output tells the web."
+  }
+}
+
+run "rejects_a_google_client_without_secret" {
+  command = plan
+
+  module {
+    source = "../../modules/auth"
+  }
+
+  override_data {
+    target = data.aws_partition.current
+    values = { partition = "aws" }
+  }
+
+  variables {
+    google_client_id = "123456789012-abcdefghijklmnop.apps.googleusercontent.com"
+  }
+
+  expect_failures = [var.google_client_secret]
+}
