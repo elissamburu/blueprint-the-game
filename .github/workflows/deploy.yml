@@ -18,6 +18,8 @@ on:
     branches: [main]
     paths:
       - "infra/**"
+      # Inputs of Terraform outside infra/: the CloudFront Function and the Content-Security-Policy.
+      - "tools/deploy-site/cloudfront/**"
       - ".github/workflows/deploy.yml"
   push:
     branches: [main]

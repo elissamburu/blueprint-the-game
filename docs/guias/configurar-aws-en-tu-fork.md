@@ -693,7 +693,7 @@ Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos re
 
 ### Deploys siguientes
 
-- Un PR que toca `infra/**` (desde una rama de tu repo) corre `plan`: revisalo en el log antes de aprobar el merge.
+- Un PR que toca `infra/**` o `tools/deploy-site/cloudfront/**` (la función y la CSP, que Terraform lee de ahí), desde una rama de tu repo, corre `plan`: revisalo en el log antes de aprobar el merge.
 - Cada push a `main` corre `plan` y `deploy`. Si el plan tiene cambios de infraestructura, en el medio corre `apply`, que espera tu aprobación; si no, `apply` se saltea y `deploy` publica la web y el contenido de ese commit sin pedir nada. Lo que llega a `main` se publica: la revisión del PR es el control.
 - Para volver atrás, revertí el commit en `main` (o corré `deploy.yml` sobre `main` después del revert): el sitio se regenera completo desde el código.
 
