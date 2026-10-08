@@ -28,7 +28,13 @@ El primer despliegue (paso 5) suma, desde GitHub Actions:
 ├── Bucket S3 <prefijo>-site-<cuenta>-<región>  ← privado; solo lo lee la distribución
 ├── CloudFront: distribución (con tu dominio), origin access control <prefijo>-site,
 │     función <prefijo>-spa-rewrite y response headers policy <prefijo>-security-headers
-└── Presupuesto <prefijo>-mensual              ← filtrado por la etiqueta Project
+├── Presupuesto <prefijo>-mensual              ← filtrado por la etiqueta Project
+└── Cuentas del juego (ADR-0029):
+      ├── Cognito user pool <prefijo>-players, con su dominio <AUTH_DOMAIN_PREFIX>.auth.<región>.amazoncognito.com
+      │     (hosted UI classic) y su app client público <prefijo>-web
+      ├── Cognito identity pool <prefijo>_players  ← solo jugadores con sesión
+      ├── Rol <prefijo>-player                      ← solo sus propios ítems de la tabla
+      └── Tabla DynamoDB <prefijo>-profiles         ← on demand, PITR, protección contra borrado
 ```
 
 Dos cosas quedan **fuera** de Terraform y las hacés vos: el certificado de ACM del dominio (en `us-east-1`, se reutiliza por ARN) y el registro DNS del sitio (un `CNAME` en tu proveedor de DNS, que no tiene por qué ser Route 53).
@@ -388,7 +394,100 @@ Hasta el 2026-10-08, `gh-deploy-content` confiaba en `prod` y el job `deploy` us
    Si el plan muestra algo más que `<prefijo>-gh-deploy-content`, no apliques. Resguardá el state otra vez (paso 3.6).
 3. **Mergeá el PR.** El push a `main` corre el workflow nuevo: `deploy` usa `prod-content` y asume `gh-deploy-content` sin aprobación.
 
-> ⚠️ **Entre el paso 2 y el paso 3**, `gh-deploy-content` ya no acepta `prod`. Un deploy desde `main` con el workflow viejo (un push a `main` o una ejecución manual en ese lapso) falla en *Assume gh-deploy-content* con `Not authorized to perform sts:AssumeRoleWithWebIdentity`, después del `apply`. No es grave (el sitio queda como estaba), pero conviene no mergear otra cosa en el medio. Si pasa, volvé a correr `deploy.yml` sobre `main` después del merge.
+> ⚠️ **Entre el paso 2 y el paso 3 de la migración**, `gh-deploy-content` ya no acepta `prod`. Un deploy desde `main` con el workflow viejo (un push a `main` o una ejecución manual en ese lapso) falla en *Assume gh-deploy-content* con `Not authorized to perform sts:AssumeRoleWithWebIdentity`, después del `apply`. No es grave (el sitio queda como estaba), pero conviene no mergear otra cosa en el medio. Si pasa, volvé a correr `deploy.yml` sobre `main` después del merge.
+
+### 3.9 Si ya tenías el bootstrap aplicado: cuentas y perfil (F4 MVP)
+
+El MVP de F4 ([ADR-0029](../adr/0029-perfil-con-cognito-y-dynamodb-desde-el-navegador.md)) crea Cognito, una tabla de DynamoDB y el rol `<prefijo>-player` desde `infra/envs/prod`. `gh-apply` y `gh-plan` necesitan permisos nuevos **antes** del merge: si no, el plan del PR falla con `AccessDenied` al leer los recursos nuevos y el `apply` no puede crearlos. El orden:
+
+1. **Elegí el prefijo del dominio del login** y cargalo como variable del repo (paso 4): `<prefijo>.auth.<región>.amazoncognito.com`. Es único por región en todo AWS; usá algo de tu proyecto, **nunca** el account ID.
+
+   ```powershell
+   gh variable set AUTH_DOMAIN_PREFIX --body "<prefijo-del-login>"
+   ```
+
+2. **Re-aplicá el bootstrap desde la rama del PR** (con la sesión de administrador del paso 3.1, desde `infra/bootstrap`):
+
+   ```powershell
+   git fetch origin
+   git switch <rama-del-PR>
+   terraform plan -out bootstrap.tfplan
+   # esperado: 2 to add, 3 to change, 0 to destroy
+   #   + aws_iam_policy.apply_auth                  (<prefijo>-gh-apply-auth)
+   #   + aws_iam_role_policy_attachment.apply_auth  (a <prefijo>-gh-apply)
+   #   ~ aws_iam_policy.boundary                    (techo de Cognito, DynamoDB y el rol player)
+   #   ~ aws_iam_role_policy.github["plan"]         (lecturas de Cognito y DynamoDB)
+   #   ~ aws_iam_role_policy.github["apply"]        (las mismas lecturas)
+   terraform apply bootstrap.tfplan
+   Remove-Item bootstrap.tfplan
+   ```
+
+   Si el plan toca otra cosa (un rol que se reemplaza, el bucket de state, `gh-deploy-content`), no apliques. Resguardá el state otra vez (paso 3.6).
+3. **Verificá los permisos nuevos** con las simulaciones de abajo.
+4. **Volvé a correr el plan del PR** (*Re-run jobs* en la pestaña *Checks*, o un push a la rama). Esperado en `infra/envs/prod`: `8 to add, 1 to change, 0 to destroy` (los 8 recursos de `module.auth` y la *response headers policy*, por el `connect-src` nuevo de la CSP).
+5. **Mergeá el PR** y aprobá el `apply`. El job `deploy` arma la web con los `VITE_AUTH_*` que salen de Terraform: el botón «Ingresar o crear cuenta» aparece solo cuando están.
+
+Simulaciones, con las variables y la función `Test-Permission` del [paso 3.5](#35-verificá-los-permisos):
+
+```powershell
+$Region       = "us-east-2"   # aws_region del bootstrap
+$UserPool     = "arn:aws:cognito-idp:${Region}:${AccountId}:userpool/${Region}_EXAMPLE"
+$IdentityPool = "arn:aws:cognito-identity:${Region}:${AccountId}:identitypool/${Region}:00000000-0000-0000-0000-000000000000"
+$Table        = "arn:aws:dynamodb:${Region}:${AccountId}:table/$Prefix-profiles"
+$OtherTable   = "arn:aws:dynamodb:${Region}:${AccountId}:table/otro-proyecto"
+$PlayerRole   = "arn:aws:iam::${AccountId}:role/$Prefix-player"
+
+$RequestTagged = "ContextKeyName=aws:RequestTag/Project,ContextKeyValues=$ProjectTag,ContextKeyType=string"
+$ToCognito     = "ContextKeyName=iam:PassedToService,ContextKeyValues=cognito-identity.amazonaws.com,ContextKeyType=string"
+$ToLambda      = "ContextKeyName=iam:PassedToService,ContextKeyValues=lambda.amazonaws.com,ContextKeyType=string"
+
+Test-Permission $RoleApply "cognito-idp:CreateUserPool"            "*" @($RequestTagged)     # allowed
+Test-Permission $RoleApply "cognito-idp:CreateUserPool"            "*"                       # explicitDeny
+Test-Permission $RoleApply "cognito-idp:DeleteUserPool"            $UserPool @($Tagged)      # allowed
+Test-Permission $RoleApply "cognito-idp:DeleteUserPool"            $UserPool                 # implicitDeny
+Test-Permission $RoleApply "cognito-idp:ListUsers"                 $UserPool @($Tagged)      # implicitDeny
+Test-Permission $RolePlan  "cognito-idp:DescribeUserPool"          $UserPool @($Tagged)      # allowed
+Test-Permission $RolePlan  "cognito-idp:UpdateUserPool"            $UserPool @($Tagged)      # implicitDeny
+Test-Permission $RoleApply "cognito-identity:CreateIdentityPool"   "*" @($RequestTagged)     # allowed
+Test-Permission $RoleApply "cognito-identity:DeleteIdentityPool"   $IdentityPool @($Tagged)  # allowed
+Test-Permission $RoleApply "cognito-identity:DeleteIdentityPool"   $IdentityPool             # implicitDeny
+Test-Permission $RoleApply "dynamodb:CreateTable"                  $Table @($RequestTagged)  # allowed
+Test-Permission $RoleApply "dynamodb:CreateTable"                  $OtherTable @($RequestTagged) # implicitDeny
+Test-Permission $RoleApply "dynamodb:DeleteTable"                  $Table @($Tagged)         # allowed
+Test-Permission $RoleApply "dynamodb:PutItem"                      $Table @($Tagged)         # implicitDeny
+Test-Permission $RoleApply "iam:PassRole"                          $PlayerRole @($ToCognito) # allowed
+Test-Permission $RoleApply "iam:PassRole"                          $PlayerRole @($ToLambda)  # implicitDeny
+Test-Permission $RoleApply "iam:PassRole"                          $TestRole @($ToCognito)   # implicitDeny
+```
+
+| Rol | Acción | Recurso | Esperado | Por qué |
+|---|---|---|---|---|
+| `gh-apply` | `cognito-idp:CreateUserPool` | `*`, con `Project` en la request | `allowed` | Se crea con la etiqueta. |
+| `gh-apply` | `cognito-idp:CreateUserPool` | `*`, sin etiqueta | `explicitDeny` | El boundary exige la etiqueta al crear (`CreateWithProjectTag`). |
+| `gh-apply` | `cognito-idp:DeleteUserPool` | user pool con / sin `Project` | `allowed` / `implicitDeny` | Solo se cambian los del proyecto. |
+| `gh-apply` | `cognito-idp:ListUsers` | user pool del proyecto | `implicitDeny` | Ningún rol lee usuarios (sus emails). |
+| `gh-plan` | `cognito-idp:DescribeUserPool` / `UpdateUserPool` | user pool del proyecto | `allowed` / `implicitDeny` | `gh-plan` solo lee. |
+| `gh-apply` | `cognito-identity:CreateIdentityPool` / `DeleteIdentityPool` | con `Project` | `allowed` | Igual que el user pool. |
+| `gh-apply` | `dynamodb:CreateTable` | `table/<prefijo>-profiles` / otra tabla | `allowed` / `implicitDeny` | Tablas `<prefijo>-*`. |
+| `gh-apply` | `dynamodb:PutItem` | la tabla | `implicitDeny` | Los ítems son solo del rol player. |
+| `gh-apply` | `iam:PassRole` | `role/<prefijo>-player` a Cognito / a Lambda | `allowed` / `implicitDeny` | Solo ese rol, solo a `cognito-identity.amazonaws.com`. |
+| `gh-apply` | `iam:PassRole` | otro rol del proyecto | `implicitDeny` | Ídem. |
+
+Después del primer `apply`, el rol player existe y también se puede simular. El simulador no conoce el identity ID: se le pasan la variable de la política (`cognito-identity.amazonaws.com:sub`) y la clave de la request (`dynamodb:LeadingKeys`):
+
+```powershell
+$Me      = "ContextKeyName=cognito-identity.amazonaws.com:sub,ContextKeyValues=${Region}:11111111-1111-1111-1111-111111111111,ContextKeyType=string"
+$MyItems = "ContextKeyName=dynamodb:LeadingKeys,ContextKeyValues=${Region}:11111111-1111-1111-1111-111111111111,ContextKeyType=stringList"
+$Others  = "ContextKeyName=dynamodb:LeadingKeys,ContextKeyValues=${Region}:22222222-2222-2222-2222-222222222222,ContextKeyType=stringList"
+
+Test-Permission $PlayerRole "dynamodb:PutItem"     $Table @($Me, $MyItems)  # allowed
+Test-Permission $PlayerRole "dynamodb:GetItem"     $Table @($Me, $Others)   # implicitDeny
+Test-Permission $PlayerRole "dynamodb:Scan"        $Table @($Me)            # implicitDeny
+Test-Permission $PlayerRole "dynamodb:DeleteTable" $Table @($Me)            # implicitDeny
+Test-Permission $PlayerRole "dynamodb:PutItem"     $OtherTable @($Me, $MyItems) # implicitDeny
+```
+
+Un límite que conviene conocer: `cognito-identity:SetIdentityPoolRoles` no admite recurso ni claves de condición ([Service Authorization Reference de Cognito Identity](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazoncognitoidentity.html)), así que `gh-apply` puede cambiar los roles de **cualquier** identity pool de la región. Lo único que puede asignar es el rol player (por `iam:PassRole`), que solo da acceso a ítems propios de la tabla del proyecto; en una cuenta compartida, revisá los identity pools de los otros proyectos si algo cambia sus roles.
 
 ## 4. Configurá los secrets y las variables del repo
 
@@ -407,6 +506,7 @@ El repo es **público**, y los logs de GitHub Actions también: cualquiera puede
 | Variable | `TF_STATE_BUCKET` | Salida `state_bucket` del bootstrap | Sí |
 | Variable | `NAME_PREFIX`, `PROJECT_TAG` | Los mismos `name_prefix` y `project_tag` del bootstrap | Sí |
 | Variable | `SITE_DOMAIN` | Dominio del sitio, p. ej. `beta.example.com` | Sí |
+| Variable | `AUTH_DOMAIN_PREFIX` | Prefijo del dominio del login: `<prefijo>.auth.<región>.amazoncognito.com` ([paso 3.9](#39-si-ya-tenías-el-bootstrap-aplicado-cuentas-y-perfil-f4-mvp)). Minúsculas, números y guiones; único en la región; nunca el account ID | Sí |
 | Variable | `BUDGET_USD` | Límite mensual del presupuesto, en USD | No (10) |
 | Variable | `PRICE_CLASS` | `PriceClass_All`, `PriceClass_200` o `PriceClass_100` | No (`PriceClass_All`, incluye Sudamérica) |
 | Variable | `VITE_FEEDBACK_URL` | Formulario externo de feedback, si no usás la plantilla de issue | No |
@@ -425,6 +525,7 @@ gh variable set AWS_ROLE_DEPLOY_ARN --body (terraform output -raw role_deploy_co
 gh variable set TF_STATE_BUCKET     --body (terraform output -raw state_bucket)
 gh variable set NAME_PREFIX         --body "blueprint"     # el mismo name_prefix del bootstrap
 gh variable set PROJECT_TAG         --body "blueprint"     # el mismo project_tag del bootstrap
+gh variable set AUTH_DOMAIN_PREFIX  --body "<prefijo-del-login>"   # paso 3.9
 ```
 
 `SITE_DOMAIN`, `ACM_CERTIFICATE_ARN` y `BUDGET_EMAIL` se cargan en el [paso 5.a](#a-certificado-y-valores-del-sitio). Cargalos como secrets **del repositorio** (no de un environment): los usan tanto el plan (`prod-plan`) como el apply (`prod`), y `AWS_ACCOUNT_ID` también el deploy (`prod-content`).
@@ -439,7 +540,7 @@ gh variable set PROJECT_TAG         --body "blueprint"     # el mismo project_ta
 |---|---|
 | Los nombres de los recursos (`<prefijo>-gh-apply`, `<prefijo>-site-***-us-east-2`, `<prefijo>-mensual`…), con `***` en lugar del account ID. | El account ID: es un secret, y además `configure-aws-credentials` corre con `mask-aws-account-id`. |
 | El dominio del sitio y el ID y el dominio `*.cloudfront.net` de la distribución (son públicos de todos modos: el CNAME los muestra). | El ARN del certificado (secret). |
-| Los IDs del OAC y de la *response headers policy* (en el resumen del job `apply`, para el [paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)). | El mail del presupuesto: es un secret y, además, `budget_email` es `sensitive` en Terraform, así que el plan muestra `(sensitive value)`. |
+| Los IDs del OAC y de la *response headers policy* (en el resumen del job `apply`, para el [paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)). Los IDs del user pool, del app client y del identity pool, el dominio del login y el nombre de la tabla: van al JavaScript público del sitio de todos modos (`VITE_AUTH_*`). | El mail del presupuesto: es un secret y, además, `budget_email` es `sensitive` en Terraform, así que el plan muestra `(sensitive value)`. |
 | El plan de Terraform: qué recursos cambian y sus atributos (etiquetas, headers, clase de precio…). | Las credenciales: son temporales (1 hora), las enmascara la acción y nunca se imprimen. |
 | La lista de archivos que sube el job `deploy`, con su `Cache-Control`. | Los planes guardados y el state: el plan del `apply` queda en el runner y se borra al terminar; nunca se sube como artefacto ni se comenta en el PR. El state solo está en el bucket de state. |
 
@@ -646,6 +747,13 @@ Con `$Site = "https://$Domain"`:
 - [ ] En una ventana de menos de 1024 px de ancho aparece el aviso de "pensado para escritorio" y se puede cerrar.
 - [ ] El código fuente de la página tiene `<meta name="robots" content="noindex">`.
 - [ ] **La Content-Security-Policy no reporta violaciones**: ver [Revisar la Content-Security-Policy](#revisar-la-content-security-policy).
+- [ ] **Las cuentas funcionan** ([ADR-0029](../adr/0029-perfil-con-cognito-y-dynamodb-desde-el-navegador.md)), en una ventana privada con la consola abierta:
+  1. Jugá un escenario como invitado y apretá «Ingresar o crear cuenta»: abre `https://<AUTH_DOMAIN_PREFIX>.auth.<región>.amazoncognito.com/login`.
+  2. *Sign up* con un mail tuyo; llega un código de verificación (de `no-reply@verificationemail.com`; mirá el spam). Al confirmarlo, volvés a la misma pantalla con un aviso de que tu progreso subió a la cuenta.
+  3. El menú de la cuenta muestra tu mail y tu XP; cambiá el nombre visible.
+  4. Abrí el sitio en **otro navegador**, ingresá con la misma cuenta: aparece tu progreso.
+  5. «Cerrar sesión» vuelve al progreso de invitado de ese navegador. Volvé a ingresar y probá «Eliminar mi cuenta»: después, ingresar con ese mail ya no funciona.
+  6. En la consola, ninguna violación de la CSP y ningún error de CORS.
 
 Repetí el checklist después de cada `deploy` que cambie la web.
 

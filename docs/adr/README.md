@@ -12,8 +12,8 @@ Formato: [MADR](https://adr.github.io/madr/) simplificado (Contexto · Decisión
 | [0006](0006-contenido-como-codigo.md) | Escenarios como contenido versionado en el repo | Aceptado |
 | [0007](0007-evaluacion-por-objetivos.md) | Evaluación basada en objetivos explícitos (hard/soft) | Aceptado |
 | [0008](0008-interaccion-desacoplada.md) | Interacción desacoplada: comandos comunes para drag, tap y teclado | Aceptado |
-| [0009](0009-backend-serverless.md) | Backend serverless: HTTP API + Lambda + DynamoDB single-table | Aceptado |
-| [0010](0010-autenticacion-cognito-e-invitado.md) | Autenticación con Cognito + modo invitado | Aceptado |
+| [0009](0009-backend-serverless.md) | Backend serverless: HTTP API + Lambda + DynamoDB single-table | Aceptado (MVP de F4: Superseded by 0029) |
+| [0010](0010-autenticacion-cognito-e-invitado.md) | Autenticación con Cognito + modo invitado | Aceptado (en parte Superseded by 0029) |
 | [0011](0011-catalogo-de-servicios.md) | Catálogo curado + sincronización asistida con SSM | Aceptado |
 | [0012](0012-iconos.md) | Íconos oficiales descargados en build, no versionados | Aceptado (provisorio) |
 | [0013](0013-scenario-studio-local-con-ia.md) | Scenario Studio local-first con IA enchufable | Aceptado |
@@ -32,6 +32,7 @@ Formato: [MADR](https://adr.github.io/madr/) simplificado (Contexto · Decisión
 | [0026](0026-asistente-de-arquitectura-con-ia.md) | Asistente de arquitectura con IA | Propuesto |
 | [0027](0027-nivel-0-y-conceptos-en-el-catalogo.md) | Nivel 0 «La nube en la vida real» y conceptos en el catálogo | Aceptado |
 | [0028](0028-content-security-policy.md) | Content-Security-Policy del sitio | Aceptado |
+| [0029](0029-perfil-con-cognito-y-dynamodb-desde-el-navegador.md) | MVP de F4: perfil con Cognito y DynamoDB desde el navegador | Aceptado |
 
 ## Plantilla
 

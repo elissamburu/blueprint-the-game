@@ -1,6 +1,6 @@
 # 0010 · Autenticación con Cognito + modo invitado
 
-- Estado: Aceptado
+- Estado: Aceptado; la re-evaluación en el servidor y `ApiProgressRepo`, Superseded by [0029](0029-perfil-con-cognito-y-dynamodb-desde-el-navegador.md) para el MVP de F4
 - Fecha: 2026-09-27
 
 ## Contexto

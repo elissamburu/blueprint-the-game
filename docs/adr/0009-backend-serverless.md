@@ -1,6 +1,6 @@
 # 0009 · Backend serverless: HTTP API + Lambda + DynamoDB single-table
 
-- Estado: Aceptado
+- Estado: Aceptado; para el MVP de F4, Superseded by [0029](0029-perfil-con-cognito-y-dynamodb-desde-el-navegador.md)
 - Fecha: 2026-09-27
 
 ## Contexto
