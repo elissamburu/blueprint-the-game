@@ -6,8 +6,9 @@
 #     aws:RequestTag on creation.
 # Services and resource types without tag-based conditions are noted next to their statement.
 #
-# Only what F3 needs (S3 + CloudFront + ACM + Route 53 + Budgets): later phases extend these policies
-# and the boundary with a new bootstrap PR.
+# Only what F3 needs (S3 + CloudFront + ACM + Route 53 + Budgets) and the F4 MVP (Cognito user and
+# identity pools, the profiles table and the player role, ADR-0029): later phases extend these
+# policies and the boundary with a new bootstrap PR.
 
 locals {
   project_tag_condition_key = "aws:ResourceTag/${local.project_tag_key}"
@@ -37,6 +38,52 @@ locals {
       arns    = local.project_response_headers_policy_arns
     }
   }
+  # F4 (ADR-0029): the actions Terraform uses on the user pool (and its clients and domain, which
+  # are authorized against the user pool), the identity pool and the profiles table. Every one of
+  # them takes a resource type with aws:ResourceTag in the Service Authorization Reference
+  # (cognito-idp: userpool; cognito-identity: identitypool; dynamodb: table).
+  user_pool_read_actions = [
+    "cognito-idp:DescribeUserPool",
+    "cognito-idp:DescribeUserPoolClient",
+    "cognito-idp:GetUserPoolMfaConfig",
+    "cognito-idp:ListTagsForResource",
+  ]
+  user_pool_write_actions = [
+    "cognito-idp:UpdateUserPool",
+    "cognito-idp:DeleteUserPool",
+    "cognito-idp:SetUserPoolMfaConfig",
+    "cognito-idp:CreateUserPoolClient",
+    "cognito-idp:UpdateUserPoolClient",
+    "cognito-idp:DeleteUserPoolClient",
+    "cognito-idp:CreateUserPoolDomain",
+    "cognito-idp:UpdateUserPoolDomain",
+    "cognito-idp:DeleteUserPoolDomain",
+  ]
+  identity_pool_read_actions = [
+    "cognito-identity:DescribeIdentityPool",
+    "cognito-identity:GetIdentityPoolRoles",
+    "cognito-identity:ListTagsForResource",
+  ]
+  identity_pool_write_actions = [
+    "cognito-identity:UpdateIdentityPool",
+    "cognito-identity:DeleteIdentityPool",
+  ]
+  table_read_actions = [
+    "dynamodb:DescribeTable",
+    "dynamodb:DescribeContinuousBackups",
+    "dynamodb:DescribeTimeToLive",
+    "dynamodb:ListTagsOfResource",
+  ]
+  table_write_actions = [
+    "dynamodb:UpdateTable",
+    "dynamodb:DeleteTable",
+    "dynamodb:UpdateContinuousBackups",
+    "dynamodb:UpdateTimeToLive",
+  ]
+
+  cloudfront_untaggable_actions = flatten([for type in local.cloudfront_untaggable : type.actions])
+  untaggable_arns               = flatten([for type in local.cloudfront_untaggable : type.arns])
+
   cloudfront_untaggable_allow = [
     for name, type in local.cloudfront_untaggable : {
       Sid      = "CloudFrontProject${name}"
@@ -113,6 +160,38 @@ locals {
           "iam:ListPolicyTags",
         ]
         Resource = [local.project_role_arn, local.project_policy_arn]
+      },
+      # F4 (ADR-0029). Explicit actions, no Get*/List*/Describe* wildcards: cognito-idp:List* and
+      # Get* include reading users (ListUsers, AdminGetUser is Admin*), which no role needs.
+      # Service Authorization Reference: DescribeUserPool, DescribeUserPoolClient,
+      # GetUserPoolMfaConfig and ListTagsForResource take the userpool resource (aws:ResourceTag);
+      # DescribeUserPoolDomain takes no resource, so it stays on "*".
+      {
+        Sid       = "UserPoolsRead"
+        Effect    = "Allow"
+        Action    = local.user_pool_read_actions
+        Resource  = local.project_user_pool_arn
+        Condition = local.resource_is_project
+      },
+      {
+        Sid      = "UserPoolDomainsRead"
+        Effect   = "Allow"
+        Action   = "cognito-idp:DescribeUserPoolDomain"
+        Resource = "*"
+      },
+      {
+        Sid       = "IdentityPoolsRead"
+        Effect    = "Allow"
+        Action    = local.identity_pool_read_actions
+        Resource  = local.project_identity_pool_arn
+        Condition = local.resource_is_project
+      },
+      {
+        Sid       = "TablesRead"
+        Effect    = "Allow"
+        Action    = local.table_read_actions
+        Resource  = local.project_table_arn
+        Condition = local.resource_is_project
       },
     ],
     # Route 53 has no tag-based conditions: access is limited to one hosted zone.
@@ -348,6 +427,70 @@ locals {
     ] : statement if local.route53_changes_enabled], local.cloudfront_untaggable_allow)
   })
 
+  # --- Apply, F4 (ADR-0029): a managed policy of its own, attached to gh-apply, so the inline policy
+  # stays under the 10,240 characters IAM allows per role.
+  apply_auth_policy = jsonencode({
+    Version = "2012-10-17"
+    Statement = [
+      # --- F4 (ADR-0029): login (Cognito) and the profiles table, with the same model: created with
+      # the Project tag (aws:RequestTag) and changed only while they carry it (aws:ResourceTag).
+      # CreateUserPool and CreateIdentityPool take no resource and support aws:RequestTag;
+      # CreateTable takes the table, so it is also limited to the prefix.
+      {
+        Sid       = "AuthCreateTagged"
+        Effect    = "Allow"
+        Action    = ["cognito-idp:CreateUserPool", "cognito-identity:CreateIdentityPool"]
+        Resource  = "*"
+        Condition = local.request_is_project
+      },
+      {
+        Sid       = "TablesCreateTagged"
+        Effect    = "Allow"
+        Action    = "dynamodb:CreateTable"
+        Resource  = local.project_table_arn
+        Condition = local.request_is_project
+      },
+      {
+        Sid       = "AuthTagOnCreate"
+        Effect    = "Allow"
+        Action    = ["cognito-idp:TagResource", "cognito-identity:TagResource", "dynamodb:TagResource"]
+        Resource  = [local.project_user_pool_arn, local.project_identity_pool_arn, local.project_table_arn]
+        Condition = local.request_is_project
+      },
+      {
+        Sid    = "AuthManageTagged"
+        Effect = "Allow"
+        Action = concat(
+          local.user_pool_write_actions,
+          local.identity_pool_write_actions,
+          local.table_write_actions,
+          local.auth_tag_actions,
+          local.auth_untag_actions,
+        )
+        Resource  = [local.project_user_pool_arn, local.project_identity_pool_arn, local.project_table_arn]
+        Condition = local.resource_is_project
+      },
+      # SetIdentityPoolRoles takes no resource type and no condition key (Service Authorization
+      # Reference for cognito-identity): it cannot be scoped to the project's identity pool. The
+      # role it sets is limited by iam:PassRole below; see the limits in the guide.
+      {
+        Sid      = "IdentityPoolRoles"
+        Effect   = "Allow"
+        Action   = "cognito-identity:SetIdentityPoolRoles"
+        Resource = "*"
+      },
+      # Only the player role, and only to Cognito identity pools (iam:PassedToService is a condition
+      # key of iam:PassRole in the Service Authorization Reference for IAM).
+      {
+        Sid       = "PassPlayerRole"
+        Effect    = "Allow"
+        Action    = "iam:PassRole"
+        Resource  = local.player_role_arn
+        Condition = { StringEquals = { "iam:PassedToService" = local.identity_pool_service } }
+      },
+    ]
+  })
+
   # --- Deploy of the site: upload files and invalidate the cache (ADR-0014). The bucket and the
   # distribution are created by infra/envs/prod, after the bootstrap, so they are matched by name
   # prefix (S3, no tags) and by Project tag (CloudFront).
@@ -387,13 +530,25 @@ locals {
 
   # --- Permissions boundary of the three roles and of every role they create. It is the ceiling:
   # nothing outside these Allow statements is possible, whatever policy a role gets.
-  tag_actions = [
+  auth_arns = [local.project_user_pool_arn, local.project_identity_pool_arn, local.project_table_arn]
+  # The same in the boundary, shorter: one pattern for the user pools and the identity pools
+  # (cognito-idp:...:userpool/* and cognito-identity:...:identitypool/*). The boundary only grants
+  # cognito-idp and cognito-identity actions, so the pattern matching other cognito-* services
+  # grants nothing more.
+  boundary_auth_arns = ["arn:${local.partition}:cognito-*:${var.aws_region}:${local.account}:*pool/*", local.project_table_arn]
+  # No resource type (Service Authorization Reference): only "*".
+  auth_unscoped_actions = ["cognito-idp:CreateUserPool", "cognito-idp:DescribeUserPoolDomain", "cognito-identity:CreateIdentityPool", "cognito-identity:SetIdentityPoolRoles"]
+  auth_tag_actions      = ["cognito-idp:TagResource", "cognito-identity:TagResource", "dynamodb:TagResource"]
+  auth_untag_actions    = ["cognito-idp:UntagResource", "cognito-identity:UntagResource", "dynamodb:UntagResource"]
+  tag_actions = concat([
     "cloudfront:TagResource",
     "acm:AddTagsToCertificate",
     "budgets:TagResource",
     "iam:TagRole",
     "iam:TagPolicy",
-  ]
+  ], local.auth_tag_actions)
+  # The F4 untag actions are not here: their ceiling (CeilingAuthTagged) already needs the Project
+  # tag, which is what OnlyTaggedResources adds, and removing it is denied by KeepProjectTag.
   untag_actions = [
     "cloudfront:UntagResource",
     "acm:RemoveTagsFromCertificate",
@@ -412,43 +567,74 @@ locals {
         Resource  = [local.project_bucket_arn, local.project_object_arn]
         Condition = local.in_this_account
       },
-      # CloudFront: reads anywhere; writes only on what the role policies can scope (distributions
-      # and functions by tag and prefix, origin access controls and response headers policies by ID).
+      # Actions without a resource, reads, ACM and Route 53 (both scoped by the role policies), and
+      # updating and deleting origin access controls and response headers policies, which
+      # OnlyProjectUntaggable below limits to the IDs of the variables (with empty lists, to none).
       {
-        Sid      = "CeilingCloudFrontRead"
-        Effect   = "Allow"
-        Action   = ["cloudfront:Get*", "cloudfront:Describe*", "cloudfront:List*"]
+        Sid    = "CeilingAnyResource"
+        Effect = "Allow"
+        Action = concat(
+          ["cloudfront:Get*", "cloudfront:Describe*", "cloudfront:List*", "cloudfront:CreateDistribution", "cloudfront:CreateFunction"],
+          local.cloudfront_untaggable_create_actions,
+          local.cloudfront_untaggable_actions,
+          ["acm:*", "route53:Get*", "route53:List*", "route53:ChangeResourceRecordSets"],
+          local.auth_unscoped_actions,
+        )
         Resource = "*"
       },
+      # Resources of the project by name (and by tag in the role policies). One statement: each
+      # action only ever applies to resources of its own service, so the union of the actions on the
+      # union of the ARNs allows the same as one statement per service, in fewer characters.
+      # Creating the table and tagging the F4 resources go without the tag (there is none yet):
+      # CreateWithProjectTag and the tag rules below apply. *Item (the ceiling of the player role)
+      # matches Get, Put, Update, Delete, BatchGet, BatchWrite and ConditionCheck Item; the policy of
+      # the role (infra/modules/auth) grants only the first four and Query.
       {
-        Sid      = "CeilingCloudFrontCreate"
-        Effect   = "Allow"
-        Action   = concat(["cloudfront:CreateDistribution", "cloudfront:CreateFunction"], local.cloudfront_untaggable_create_actions)
-        Resource = "*"
+        Sid    = "CeilingProjectResources"
+        Effect = "Allow"
+        Action = concat(
+          ["cloudfront:*", "budgets:*", "iam:*", "dynamodb:CreateTable"],
+          local.auth_tag_actions,
+          ["dynamodb:*Item", "dynamodb:Query"],
+        )
+        Resource = concat(
+          [local.distribution_arn, local.project_function_arn, local.project_budget_arn, local.project_role_arn, local.project_policy_arn],
+          local.boundary_auth_arns,
+        )
       },
+      # F4 (ADR-0029): no service wildcards. Suffix wildcards keep the boundary under the 6,144
+      # characters of a managed policy; in the Service Authorization Reference each one matches only
+      # these actions: *UserPool (Create, Delete, Describe, Update), *UserPoolClient and
+      # *UserPoolDomain (Create, Delete, Describe, Update), *UserPoolMfaConfig (Get, Set),
+      # *IdentityPool (Create, Delete, Describe, Update), *ContinuousBackups and *TimeToLive
+      # (Describe, Update), and *Table (Create, Delete, Describe, Update and Import Table, and
+      # Create, Describe and Update GlobalTable). Every change needs the Project tag here
+      # (aws:ResourceTag of the userpool, identitypool and table resource types), so the creates
+      # never match this statement (a new resource has no tag yet; they are in CeilingAnyResource
+      # and CeilingProjectResources), and the global table actions also need the global-table
+      # resource, which is not in Resource: of *Table only Describe, Update and Delete remain.
       {
-        Sid      = "CeilingCloudFrontTagged"
-        Effect   = "Allow"
-        Action   = "cloudfront:*"
-        Resource = [local.distribution_arn, local.project_function_arn]
-      },
-      {
-        Sid      = "CeilingServices"
-        Effect   = "Allow"
-        Action   = ["acm:*", "route53:Get*", "route53:List*", "route53:ChangeResourceRecordSets"]
-        Resource = "*"
-      },
-      {
-        Sid      = "CeilingBudgets"
-        Effect   = "Allow"
-        Action   = "budgets:*"
-        Resource = local.project_budget_arn
-      },
-      {
-        Sid      = "CeilingIam"
-        Effect   = "Allow"
-        Action   = "iam:*"
-        Resource = [local.project_role_arn, local.project_policy_arn]
+        Sid    = "CeilingAuthTagged"
+        Effect = "Allow"
+        Action = [
+          "cognito-idp:*UserPool",
+          "cognito-idp:*UserPoolClient",
+          "cognito-idp:*UserPoolDomain",
+          "cognito-idp:*UserPoolMfaConfig",
+          "cognito-idp:ListTagsForResource",
+          "cognito-identity:*IdentityPool",
+          "cognito-identity:GetIdentityPoolRoles",
+          "cognito-identity:ListTagsForResource",
+          "dynamodb:*Table",
+          "dynamodb:*ContinuousBackups",
+          "dynamodb:*TimeToLive",
+          "dynamodb:ListTagsOfResource",
+          "cognito-idp:UntagResource",
+          "cognito-identity:UntagResource",
+          "dynamodb:UntagResource",
+        ]
+        Resource  = local.boundary_auth_arns
+        Condition = local.resource_is_project
       },
       # The state bucket: objects only (state and lock files); never its configuration or history.
       {
@@ -536,6 +722,9 @@ locals {
           "acm:RequestCertificate",
           "iam:CreateRole",
           "iam:CreatePolicy",
+          "cognito-idp:CreateUserPool",
+          "cognito-identity:CreateIdentityPool",
+          "dynamodb:CreateTable",
         ]
         Resource  = "*"
         Condition = { StringNotEquals = { (local.request_tag_condition_key) = var.project_tag } }
@@ -544,7 +733,7 @@ locals {
       {
         Sid       = "KeepProjectTag"
         Effect    = "Deny"
-        Action    = local.untag_actions
+        Action    = concat(local.untag_actions, local.auth_untag_actions)
         Resource  = "*"
         Condition = { "ForAnyValue:StringEquals" = { "aws:TagKeys" = [local.project_tag_key] } }
       },
@@ -569,21 +758,21 @@ locals {
         }
       },
       ],
-      # Same ceiling as the role policies for origin access controls and response headers policies,
-      # plus an explicit deny of updating or deleting any other: with an empty list, all of them.
-      [for statement in local.cloudfront_untaggable_allow : merge(statement, { Sid = replace(statement.Sid, "CloudFrontProject", "CeilingCloudFront") })],
-      [for name, type in local.cloudfront_untaggable : {
-        Sid      = "OnlyProject${name}"
+      # Origin access controls and response headers policies have no tags: only the IDs of the
+      # variables can be updated or deleted. One NotResource list for both types: an ARN of one type
+      # never matches an action of the other.
+      [for arns in [local.untaggable_arns] : {
+        Sid      = "OnlyProjectUntaggable"
         Effect   = "Deny"
-        Action   = type.actions
+        Action   = local.cloudfront_untaggable_actions
         Resource = "*"
-      } if length(type.arns) == 0],
-      [for name, type in local.cloudfront_untaggable : {
-        Sid         = "OnlyProject${name}"
+      } if length(arns) == 0],
+      [for arns in [local.untaggable_arns] : {
+        Sid         = "OnlyProjectUntaggable"
         Effect      = "Deny"
-        Action      = type.actions
-        NotResource = type.arns
-      } if length(type.arns) > 0],
+        Action      = local.cloudfront_untaggable_actions
+        NotResource = arns
+      } if length(arns) > 0],
     )
   })
 }
