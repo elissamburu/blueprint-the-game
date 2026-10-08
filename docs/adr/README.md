@@ -31,6 +31,7 @@ Formato: [MADR](https://adr.github.io/madr/) simplificado (Contexto · Decisión
 | [0025](0025-studio-preview-con-packages-play-y-servidor-local-endurecido.md) | Studio: preview con `packages/play` y servidor local endurecido | Aceptado |
 | [0026](0026-asistente-de-arquitectura-con-ia.md) | Asistente de arquitectura con IA | Propuesto |
 | [0027](0027-nivel-0-y-conceptos-en-el-catalogo.md) | Nivel 0 «La nube en la vida real» y conceptos en el catálogo | Aceptado |
+| [0028](0028-content-security-policy.md) | Content-Security-Policy del sitio | Aceptado |
 
 ## Plantilla
 

@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// CloudFront Function, viewer request, runtime cloudfront-js-2.0 (docs/guias/deploy-manual-beta.md).
+// CloudFront Function, viewer request, runtime cloudfront-js-2.0 (infra/modules/static-site).
 // The game is a single page app: its routes (/escenarios, /escenarios/<id>/resumen, ...) are not
 // files in the bucket. Every path whose last segment has no file extension is served with
 // /index.html, so reloading a route works. Paths with an extension (/assets/*.js, /content/*.json,

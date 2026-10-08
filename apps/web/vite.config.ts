@@ -81,6 +81,11 @@ export default defineConfig({
   // The manifest lets scripts/check-bundle-size.js measure the initial JS (RNF-03).
   build: { manifest: true },
   resolve: {
-    alias: { "@": "/src" },
+    alias: [
+      { find: "@", replacement: "/src" },
+      // Every `import "zod"` of the game (its packages included) gets Zod without JIT: the CSP of
+      // the site has no 'unsafe-eval' (src/zod-jitless.ts, ADR-0028).
+      { find: /^zod$/, replacement: path.join(REPO_ROOT, "apps", "web", "src", "zod-jitless.ts") },
+    ],
   },
 });

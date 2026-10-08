@@ -199,9 +199,31 @@ run "static_site" {
     error_message = "The cache policy is the managed CachingOptimized, read by name (no policy of its own)."
   }
 
+  # --- Content-Security-Policy, phase 1 of #44: only Report-Only, from the file of tools/deploy-site.
   assert {
     condition     = length(one(aws_cloudfront_response_headers_policy.security.security_headers_config).content_security_policy) == 0
-    error_message = "No Content-Security-Policy yet (#44)."
+    error_message = "Phase 1 of #44: the policy is not enforced yet (no Content-Security-Policy header)."
+  }
+
+  assert {
+    condition = (
+      length(one(aws_cloudfront_response_headers_policy.security.custom_headers_config).items) == 1
+      && one(one(aws_cloudfront_response_headers_policy.security.custom_headers_config).items).header == "Content-Security-Policy-Report-Only"
+      && one(one(aws_cloudfront_response_headers_policy.security.custom_headers_config).items).override
+    )
+    error_message = "The only custom header is Content-Security-Policy-Report-Only, over whatever the origin sends."
+  }
+
+  assert {
+    condition = (
+      startswith(one(one(aws_cloudfront_response_headers_policy.security.custom_headers_config).items).value, "default-src 'self'; script-src 'self'; ")
+      && strcontains(one(one(aws_cloudfront_response_headers_policy.security.custom_headers_config).items).value, "; object-src 'none'; ")
+      && endswith(one(one(aws_cloudfront_response_headers_policy.security.custom_headers_config).items).value, "; frame-ancestors 'none'")
+      && !strcontains(one(one(aws_cloudfront_response_headers_policy.security.custom_headers_config).items).value, "unsafe-eval")
+      && !strcontains(one(one(aws_cloudfront_response_headers_policy.security.custom_headers_config).items).value, "\n")
+      && !strcontains(one(one(aws_cloudfront_response_headers_policy.security.custom_headers_config).items).value, "\r")
+    )
+    error_message = "The value is the policy file in one line: directives joined with \"; \", no 'unsafe-eval'."
   }
 }
 

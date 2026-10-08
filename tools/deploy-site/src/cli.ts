@@ -33,8 +33,8 @@ export const USAGE = `Uso:
       todo lo que va al bucket: la app, /content e /icons.
   pnpm preview:site [--port <puerto>]
       Sirve dist/site en http://127.0.0.1:<puerto> (por defecto 4319) como lo hace
-      CloudFront: con la misma función que reescribe las rutas del juego a /index.html y con
-      los headers de cada archivo.
+      CloudFront: con la misma función que reescribe las rutas del juego a /index.html, con
+      los headers de cada archivo y con la Content-Security-Policy del sitio.
   pnpm deploy:site [--dry-run]
       Sube dist/site al bucket con el AWS CLI, borra del bucket lo que ya no existe y
       crea una invalidación de CloudFront de /index.html y /content/*. Lo corre el job

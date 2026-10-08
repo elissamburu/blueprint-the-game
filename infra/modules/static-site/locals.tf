@@ -10,4 +10,12 @@ locals {
   tags = { Project = var.project_tag }
 
   origin_id = "site-bucket"
+
+  # The Content-Security-Policy of the site, from its only source: one directive per line in
+  # tools/deploy-site, where the preview server reads it too and its tests check it. Joined as the
+  # preview server joins it (src/csp.ts): trimmed lines, no blank ones, "; " between them.
+  content_security_policy = join("; ", [
+    for line in split("\n", file("${path.module}/../../../tools/deploy-site/cloudfront/content-security-policy.txt")) :
+    trimspace(line) if trimspace(line) != ""
+  ])
 }
