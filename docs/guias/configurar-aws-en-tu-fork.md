@@ -5,7 +5,7 @@ Esta guía deja tu fork desplegando en **tu** cuenta de AWS con GitHub Actions, 
 > Decisiones de diseño detrás de esta guía: [ADR-0014](../adr/0014-infra-terraform-oidc.md) (con su enmienda por cuenta compartida) y [ADR-0015](../adr/0015-ci-para-prs-de-forks.md).
 > Tiempo estimado: 30–45 minutos, más hasta 48 horas de espera para la etiqueta de costos (no bloquea).
 >
-> **Estado:** el bootstrap (`infra/bootstrap`) está listo. El despliegue (`infra/envs/prod` y `deploy.yml`, pasos 5 y 6) llega en el PR 2 de F3, y la guía completa se prueba de punta a punta en una cuenta limpia en el PR 4 ([roadmap](../05-roadmap.md#f3--infraestructura-y-despliegue)).
+> **Estado:** el bootstrap (`infra/bootstrap`) está listo. El despliegue (`infra/envs/prod` y `deploy.yml`, pasos 5 y 6) llega en el paso 2 de F3, y la guía completa se prueba de punta a punta en una cuenta limpia en el paso 6 ([roadmap](../05-roadmap.md#f3--infraestructura-y-despliegue)).
 
 ## Qué vas a crear
 
@@ -91,7 +91,7 @@ En `prod`:
 
 En `prod-plan`, ni reviewers ni restricción de ramas: el `plan` de un PR corre en la rama del PR. Eso quiere decir que un workflow de **cualquier rama de tu repo** puede asumir `gh-plan`, que solo lee (los recursos del proyecto y el state) y toma el lock del state. Por eso:
 
-- El workflow de plan (llega en el PR 2 de F3) **no corre en PR de forks**: su job lleva la condición `github.event.pull_request.head.repo.full_name == github.repository`, además de que los PR de forks corren sin acceso a AWS ([ADR-0015](../adr/0015-ci-para-prs-de-forks.md)).
+- El workflow de plan (llega en el paso 2 de F3) **no corre en PR de forks**: su job lleva la condición `github.event.pull_request.head.repo.full_name == github.repository`, además de que los PR de forks corren sin acceso a AWS ([ADR-0015](../adr/0015-ci-para-prs-de-forks.md)).
 - Quien puede crear ramas en tu repo puede leer el state y la configuración del proyecto: dale permiso de escritura solo a personas de confianza.
 
 Los nombres tienen que ser exactamente `prod-plan` y `prod`: son parte del `sub` que la trust policy compara.
@@ -166,7 +166,13 @@ create_oidc_provider = true      # false si el paso 3.2 encontró uno
 # Opcional: dominio propio en Route 53. Vacío = los roles no tienen permisos de Route 53.
 route53_zone_id      = ""                                            # p. ej. "Z0123456789ABCDEFGHIJ"
 route53_record_names = []                                            # p. ej. ["beta.tu-dominio.com.ar", "_*.beta.tu-dominio.com.ar"]
+
+# Vacías en el primer apply: se completan después del primer despliegue (paso 5.1).
+cloudfront_oac_ids                     = []                          # p. ej. ["E1ABCDEFGHIJKL"]
+cloudfront_response_headers_policy_ids = []                          # p. ej. ["67f7725c-6f97-4210-82d7-5512b31e9d03"]
 ```
+
+Sobre `cloudfront_oac_ids` y `cloudfront_response_headers_policy_ids`: son los únicos *origin access controls* y *response headers policies* que `gh-apply` puede cambiar o borrar (crearlos puede siempre). Los crea `infra/envs/prod`, así que en el primer `apply` del bootstrap todavía no existen: dejalas vacías y completalas en el [paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies). Van los IDs solos, no los ARN.
 
 Sobre `route53_record_names`: son los únicos registros que `gh-apply` puede cambiar en la zona (el del sitio y el CNAME de validación del certificado de ACM, que empieza con `_`). Van en minúsculas y **sin el punto final**, como los compara Route 53 ([condiciones de IAM en Route 53](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html)). La zona en sí no la administra Terraform.
 
@@ -205,6 +211,7 @@ $Budget       = "arn:aws:budgets::${AccountId}:budget/$Prefix-prueba"
 $SiteObject   = "arn:aws:s3:::$Prefix-sitio-prueba/index.html"
 $StateObject  = "arn:aws:s3:::$StateBucket/envs/prod/terraform.tfstate"
 $TestRole     = "arn:aws:iam::${AccountId}:role/$Prefix-prueba"
+$Oac          = "arn:aws:cloudfront::${AccountId}:origin-access-control/E1ABCDEFGHIJKL"
 
 # Claves de contexto.
 $Tagged       = "ContextKeyName=aws:ResourceTag/Project,ContextKeyValues=$ProjectTag,ContextKeyType=string"
@@ -228,6 +235,8 @@ Test-Permission $RoleDeploy "s3:PutObject"                      $SiteObject @($I
 Test-Permission $RoleDeploy "s3:PutObject"                      $StateObject @($InAccount)                # explicitDeny
 Test-Permission $RoleApply  "iam:DeleteRole"                    $TestRole @($Tagged, $WithBoundary)       # allowed
 Test-Permission $RoleApply  "iam:DeleteRolePermissionsBoundary" $TestRole @($Tagged, $WithBoundary)       # explicitDeny
+Test-Permission $RoleApply  "cloudfront:CreateOriginAccessControl" "*"                                    # allowed
+Test-Permission $RoleApply  "cloudfront:DeleteOriginAccessControl" $Oac                                   # explicitDeny
 ```
 
 | Rol | Acción | Recurso | Esperado | Por qué |
@@ -242,6 +251,8 @@ Test-Permission $RoleApply  "iam:DeleteRolePermissionsBoundary" $TestRole @($Tag
 | `gh-deploy-content` | `s3:PutObject` | objeto del bucket de state | `explicitDeny` | Deny explícito del state en su política. |
 | `gh-apply` | `iam:DeleteRole` | `role/<prefijo>-prueba` con `Project` y el boundary | `allowed` | Roles del proyecto que llevan el boundary. |
 | `gh-apply` | `iam:DeleteRolePermissionsBoundary` | el mismo rol | `explicitDeny` | Nadie puede quitar un boundary. |
+| `gh-apply` | `cloudfront:CreateOriginAccessControl` | `*` | `allowed` | Crear no afecta a otros proyectos. |
+| `gh-apply` | `cloudfront:DeleteOriginAccessControl` | un OAC que no está en `cloudfront_oac_ids` | `explicitDeny` | Solo se cambian o borran los IDs listados (con la lista vacía, ninguno). |
 
 `explicitDeny` e `implicitDeny` son las dos formas de «denegado»: la primera viene de un `Deny` (del boundary o de la política), la segunda de que nada lo permite. Sin `$InAccount`, las acciones de S3 dan `implicitDeny`, porque las políticas exigen que el bucket sea de la cuenta (`aws:ResourceAccount`). Si algún resultado no coincide con la tabla, no sigas: revisá la política con `aws iam get-role-policy --role-name <rol> --policy-name <rol>-permissions`.
 
@@ -294,20 +305,21 @@ repo_ref = (
 | Rol | Puede |
 |---|---|
 | `gh-plan` | Leer el state y tomar el lock; leer los buckets `<prefijo>-*`, CloudFront, los certificados de `us-east-1`, los presupuestos `<prefijo>-*`, los roles y políticas `<prefijo>-*` y, si la configuraste, la hosted zone. |
-| `gh-apply` | Lo de `gh-plan`, escribir el state, y crear o cambiar los recursos del proyecto: buckets `<prefijo>-*`; distribuciones, funciones y certificados **con la etiqueta `Project`**; *origin access controls* y *response headers policies*; presupuestos `<prefijo>-*`; roles y políticas `<prefijo>-*` con el boundary; los registros de Route 53 listados. |
+| `gh-apply` | Lo de `gh-plan`, escribir el state, y crear o cambiar los recursos del proyecto: buckets `<prefijo>-*`; distribuciones, funciones y certificados **con la etiqueta `Project`**; crear *origin access controls* y *response headers policies*, y cambiar o borrar solo los de `cloudfront_oac_ids` y `cloudfront_response_headers_policy_ids`; presupuestos `<prefijo>-*`; roles y políticas `<prefijo>-*` con el boundary; los registros de Route 53 listados. |
 | `gh-deploy-content` | Listar, subir y borrar archivos en buckets `<prefijo>-*` (nunca en el de state) e invalidar distribuciones con la etiqueta `Project`. |
 
 Los tres llevan el **permissions boundary** `<prefijo>-gh-boundary`, que además:
 
 - impide crear o modificar un rol que no lleve ese mismo boundary, y quitar el boundary de un rol;
 - impide cambiar recursos **sin** la etiqueta `Project = <project_tag>`, crearlos sin ella, quitarla o cambiarla;
+- impide cambiar o borrar *origin access controls* y *response headers policies* que no estén en las variables, y escribir cualquier otro tipo de CloudFront sin etiquetas (*cache policies*, *origin request policies*…);
 - deja el bucket de state y los recursos del bootstrap (roles `<prefijo>-gh-*` y el boundary) fuera del alcance de los roles, salvo leer y escribir objetos del state.
 
 Dónde no alcanza la etiqueta (AWS no ofrece condiciones por etiqueta para esos tipos):
 
 - **S3**: se acota por nombre de bucket (`<prefijo>-*`) y cuenta.
 - **Route 53**: se acota por zona y por nombre y tipo de registro.
-- ***Origin access controls* y *response headers policies* de CloudFront**: no tienen etiquetas ni nombre en el ARN; `gh-apply` puede crearlos, cambiarlos o borrarlos en **toda la cuenta**. En una cuenta con distribuciones de otros proyectos es un riesgo real: un `apply` equivocado, o un workflow comprometido que pase la aprobación de `prod`, podría cambiar el OAC o la política de headers de otro sitio. Se acota en el PR 2 de F3: una variable del bootstrap con los IDs importados de la beta, y se re-aplica el bootstrap.
+- ***Origin access controls* y *response headers policies* de CloudFront**: no tienen etiquetas y su ARN lleva un ID generado (`origin-access-control/<ID>`, `response-headers-policy/<ID>`). Se acotan por ID: `gh-apply` los puede crear, pero solo cambia o borra los de `cloudfront_oac_ids` y `cloudfront_response_headers_policy_ids` ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)). Así, en una cuenta con distribuciones de otros proyectos, un `apply` equivocado o un workflow comprometido que pase la aprobación de `prod` no puede cambiar el OAC o la política de headers de otro sitio.
 - **Adopción de recursos sin etiqueta**: crear una distribución o un certificado con etiquetas usa el mismo permiso que etiquetar uno existente, así que `gh-apply` podría ponerle `Project` a una distribución o un certificado **sin** esa etiqueta. Si la cuenta es compartida, etiquetá los recursos de los otros proyectos con su propio `Project`: el boundary impide cambiarlo.
 
 Además: duración máxima de sesión de 1 hora, y `StringEquals` (nunca `StringLike`) sobre `aud` y `sub`.
@@ -331,7 +343,7 @@ gh variable set PROJECT_TAG         --body "blueprint"     # el mismo project_ta
 
 ## 5. Primer despliegue
 
-> Disponible desde el PR 2 de F3 (`infra/envs/prod` y `deploy.yml`).
+> Disponible desde el paso 2 de F3 (`infra/envs/prod` y `deploy.yml`).
 
 ```powershell
 gh workflow run deploy.yml --ref main
@@ -363,6 +375,31 @@ jobs:
 
 Al terminar, la URL del sitio aparece en el resumen del job (`terraform output site_url`).
 
+### 5.1 Acotá los OAC y las response headers policies
+
+El primer `apply` crea el *origin access control* y la *response headers policy* del sitio, pero `gh-apply` todavía no los puede cambiar ni borrar: con las variables vacías, el boundary lo niega para todos. Antes de cambiar cualquiera de los dos (por ejemplo, los headers de seguridad), re-aplicá el bootstrap con sus IDs.
+
+Con la sesión de administrador del paso 3.1, buscá los IDs (los nombres que pone `infra/envs/prod` empiezan con el prefijo):
+
+```powershell
+$Prefix = "<name_prefix>"
+aws cloudfront list-origin-access-controls `
+  --query "OriginAccessControlList.Items[?starts_with(Name, '$Prefix-')].[Id, Name]" --output text
+aws cloudfront list-response-headers-policies --type custom `
+  --query "ResponseHeadersPolicyList.Items[?starts_with(ResponseHeadersPolicy.ResponseHeadersPolicyConfig.Name, '$Prefix-')].[ResponseHeadersPolicy.Id, ResponseHeadersPolicy.ResponseHeadersPolicyConfig.Name]" --output text
+```
+
+Confirmá que cada uno es el que usa la distribución del proyecto (consola de CloudFront → la distribución → *Origins* y *Behaviors*) y completá `terraform.tfvars`:
+
+```hcl
+cloudfront_oac_ids                     = ["E1ABCDEFGHIJKL"]
+cloudfront_response_headers_policy_ids = ["67f7725c-6f97-4210-82d7-5512b31e9d03"]
+```
+
+Después, desde `infra/bootstrap`, igual que en el paso 3.4: `terraform plan -out bootstrap.tfplan` (solo cambian la política de `gh-apply` y el boundary), `terraform apply bootstrap.tfplan` y `Remove-Item bootstrap.tfplan`. Resguardá el state otra vez (paso 3.6).
+
+Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos recursos (el plan muestra `must be replaced`): el nuevo tiene otro ID. Para que el `apply` pueda borrar el viejo, el viejo tiene que seguir en la lista; agregá el nuevo después del `apply` y sacá el viejo.
+
 ## 6. Verificá que el aislamiento funciona
 
 | Prueba | Resultado esperado |
@@ -381,6 +418,7 @@ Al terminar, la URL del sitio aparece en el resumen del job (`terraform output s
 | `EntityAlreadyExists` al crear el proveedor OIDC | La cuenta ya tiene uno para `token.actions.githubusercontent.com`. | `create_oidc_provider = false` (paso 3.2). |
 | `terraform plan` falla porque el account ID no está permitido (`allowed_account_ids`) | El perfil apunta a otra cuenta que `account_id`. | Revisá `aws sts get-caller-identity` y el perfil. |
 | `AccessDenied` en `gh-apply` sobre un recurso existente | El recurso no tiene la etiqueta `Project` o su nombre no empieza con el prefijo. | Etiquetalo (o importalo con la etiqueta) con credenciales de administrador. |
+| `AccessDenied` en `cloudfront:UpdateOriginAccessControl`, `UpdateResponseHeadersPolicy` o sus `Delete*` | El ID no está en `cloudfront_oac_ids` o `cloudfront_response_headers_policy_ids`. | Agregalo y re-aplicá el bootstrap ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)). |
 | `Error acquiring the state lock` | Quedó un lock de una ejecución cancelada. | Confirmá que no haya otra ejecución y usá `terraform force-unlock <ID>`. |
 | El sitio muestra `AccessDenied` | Contenido no subido o política de OAC incompleta. | Revisá el job `deploy-content` y la política del bucket del sitio. |
 | Renombraste o transferiste el repo | Desde el 15/07/2026, eso cambia el `sub` al formato inmutable. | Actualizá `subject_format`/IDs y re-aplicá el bootstrap. |
@@ -415,6 +453,6 @@ cd ../../bootstrap; terraform destroy
 - AWS CLI v2 — [iam simulate-principal-policy](https://docs.aws.amazon.com/cli/latest/reference/iam/simulate-principal-policy.html)
 - AWS Billing — [Budget filters](https://docs.aws.amazon.com/cost-management/latest/userguide/budgets-create-filters.html) y [Activating user-defined cost allocation tags](https://docs.aws.amazon.com/awsaccountbilling/latest/aboutv2/activating-tags.html)
 - Amazon Route 53 — [Using IAM policy conditions for fine-grained access control](https://docs.aws.amazon.com/Route53/latest/DeveloperGuide/specifying-rrset-conditions.html)
-- AWS — [Service Authorization Reference](https://docs.aws.amazon.com/service-authorization/latest/reference/reference.html) (qué tipos de recurso admiten `aws:ResourceTag`)
+- AWS — [Service Authorization Reference](https://docs.aws.amazon.com/service-authorization/latest/reference/reference.html) (qué tipos de recurso admiten `aws:ResourceTag`) y su página de [CloudFront](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazoncloudfront.html) (formato de los ARN de OAC y *response headers policies*)
 - Terraform — [Backend S3 (`use_lockfile`, deprecación del locking con DynamoDB)](https://developer.hashicorp.com/terraform/language/backend/s3)
 - Terraform — [Tests con providers simulados](https://developer.hashicorp.com/terraform/language/tests/mocking)
