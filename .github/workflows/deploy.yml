@@ -37,6 +37,13 @@ env:
   TF_IN_AUTOMATION: "1"
   TF_INPUT: "0"
   TF_DIR: infra/envs/prod
+  # The outputs of the login (ADR-0029) that the web is built with, as one JSON object of
+  # VITE_AUTH_* (empty strings before the first apply). Identifiers, not secrets: none carries the
+  # account ID, so GitHub keeps them as job outputs.
+  AUTH_OUTPUTS: >-
+    {VITE_AUTH_REGION: (.auth_region.value // ""), VITE_AUTH_USER_POOL_ID: (.auth_user_pool_id.value // ""),
+    VITE_AUTH_CLIENT_ID: (.auth_user_pool_client_id.value // ""), VITE_AUTH_IDENTITY_POOL_ID: (.auth_identity_pool_id.value // ""),
+    VITE_AUTH_DOMAIN: (.auth_domain.value // ""), VITE_AUTH_TABLE: (.profiles_table.value // "")}
 
 jobs:
   # terraform plan with gh-plan (reads the project and the state, takes the lock). prod-plan has no
@@ -51,12 +58,14 @@ jobs:
     permissions:
       contents: read
       id-token: write
-    # changes: whether apply has anything to do. bucket-template and distribution-id: the site of the
-    # current state, for deploy when apply is skipped (empty on pull_request and before the first apply).
+    # changes: whether apply has anything to do. bucket-template, distribution-id and auth: the site
+    # and the login of the current state, for deploy when apply is skipped (empty on pull_request and
+    # before the first apply).
     outputs:
       changes: ${{ steps.plan.outputs.changes }}
       distribution-id: ${{ steps.outputs.outputs.distribution-id }}
       bucket-template: ${{ steps.outputs.outputs.bucket-template }}
+      auth: ${{ steps.outputs.outputs.auth }}
     env:
       TF_VAR_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
       TF_VAR_acm_certificate_arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
@@ -67,6 +76,7 @@ jobs:
       TF_VAR_domain: ${{ vars.SITE_DOMAIN }}
       TF_VAR_price_class: ${{ vars.PRICE_CLASS || 'PriceClass_All' }}
       TF_VAR_budget_usd: ${{ vars.BUDGET_USD || '10' }}
+      TF_VAR_auth_domain_prefix: ${{ vars.AUTH_DOMAIN_PREFIX }}
     steps:
       # Fails with the names of what is missing instead of a credentials error further down. Only
       # checks that each value is set: their values are never printed.
@@ -77,10 +87,11 @@ jobs:
           BUDGET_EMAIL: ${{ secrets.BUDGET_EMAIL }}
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
           SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+          AUTH_DOMAIN_PREFIX: ${{ vars.AUTH_DOMAIN_PREFIX }}
           AWS_ROLE_PLAN_ARN: ${{ vars.AWS_ROLE_PLAN_ARN }}
         run: |
           missing=()
-          for name in AWS_ACCOUNT_ID ACM_CERTIFICATE_ARN BUDGET_EMAIL TF_STATE_BUCKET SITE_DOMAIN AWS_ROLE_PLAN_ARN; do
+          for name in AWS_ACCOUNT_ID ACM_CERTIFICATE_ARN BUDGET_EMAIL TF_STATE_BUCKET SITE_DOMAIN AUTH_DOMAIN_PREFIX AWS_ROLE_PLAN_ARN; do
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ "${#missing[@]}" -gt 0 ]; then
@@ -159,6 +170,7 @@ jobs:
           distribution_id=$(jq -r '.distribution_id.value // empty' <<< "$outputs")
           echo "bucket-template=${bucket//$AWS_ACCOUNT_ID/@ACCOUNT_ID@}" >> "$GITHUB_OUTPUT"
           echo "distribution-id=$distribution_id" >> "$GITHUB_OUTPUT"
+          echo "auth=$(jq -c "$AUTH_OUTPUTS" <<< "$outputs")" >> "$GITHUB_OUTPUT"
 
   # Plans again with gh-apply and applies that plan, after a reviewer approves the environment prod
   # (only main). Only when the plan has changes: without them there is nothing to approve. The plan
@@ -178,6 +190,7 @@ jobs:
     outputs:
       distribution-id: ${{ steps.outputs.outputs.distribution-id }}
       bucket-template: ${{ steps.outputs.outputs.bucket-template }}
+      auth: ${{ steps.outputs.outputs.auth }}
     env:
       TF_VAR_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
       TF_VAR_acm_certificate_arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
@@ -188,6 +201,7 @@ jobs:
       TF_VAR_domain: ${{ vars.SITE_DOMAIN }}
       TF_VAR_price_class: ${{ vars.PRICE_CLASS || 'PriceClass_All' }}
       TF_VAR_budget_usd: ${{ vars.BUDGET_USD || '10' }}
+      TF_VAR_auth_domain_prefix: ${{ vars.AUTH_DOMAIN_PREFIX }}
     steps:
       # Fails with the names of what is missing instead of a credentials error further down. Only
       # checks that each value is set: their values are never printed.
@@ -198,10 +212,11 @@ jobs:
           BUDGET_EMAIL: ${{ secrets.BUDGET_EMAIL }}
           TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
           SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+          AUTH_DOMAIN_PREFIX: ${{ vars.AUTH_DOMAIN_PREFIX }}
           AWS_ROLE_APPLY_ARN: ${{ vars.AWS_ROLE_APPLY_ARN }}
         run: |
           missing=()
-          for name in AWS_ACCOUNT_ID ACM_CERTIFICATE_ARN BUDGET_EMAIL TF_STATE_BUCKET SITE_DOMAIN AWS_ROLE_APPLY_ARN; do
+          for name in AWS_ACCOUNT_ID ACM_CERTIFICATE_ARN BUDGET_EMAIL TF_STATE_BUCKET SITE_DOMAIN AUTH_DOMAIN_PREFIX AWS_ROLE_APPLY_ARN; do
             [ -n "${!name}" ] || missing+=("$name")
           done
           if [ "${#missing[@]}" -gt 0 ]; then
@@ -271,6 +286,7 @@ jobs:
           test -n "$bucket" && test -n "$distribution_id"
           echo "bucket-template=${bucket//$AWS_ACCOUNT_ID/@ACCOUNT_ID@}" >> "$GITHUB_OUTPUT"
           echo "distribution-id=$distribution_id" >> "$GITHUB_OUTPUT"
+          echo "auth=$(terraform -chdir="$TF_DIR" output -no-color -json | jq -c "$AUTH_OUTPUTS")" >> "$GITHUB_OUTPUT"
           {
             echo "## Infraestructura"
             echo "| | |"
@@ -279,6 +295,7 @@ jobs:
             echo "| Destino del CNAME | \`$(terraform -chdir="$TF_DIR" output -raw distribution_domain_name)\` |"
             echo "| \`cloudfront_oac_ids\` (bootstrap) | \`$(terraform -chdir="$TF_DIR" output -raw origin_access_control_id)\` |"
             echo "| \`cloudfront_response_headers_policy_ids\` (bootstrap) | \`$(terraform -chdir="$TF_DIR" output -raw response_headers_policy_id)\` |"
+            echo "| Dominio del login | \`$(terraform -chdir="$TF_DIR" output -raw auth_domain)\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
   # Builds the site with the same steps as pnpm build:site and uploads it with tools/deploy-site
@@ -307,6 +324,7 @@ jobs:
       # From apply when it ran (it may have created or replaced them), otherwise from the plan.
       BUCKET_TEMPLATE: ${{ needs.apply.result == 'success' && needs.apply.outputs.bucket-template || needs.plan.outputs.bucket-template }}
       SITE_DISTRIBUTION_ID: ${{ needs.apply.result == 'success' && needs.apply.outputs.distribution-id || needs.plan.outputs.distribution-id }}
+      AUTH: ${{ needs.apply.result == 'success' && needs.apply.outputs.auth || needs.plan.outputs.auth }}
     steps:
       # Fails with the names of what is missing instead of a credentials error further down. Only
       # checks that each value is set: their values are never printed.
@@ -325,6 +343,10 @@ jobs:
           fi
           if [ -z "$BUCKET_TEMPLATE" ] || [ -z "$SITE_DISTRIBUTION_ID" ]; then
             echo "::error::No hay bucket ni distribución del sitio: ni el apply ni el state de infra/envs/prod (terraform output) los tienen. Corré deploy.yml sobre main para que el apply cree la infraestructura (paso 5 de docs/guias/configurar-aws-en-tu-fork.md)."
+            exit 1
+          fi
+          if [ -z "$AUTH" ] || jq -e 'to_entries | any(.value == "")' <<< "$AUTH" > /dev/null; then
+            echo "::error::Faltan los outputs del login (auth_*) en el state de infra/envs/prod: el sitio se publicaría sin cuentas. Corré deploy.yml sobre main para que el apply cree el módulo auth (ADR-0029)."
             exit 1
           fi
 
@@ -360,11 +382,17 @@ jobs:
 
       # icons:fetch, content:build (beta and published scenarios, never drafts), build of the web and
       # the checks of the assembled site, in dist/site.
+      # The VITE_AUTH_* of the login come from the outputs of Terraform (AUTH, a JSON object); the
+      # build checks their format (apps/web/src/auth/config.ts).
       - name: Build the site
         env:
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           VITE_FEEDBACK_URL: ${{ vars.VITE_FEEDBACK_URL }}
-        run: pnpm build:site
+        run: |
+          while IFS='=' read -r name value; do
+            export "$name=$value"
+          done < <(jq -r 'to_entries[] | "\(.key)=\(.value)"' <<< "$AUTH")
+          pnpm build:site
 
       - name: Assume gh-deploy-content
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
