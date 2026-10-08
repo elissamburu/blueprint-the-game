@@ -5,7 +5,7 @@ Esta guía deja tu fork desplegando en **tu** cuenta de AWS con GitHub Actions, 
 > Decisiones de diseño detrás de esta guía: [ADR-0014](../adr/0014-infra-terraform-oidc.md) (con su enmienda por cuenta compartida) y [ADR-0015](../adr/0015-ci-para-prs-de-forks.md).
 > Tiempo estimado: 30–45 minutos, más hasta 48 horas de espera para la etiqueta de costos (no bloquea).
 >
-> **Estado:** el bootstrap (`infra/bootstrap`) está listo. El despliegue (`infra/envs/prod` y `deploy.yml`, pasos 5 y 6) llega en el paso 2 de F3, y la guía completa se prueba de punta a punta en una cuenta limpia en el paso 6 ([roadmap](../05-roadmap.md#f3--infraestructura-y-despliegue)).
+> **Estado:** el bootstrap (`infra/bootstrap`) y el despliegue (`infra/envs/prod` y `deploy.yml`, pasos 4 y 5) están listos. La guía completa se prueba de punta a punta en una cuenta limpia en el paso 6 de F3 ([roadmap](../05-roadmap.md#f3--infraestructura-y-despliegue)).
 
 ## Qué vas a crear
 
@@ -21,6 +21,17 @@ Tu cuenta de AWS (región principal: us-east-2, configurable)
 ```
 
 Ningún rol se puede asumir desde otro repo, otra rama sin environment ni un PR de un fork. Todo lleva la etiqueta `Project = <project_tag>`.
+
+El primer despliegue (paso 5) suma, desde GitHub Actions:
+
+```
+├── Bucket S3 <prefijo>-site-<cuenta>-<región>  ← privado; solo lo lee la distribución
+├── CloudFront: distribución (con tu dominio), origin access control <prefijo>-site,
+│     función <prefijo>-spa-rewrite y response headers policy <prefijo>-security-headers
+└── Presupuesto <prefijo>-mensual              ← filtrado por la etiqueta Project
+```
+
+Dos cosas quedan **fuera** de Terraform y las hacés vos: el certificado de ACM del dominio (en `us-east-1`, se reutiliza por ARN) y el registro DNS del sitio (un `CNAME` en tu proveedor de DNS, que no tiene por qué ser Route 53).
 
 ---
 
@@ -91,7 +102,7 @@ En `prod`:
 
 En `prod-plan`, ni reviewers ni restricción de ramas: el `plan` de un PR corre en la rama del PR. Eso quiere decir que un workflow de **cualquier rama de tu repo** puede asumir `gh-plan`, que solo lee (los recursos del proyecto y el state) y toma el lock del state. Por eso:
 
-- El workflow de plan (llega en el paso 2 de F3) **no corre en PR de forks**: su job lleva la condición `github.event.pull_request.head.repo.full_name == github.repository`, además de que los PR de forks corren sin acceso a AWS ([ADR-0015](../adr/0015-ci-para-prs-de-forks.md)).
+- El job `plan` de [`deploy.yml`](../../.github/workflows/deploy.yml) **no corre en PR de forks**: su job lleva la condición `github.event.pull_request.head.repo.full_name == github.repository`, además de que los PR de forks corren sin acceso a AWS ([ADR-0015](../adr/0015-ci-para-prs-de-forks.md)).
 - Quien puede crear ramas en tu repo puede leer el state y la configuración del proyecto: dale permiso de escritura solo a personas de confianza.
 
 Los nombres tienen que ser exactamente `prod-plan` y `prod`: son parte del `sub` que la trust policy compara.
@@ -163,7 +174,8 @@ subject_format  = "immutable"    # o "legacy" según el paso 1
 
 create_oidc_provider = true      # false si el paso 3.2 encontró uno
 
-# Opcional: dominio propio en Route 53. Vacío = los roles no tienen permisos de Route 53.
+# Opcional: solo si tu DNS está en Route 53. Vacío = los roles no tienen permisos de Route 53
+# (infra/envs/prod no maneja DNS: con Cloudflare u otro proveedor, dejalo vacío).
 route53_zone_id      = ""                                            # p. ej. "Z0123456789ABCDEFGHIJ"
 route53_record_names = []                                            # p. ej. ["beta.tu-dominio.com.ar", "_*.beta.tu-dominio.com.ar"]
 
@@ -324,13 +336,35 @@ Dónde no alcanza la etiqueta (AWS no ofrece condiciones por etiqueta para esos 
 
 Además: duración máxima de sesión de 1 hora, y `StringEquals` (nunca `StringLike`) sobre `aud` y `sub`.
 
-## 4. Configurá las variables del repo
+## 4. Configurá los secrets y las variables del repo
 
-No son secretos: son identificadores. Van como **variables** de GitHub (no *secrets*), y nunca en el repo. Desde `infra/bootstrap`:
+El repo es **público**, y los logs de GitHub Actions también: cualquiera puede leerlos. Por eso los valores se separan en dos grupos:
+
+- **Secrets**: GitHub reemplaza su valor por `***` en todo log, también cuando aparece dentro de otro texto (un ARN, el nombre de un bucket). El account ID va acá aunque no sea una credencial: así no queda impreso en cada ARN.
+- **Variables**: identificadores que pueden verse. Nunca van en el repo.
+
+| Tipo | Nombre | Valor | Obligatorio |
+|---|---|---|---|
+| Secret | `AWS_ACCOUNT_ID` | Account ID (12 dígitos) | Sí |
+| Secret | `ACM_CERTIFICATE_ARN` | ARN del certificado del dominio, en `us-east-1` ([paso 5.a](#a-certificado-y-valores-del-sitio)) | Sí |
+| Secret | `BUDGET_EMAIL` | Mail de las alertas del presupuesto | Sí |
+| Variable | `AWS_REGION` | `us-east-2` (la misma `aws_region` del bootstrap) | Sí |
+| Variable | `AWS_ROLE_PLAN_ARN`, `AWS_ROLE_APPLY_ARN`, `AWS_ROLE_DEPLOY_ARN` | Salidas del bootstrap | Sí |
+| Variable | `TF_STATE_BUCKET` | Salida `state_bucket` del bootstrap | Sí |
+| Variable | `NAME_PREFIX`, `PROJECT_TAG` | Los mismos `name_prefix` y `project_tag` del bootstrap | Sí |
+| Variable | `SITE_DOMAIN` | Dominio del sitio, p. ej. `beta.example.com` | Sí |
+| Variable | `BUDGET_USD` | Límite mensual del presupuesto, en USD | No (10) |
+| Variable | `PRICE_CLASS` | `PriceClass_All`, `PriceClass_200` o `PriceClass_100` | No (`PriceClass_All`, incluye Sudamérica) |
+| Variable | `VITE_FEEDBACK_URL` | Formulario externo de feedback, si no usás la plantilla de issue | No |
+
+Desde `infra/bootstrap`, con la sesión de administrador del paso 3.1. Los secrets se pasan desde variables de PowerShell, así su valor no queda escrito en el historial de comandos:
 
 ```powershell
+$AccountId = aws sts get-caller-identity --query Account --output text
+gh secret set AWS_ACCOUNT_ID --body $AccountId
+gh variable delete AWS_ACCOUNT_ID    # solo si lo habías cargado como variable con una versión anterior de esta guía
+
 gh variable set AWS_REGION          --body "us-east-2"
-gh variable set AWS_ACCOUNT_ID      --body (aws sts get-caller-identity --query Account --output text)
 gh variable set AWS_ROLE_PLAN_ARN   --body (terraform output -raw role_plan_arn)
 gh variable set AWS_ROLE_APPLY_ARN  --body (terraform output -raw role_apply_arn)
 gh variable set AWS_ROLE_DEPLOY_ARN --body (terraform output -raw role_deploy_content_arn)
@@ -339,47 +373,172 @@ gh variable set NAME_PREFIX         --body "blueprint"     # el mismo name_prefi
 gh variable set PROJECT_TAG         --body "blueprint"     # el mismo project_tag del bootstrap
 ```
 
-`infra/envs/prod` usa ese bucket como backend S3 con `use_lockfile = true` (lock nativo de S3; el lock con DynamoDB está deprecado).
+`SITE_DOMAIN`, `ACM_CERTIFICATE_ARN` y `BUDGET_EMAIL` se cargan en el [paso 5.a](#a-certificado-y-valores-del-sitio). Cargalos como secrets **del repositorio** (no de un environment): los usan tanto el plan (`prod-plan`) como el apply (`prod`).
+
+`infra/envs/prod` usa `TF_STATE_BUCKET` como backend S3 con `use_lockfile = true` (lock nativo de S3; el lock con DynamoDB está deprecado). El nombre del bucket entra solo por `-backend-config` en el workflow: no está escrito en el repo.
+
+### 4.1 Qué queda visible en los logs
+
+[`deploy.yml`](../../.github/workflows/deploy.yml) está pensado para logs públicos:
+
+| Queda visible | No queda visible |
+|---|---|
+| Los nombres de los recursos (`<prefijo>-gh-apply`, `<prefijo>-site-***-us-east-2`, `<prefijo>-mensual`…), con `***` en lugar del account ID. | El account ID: es un secret, y además `configure-aws-credentials` corre con `mask-aws-account-id`. |
+| El dominio del sitio y el ID y el dominio `*.cloudfront.net` de la distribución (son públicos de todos modos: el CNAME los muestra). | El ARN del certificado (secret). |
+| Los IDs del OAC y de la *response headers policy* (en el resumen del job `apply`, para el [paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)). | El mail del presupuesto: es un secret y, además, `budget_email` es `sensitive` en Terraform, así que el plan muestra `(sensitive value)`. |
+| El plan de Terraform: qué recursos cambian y sus atributos (etiquetas, headers, clase de precio…). | Las credenciales: son temporales (1 hora), las enmascara la acción y nunca se imprimen. |
+| La lista de archivos que sube el job `deploy`, con su `Cache-Control`. | Los planes guardados y el state: el plan del `apply` queda en el runner y se borra al terminar; nunca se sube como artefacto ni se comenta en el PR. El state solo está en el bucket de state. |
+
+Cada job enmascara además el ARN del rol que asume (`::add-mask::`) antes de cualquier otro paso. El enmascarado es textual: no agregues pasos que impriman esos valores transformados (en base64, partidos, etc.), porque ahí GitHub ya no los reconoce.
 
 ## 5. Primer despliegue
 
-> Disponible desde el paso 2 de F3 (`infra/envs/prod` y `deploy.yml`).
+El orden importa: **a)** certificado y valores del sitio, **b)** desarmar la beta manual (solo si ya tenías una), **c)** aprobar el `apply`, **d)** CNAME en tu DNS y **e)** re-aplicar el bootstrap con los IDs nuevos ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)).
+
+Qué hace [`deploy.yml`](../../.github/workflows/deploy.yml):
+
+| Job | Cuándo | Environment y rol | Qué hace |
+|---|---|---|---|
+| `plan` | PR que tocan `infra/**` (solo ramas de tu repo, nunca de forks), push a `main` y ejecución manual | `prod-plan`, `gh-plan` | `terraform plan` de `infra/envs/prod`. |
+| `apply` | Push a `main` y ejecución manual, después de `plan` | `prod` (**espera tu aprobación**), `gh-apply` | Vuelve a planificar y aplica ese plan. Deja en el resumen del job la URL, el destino del CNAME y los IDs del paso 5.1. |
+| `deploy` | Después de `apply` | `prod` (**espera tu aprobación**), `gh-deploy-content` | Arma el sitio como `pnpm build:beta` (íconos, bundle de contenido sin borradores, build de la web), lo sube con el `Cache-Control` de cada archivo (assets con hash: inmutables; `index.html` y `/content/*.json`: `no-cache`), borra lo que sobra e invalida `/index.html` y `/content/*`. Asume el rol recién después del build. |
+
+Cada push a `main` pide **dos aprobaciones**: una para `apply` y otra para `deploy` (los dos jobs usan `prod`).
+
+### a) Certificado y valores del sitio
+
+El sitio usa un certificado de ACM que **no administra Terraform**: tiene que existir, estar emitido, cubrir tu dominio y estar en **`us-east-1`**, la región de la que CloudFront lee los certificados ([requisitos de certificados para CloudFront](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/cnames-and-https-requirements.html)). Crealo **sin** la etiqueta `Project`: así `gh-apply` no lo puede cambiar ni borrar (el boundary niega cambiar recursos sin esa etiqueta) y solo lo referencia por ARN.
+
+Si ya tenés uno (por ejemplo, el de la beta manual), reutilizalo. Si no, con la sesión de administrador:
 
 ```powershell
-gh workflow run deploy.yml --ref main
-gh run watch
+$Domain  = "<beta.tu-dominio.com>"
+$CertArn = aws acm request-certificate --domain-name $Domain --validation-method DNS `
+  --region us-east-1 --query CertificateArn --output text
+
+# El CNAME de validación (puede tardar unos segundos en aparecer; repetí si viene vacío).
+aws acm describe-certificate --certificate-arn $CertArn --region us-east-1 `
+  --query "Certificate.DomainValidationOptions[0].ResourceRecord"
 ```
 
-El workflow:
-1. **build** (sin AWS): tests, `content:build`, build de la web, `icons:fetch`.
-2. **plan** (environment `prod-plan`, rol `gh-plan`): `terraform plan` de `infra/envs/prod` y el plan como artefacto de corta retención.
-3. **apply** (environment `prod`, rol `gh-apply`): **se pausa hasta que apruebes** en la pestaña Actions. Aplica el plan guardado.
-4. **deploy-content** (environment `prod`, rol `gh-deploy-content`): sube la web y el bundle de contenido e invalida CloudFront.
+Cargá ese CNAME en tu proveedor de DNS (en Cloudflare, con el proxy **apagado**: *DNS only*) y **no lo borres nunca**: ACM lo usa para renovar el certificado. Esperá a que quede emitido:
 
-El job que asume un rol lo hace así (acciones fijadas por SHA en el repo real):
-
-```yaml
-permissions:
-  id-token: write      # necesario para pedir el token OIDC
-  contents: read
-jobs:
-  apply:
-    environment: prod
-    runs-on: ubuntu-latest
-    steps:
-      - uses: aws-actions/configure-aws-credentials@<SHA>
-        with:
-          role-to-assume: ${{ vars.AWS_ROLE_APPLY_ARN }}
-          aws-region: ${{ vars.AWS_REGION }}
+```powershell
+aws acm wait certificate-validated --certificate-arn $CertArn --region us-east-1
 ```
 
-Al terminar, la URL del sitio aparece en el resumen del job (`terraform output site_url`).
+Después cargá los valores del sitio:
+
+```powershell
+$Domain  = "<beta.tu-dominio.com>"
+$CertArn = aws acm list-certificates --region us-east-1 `
+  --query "CertificateSummaryList[?DomainName=='$Domain'].CertificateArn | [0]" --output text
+$BudgetEmail = "<tu-mail>"
+
+gh variable set SITE_DOMAIN --body $Domain
+gh secret set ACM_CERTIFICATE_ARN --body $CertArn
+gh secret set BUDGET_EMAIL --body $BudgetEmail
+gh variable set BUDGET_USD --body "10"    # opcional
+```
+
+`infra/envs/prod` valida que el ARN sea de `us-east-1` y de la cuenta de `AWS_ACCOUNT_ID`. Confirmá también que la etiqueta `Project` esté activada como *cost allocation tag* (paso 3.2): sin eso, el presupuesto existe pero no cuenta nada.
+
+### b) Desarmá la beta manual (solo si la tenés)
+
+Si publicaste antes la beta con la [guía de deploy manual](deploy-manual-beta.md), hay que desarmarla **antes de aprobar el primer `apply`**: CloudFront no permite el mismo nombre alternativo (CNAME) en dos distribuciones, y la nueva falla con `CNAMEAlreadyExists` mientras la vieja exista. El sitio queda caído desde este paso hasta el paso d.
+
+El momento justo: hacé merge a `main` (o `gh workflow run deploy.yml --ref main`), esperá a que `plan` termine bien y, **mientras `apply` espera la aprobación**, desarmá la beta. Con la sesión de administrador:
+
+```powershell
+$Profile = "<perfil-admin>"
+$Domain  = "<beta.tu-dominio.com>"
+
+# 1. La distribución vieja: deshabilitarla, esperar a que se despliegue y borrarla.
+$OldId = aws cloudfront list-distributions --profile $Profile --output text `
+  --query "DistributionList.Items[?Aliases.Items && contains(Aliases.Items, '$Domain')].Id | [0]"
+$Current = aws cloudfront get-distribution-config --id $OldId --profile $Profile --output json | ConvertFrom-Json
+$Current.DistributionConfig.Enabled = $false
+$ConfigPath = Join-Path $env:TEMP "beta-distribution-disabled.json"
+[IO.File]::WriteAllText($ConfigPath, ($Current.DistributionConfig | ConvertTo-Json -Depth 50))
+aws cloudfront update-distribution --id $OldId --if-match $Current.ETag `
+  --distribution-config "file://$ConfigPath" --profile $Profile --query Distribution.Status
+aws cloudfront wait distribution-deployed --id $OldId --profile $Profile
+$ETag = aws cloudfront get-distribution --id $OldId --query ETag --output text --profile $Profile
+aws cloudfront delete-distribution --id $OldId --if-match $ETag --profile $Profile
+
+# 2. Su función (después de la distribución, que la tenía asociada).
+$FunctionName = "blueprint-beta-spa-rewrite"
+$ETag = aws cloudfront describe-function --name $FunctionName --query ETag --output text --profile $Profile
+aws cloudfront delete-function --name $FunctionName --if-match $ETag --profile $Profile
+
+# 3. Su origin access control (se llamaba "<bucket de la beta>-oac").
+$OldBucket = "<bucket-de-la-beta>"
+$OacId = aws cloudfront list-origin-access-controls --profile $Profile --output text `
+  --query "OriginAccessControlList.Items[?Name=='$OldBucket-oac'].Id | [0]"
+$ETag = aws cloudfront get-origin-access-control --id $OacId --query ETag --output text --profile $Profile
+aws cloudfront delete-origin-access-control --id $OacId --if-match $ETag --profile $Profile
+```
+
+4. **Response headers policy**: la guía manual usa la administrada `SecurityHeadersPolicy`, que es de AWS y no se borra. Solo si creaste una propia para la beta, borrala igual que el OAC (`aws cloudfront list-response-headers-policies --type custom`, `get-response-headers-policy` para el ETag y `delete-response-headers-policy`).
+
+```powershell
+# 5. El bucket: primero todas sus versiones y marcadores de borrado (está versionado), después el bucket.
+$DeletePath = Join-Path $env:TEMP "beta-delete-objects.json"
+while ($true) {
+  $Page = aws s3api list-object-versions --bucket $OldBucket --max-items 500 --output json --profile $Profile | ConvertFrom-Json
+  $Objects = @(@($Page.Versions) + @($Page.DeleteMarkers) | Where-Object { $_ } |
+    ForEach-Object { @{ Key = $_.Key; VersionId = $_.VersionId } })
+  if ($Objects.Count -eq 0) { break }
+  [IO.File]::WriteAllText($DeletePath, (@{ Objects = $Objects; Quiet = $true } | ConvertTo-Json -Depth 5))
+  aws s3api delete-objects --bucket $OldBucket --delete "file://$DeletePath" --profile $Profile | Out-Null
+}
+aws s3api delete-bucket --bucket $OldBucket --profile $Profile
+
+# 6. El presupuesto viejo (el nuevo se llama <prefijo>-mensual y lo crea el apply).
+$AccountId = aws sts get-caller-identity --query Account --output text --profile $Profile
+aws budgets delete-budget --account-id $AccountId --budget-name "blueprint-beta-mensual" --profile $Profile
+```
+
+**No** borres:
+
+- el **certificado** de ACM: lo reutiliza la distribución nueva (`ACM_CERTIFICATE_ARN`);
+- su **CNAME de validación** en el DNS: sin él, ACM no lo puede renovar;
+- el CNAME del sitio en tu DNS: se actualiza en el paso d.
+
+Si la beta usaba registros de Route 53, borralos en el paso d, cuando el CNAME nuevo ya esté cargado.
+
+### c) Aprobá el `apply`
+
+En la pestaña **Actions**, abrí la ejecución de `Deploy`, **Review deployments** → `prod` → **Approve and deploy**. El `apply` crea el bucket, el OAC, la función, la *response headers policy*, la distribución (tarda varios minutos en desplegarse) y el presupuesto. Revisá antes el log de `plan`: no tiene que tocar nada fuera de esa lista.
+
+Al terminar, el resumen del job muestra el **destino del CNAME** (`dxxxxxxxxxxxxx.cloudfront.net`) y los IDs del paso 5.1. Después, `deploy` pide la segunda aprobación y sube el sitio.
+
+### d) CNAME del sitio en tu DNS
+
+Terraform no maneja el DNS. En tu proveedor, apuntá el dominio a la distribución nueva. En **Cloudflare**: **DNS → Records**, editá (o creá) el registro:
+
+| Tipo | Nombre | Destino | Proxy |
+|---|---|---|---|
+| `CNAME` | `beta` (el subdominio de `SITE_DOMAIN`) | el destino del CNAME del resumen de `apply` | **DNS only** (nube gris) |
+
+Con el proxy de Cloudflare encendido, el tráfico pasaría primero por Cloudflare, con su propio certificado y su propia caché, delante de CloudFront: el sitio está pensado para que lo sirva CloudFront directamente. La guía asume un subdominio: un dominio raíz no admite un `CNAME` estándar.
+
+Verificá (puede tardar unos minutos en propagarse):
+
+```powershell
+Resolve-DnsName $Domain -Type CNAME | Select-Object NameHost
+curl.exe -sI "https://$Domain/" | Select-String "^HTTP|strict-transport-security|x-content-type-options|x-frame-options|referrer-policy|cache-control"
+curl.exe -sI "https://$Domain/escenarios" | Select-String "^HTTP|content-type"            # 200, text/html
+curl.exe -sI "https://$Domain/content/index.json" | Select-String "content-type|cache-control"   # application/json, no-cache
+```
+
+Y en el navegador, el checklist de la [guía de deploy manual](deploy-manual-beta.md) (sección 8.3): home, recarga de `/escenarios`, escenarios, íconos y enlaces de feedback.
 
 ### 5.1 Acotá los OAC y las response headers policies
 
-El primer `apply` crea el *origin access control* y la *response headers policy* del sitio, pero `gh-apply` todavía no los puede cambiar ni borrar: con las variables vacías, el boundary lo niega para todos. Antes de cambiar cualquiera de los dos (por ejemplo, los headers de seguridad), re-aplicá el bootstrap con sus IDs.
+Es el paso **e)** del primer despliegue. El primer `apply` crea el *origin access control* y la *response headers policy* del sitio, pero `gh-apply` todavía no los puede cambiar ni borrar: con las variables vacías, el boundary lo niega para todos. Antes de cambiar cualquiera de los dos (por ejemplo, los headers de seguridad o la CSP del [issue #44](https://github.com/elissamburu/blueprint-the-game/issues/44)), re-aplicá el bootstrap con sus IDs.
 
-Con la sesión de administrador del paso 3.1, buscá los IDs (los nombres que pone `infra/envs/prod` empiezan con el prefijo):
+Los dos IDs están en el resumen del job `apply` (`cloudfront_oac_ids` y `cloudfront_response_headers_policy_ids`). También los podés buscar con la sesión de administrador del paso 3.1 (los nombres que pone `infra/envs/prod` empiezan con el prefijo: `<prefijo>-site` y `<prefijo>-security-headers`):
 
 ```powershell
 $Prefix = "<name_prefix>"
@@ -399,6 +558,12 @@ cloudfront_response_headers_policy_ids = ["67f7725c-6f97-4210-82d7-5512b31e9d03"
 Después, desde `infra/bootstrap`, igual que en el paso 3.4: `terraform plan -out bootstrap.tfplan` (solo cambian la política de `gh-apply` y el boundary), `terraform apply bootstrap.tfplan` y `Remove-Item bootstrap.tfplan`. Resguardá el state otra vez (paso 3.6).
 
 Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos recursos (el plan muestra `must be replaced`): el nuevo tiene otro ID. Para que el `apply` pueda borrar el viejo, el viejo tiene que seguir en la lista; agregá el nuevo después del `apply` y sacá el viejo.
+
+### Deploys siguientes
+
+- Un PR que toca `infra/**` (desde una rama de tu repo) corre `plan`: revisalo en el log antes de aprobar el merge.
+- Cada push a `main` corre `plan`, `apply` y `deploy`, con dos aprobaciones. Si no hay cambios de infraestructura, el `apply` no cambia nada y `deploy` publica la web y el contenido de ese commit.
+- Para volver atrás, revertí el commit en `main` (o corré `deploy.yml` sobre `main` después del revert): el sitio se regenera completo desde el código.
 
 ## 6. Verificá que el aislamiento funciona
 
@@ -420,7 +585,11 @@ Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos re
 | `AccessDenied` en `gh-apply` sobre un recurso existente | El recurso no tiene la etiqueta `Project` o su nombre no empieza con el prefijo. | Etiquetalo (o importalo con la etiqueta) con credenciales de administrador. |
 | `AccessDenied` en `cloudfront:UpdateOriginAccessControl`, `UpdateResponseHeadersPolicy` o sus `Delete*` | El ID no está en `cloudfront_oac_ids` o `cloudfront_response_headers_policy_ids`. | Agregalo y re-aplicá el bootstrap ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)). |
 | `Error acquiring the state lock` | Quedó un lock de una ejecución cancelada. | Confirmá que no haya otra ejecución y usá `terraform force-unlock <ID>`. |
-| El sitio muestra `AccessDenied` | Contenido no subido o política de OAC incompleta. | Revisá el job `deploy-content` y la política del bucket del sitio. |
+| El sitio muestra `AccessDenied` | Contenido no subido o política de OAC incompleta. | Revisá el job `deploy` y la política del bucket del sitio. |
+| `CNAMEAlreadyExists` en el `apply` | Otra distribución (p. ej. la de la beta manual) tiene el mismo dominio como alias. | Desarmá la beta ([paso 5.b](#b-desarmá-la-beta-manual-solo-si-la-tenés)) y volvé a correr el workflow. |
+| `InvalidViewerCertificate` en el `apply` | El certificado no está emitido o no cubre `SITE_DOMAIN`. | `aws acm describe-certificate --certificate-arn <ARN> --region us-east-1 --query Certificate.Status` ([paso 5.a](#a-certificado-y-valores-del-sitio)). |
+| El plan falla en la validación de `acm_certificate_arn`, `domain` o `budget_email` | Falta el secret o la variable, o tiene otro formato. | Paso 4 y paso 5.a. |
+| El dominio no resuelve o muestra el certificado de Cloudflare | Falta el `CNAME` o tiene el proxy encendido. | [Paso 5.d](#d-cname-del-sitio-en-tu-dns): *DNS only*. |
 | Renombraste o transferiste el repo | Desde el 15/07/2026, eso cambia el `sub` al formato inmutable. | Actualizá `subject_format`/IDs y re-aplicá el bootstrap. |
 
 ## 8. Checklist de seguridad de la cuenta (recomendado)
@@ -436,7 +605,7 @@ Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos re
 
 ```powershell
 # 1) Infra de la app (con credenciales admin locales)
-cd infra/envs/prod; terraform init -backend-config=...; terraform destroy
+cd infra/envs/prod; terraform init -backend-config="bucket=<state_bucket>"; terraform destroy   # pide las mismas variables: terraform.tfvars.example
 # 2) Bootstrap (su state es local)
 cd ../../bootstrap; terraform destroy
 ```
