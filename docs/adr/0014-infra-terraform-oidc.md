@@ -56,3 +56,18 @@ El repo tiene que poder desplegarse en la cuenta de AWS de quien lo forkee, de f
 - **DNS**: Terraform no maneja DNS. El dominio apunta a la distribución con un `CNAME` en el proveedor de DNS (en Cloudflare, en modo *DNS only*), cargado a mano ([guía de forks, paso 5](../guias/configurar-aws-en-tu-fork.md#5-primer-despliegue)). Los permisos de Route 53 del bootstrap siguen siendo opcionales (`route53_zone_id` vacío).
 - **Logs públicos**: el account ID, el ARN del certificado y el mail del presupuesto son *secrets* de GitHub (los enmascara en todo log, también dentro de ARNs y nombres de bucket), cada job enmascara el ARN de su rol, `budget_email` es `sensitive` en Terraform y los planes nunca se suben como artefactos ni se publican en el PR. El resto de los identificadores (roles, bucket de state, prefijo, dominio) son variables.
 - **Subida del sitio**: el job `deploy` reutiliza `tools/deploy-site` (armado del sitio y `Cache-Control` por archivo) con las credenciales de `gh-deploy-content` en el entorno, sin perfil del AWS CLI. El tool no acepta perfiles: sin credenciales en el entorno, falla.
+
+### 2026-10-08 · Deploy de contenido sin aprobación
+**Motivo.** `apply` y `deploy` usaban los dos el environment `prod`, con reviewers: cada merge a `main` pedía dos aprobaciones, aunque solo cambiara el contenido de un escenario y el `apply` no tuviera nada que hacer.
+
+**Decisión.**
+- **Environment propio para el contenido**: `gh-deploy-content` confía solo en `environment:prod-content` (mismo formato de `sub`, `StringEquals` y `aud` exacto). `prod-content` no tiene reviewers y solo acepta `main`; esa regla de ramas es lo único que impide que otra rama asuma el rol. `gh-plan` sigue en `prod-plan` y `gh-apply` en `prod`. Los tres nombres son variables del bootstrap (`plan_environment`, `apply_environment`, `deploy_content_environment`), con esos valores por defecto; el de `gh-apply` no se puede compartir con los otros dos.
+- **`apply` solo con cambios**: el `plan` corre con `-detailed-exitcode` y `apply` solo corre si hay cambios. Sin `apply`, `deploy` toma el bucket y la distribución del state, leídos por el job `plan`.
+- Resultado: un merge que solo toca la web o el contenido no pide aprobaciones (`plan` → `deploy`); uno que cambia la infraestructura pide una (`plan` → `apply` → `deploy`).
+- Reemplaza, en la enmienda de cuenta compartida, la frase «solo `prod` […] es el único que habilita `gh-apply` y `gh-deploy-content`»: `prod` habilita `gh-apply` y `prod-content` habilita `gh-deploy-content`.
+
+**Consecuencias.**
+- El mínimo privilegio no cambia: cada rol conserva sus permisos y su único `sub`. `gh-deploy-content` sigue sin poder tocar el state ni la infraestructura.
+- El control humano queda en los cambios de infraestructura. El contenido se publica al mergear a `main`: la revisión del PR (y los checks de `ci.yml`) pasa a ser el único control antes de producción para la web y los escenarios.
+- *Trade-off*: quien pueda mergear a `main` publica sin un segundo paso; un error que pase la revisión llega al sitio sin una pausa para frenarlo, y se corrige con un revert. A cambio, publicar contenido deja de depender de que un reviewer esté disponible. Si `prod-content` se configura sin la regla de ramas, cualquier rama del repo podría subir archivos al sitio: la [guía de forks](../guias/configurar-aws-en-tu-fork.md#2-creá-los-environments-en-github) lo marca como obligatorio.
+- Quien ya tenía el bootstrap aplicado migra en orden: crear `prod-content`, re-aplicar el bootstrap y mergear ([guía, paso 3.8](../guias/configurar-aws-en-tu-fork.md#38-si-ya-tenías-el-bootstrap-aplicado-migrar-a-prod-content)).

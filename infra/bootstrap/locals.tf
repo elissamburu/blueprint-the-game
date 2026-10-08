@@ -5,10 +5,6 @@ locals {
 
   project_tag_key = "Project"
 
-  # Environments of the repository (ADR-0014): plan without reviewers, apply and content with them.
-  plan_environment = "prod-plan"
-  prod_environment = "prod"
-
   # Certificates used by CloudFront must live in us-east-1, whatever the main region is.
   cloudfront_certificate_region = "us-east-1"
 
@@ -24,18 +20,18 @@ locals {
   roles = {
     plan = {
       name        = "${local.prefix}-gh-plan"
-      environment = local.plan_environment
-      description = "GitHub Actions: terraform plan of ${var.github_owner}/${var.github_repo} (environment ${local.plan_environment})"
+      environment = var.plan_environment
+      description = "GitHub Actions: terraform plan of ${var.github_owner}/${var.github_repo} (environment ${var.plan_environment})"
     }
     apply = {
       name        = "${local.prefix}-gh-apply"
-      environment = local.prod_environment
-      description = "GitHub Actions: terraform apply of ${var.github_owner}/${var.github_repo} (environment ${local.prod_environment})"
+      environment = var.apply_environment
+      description = "GitHub Actions: terraform apply of ${var.github_owner}/${var.github_repo} (environment ${var.apply_environment})"
     }
     deploy_content = {
       name        = "${local.prefix}-gh-deploy-content"
-      environment = local.prod_environment
-      description = "GitHub Actions: upload of the site and content of ${var.github_owner}/${var.github_repo} (environment ${local.prod_environment})"
+      environment = var.deploy_content_environment
+      description = "GitHub Actions: upload of the site and content of ${var.github_owner}/${var.github_repo} (environment ${var.deploy_content_environment})"
     }
   }
 

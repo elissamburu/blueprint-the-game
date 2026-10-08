@@ -67,6 +67,51 @@ variable "subject_format" {
   }
 }
 
+# Environments of the repository (ADR-0014): each role trusts only the subject of its environment.
+# Their protection rules live in GitHub (Settings → Environments), not here: see the guide, step 2.
+variable "plan_environment" {
+  description = "Environment of gh-plan: no reviewers, any branch (the plan runs on the branches of the PRs)."
+  type        = string
+  default     = "prod-plan"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._-]{1,255}$", var.plan_environment))
+    error_message = "plan_environment must be a GitHub environment name (letters, digits, dots, hyphens and underscores)."
+  }
+}
+
+variable "apply_environment" {
+  description = "Environment of gh-apply: required reviewers, only main."
+  type        = string
+  default     = "prod"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._-]{1,255}$", var.apply_environment))
+    error_message = "apply_environment must be a GitHub environment name (letters, digits, dots, hyphens and underscores)."
+  }
+
+  validation {
+    condition     = var.apply_environment != var.plan_environment && var.apply_environment != var.deploy_content_environment
+    error_message = "apply_environment must not be shared: the environments of gh-plan and gh-deploy-content have no reviewers."
+  }
+}
+
+variable "deploy_content_environment" {
+  description = "Environment of gh-deploy-content: no reviewers, only main (its branch rule is the only thing that keeps other branches from assuming the role)."
+  type        = string
+  default     = "prod-content"
+
+  validation {
+    condition     = can(regex("^[A-Za-z0-9._-]{1,255}$", var.deploy_content_environment))
+    error_message = "deploy_content_environment must be a GitHub environment name (letters, digits, dots, hyphens and underscores)."
+  }
+
+  validation {
+    condition     = var.deploy_content_environment != var.plan_environment
+    error_message = "deploy_content_environment must not be the environment of gh-plan, which accepts any branch."
+  }
+}
+
 variable "create_oidc_provider" {
   description = "Create the GitHub OIDC provider. Set to false when the account already has one (there can only be one per URL): it is then read with a data source and left untouched."
   type        = bool

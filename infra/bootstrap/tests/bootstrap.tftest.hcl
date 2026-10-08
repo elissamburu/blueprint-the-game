@@ -2,6 +2,10 @@
 # They render the trust and permission policies and check the rules of ADR-0014 on them.
 # "apply" here only applies against the mock, in memory.
 # Run with: terraform init -backend=false && terraform test
+#
+# terraform test also loads the local terraform.tfvars (ignored by git) when it exists: every value
+# the asserts rely on is set below, so a real tfvars never changes the result. Values in a test file
+# take precedence over tfvars, and a run's own variables over these.
 
 mock_provider "aws" {
   override_data {
@@ -35,11 +39,29 @@ mock_provider "aws" {
 }
 
 variables {
-  account_id      = "111111111111"
+  account_id  = "111111111111"
+  aws_region  = "us-east-2"
+  name_prefix = "blueprint"
+  project_tag = "blueprint"
+
   github_owner    = "octo-org"
   github_repo     = "blueprint-fork"
   github_owner_id = 1001
   github_repo_id  = 2002
+  subject_format  = "immutable"
+
+  plan_environment           = "prod-plan"
+  apply_environment          = "prod"
+  deploy_content_environment = "prod-content"
+
+  create_oidc_provider       = true
+  state_bucket_force_destroy = false
+
+  route53_zone_id      = ""
+  route53_record_names = []
+
+  cloudfront_oac_ids                     = []
+  cloudfront_response_headers_policy_ids = []
 }
 
 run "immutable_subject_per_environment" {
@@ -57,6 +79,29 @@ run "immutable_subject_per_environment" {
       == "repo:octo-org@1001/blueprint-fork@2002:environment:prod-plan"
     )
     error_message = "gh-plan must trust only the prod-plan environment."
+  }
+
+  # The content upload has its own environment (no reviewers, only main): merges that do not change
+  # the infrastructure publish without an approval, and gh-deploy-content no longer trusts prod.
+  assert {
+    condition = (
+      jsondecode(aws_iam_role.github["deploy_content"].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+      == "repo:octo-org@1001/blueprint-fork@2002:environment:prod-content"
+    )
+    error_message = "gh-deploy-content must trust only the prod-content environment."
+  }
+
+  assert {
+    condition = length(distinct([
+      for role in aws_iam_role.github :
+      jsondecode(role.assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+    ])) == 3
+    error_message = "Each role trusts a different environment."
+  }
+
+  assert {
+    condition     = alltrue([for role in aws_iam_role.github : length(jsondecode(role.assume_role_policy).Statement) == 1])
+    error_message = "Each trust policy has a single statement (one subject per role)."
   }
 
   assert {
@@ -92,10 +137,70 @@ run "legacy_subject" {
   assert {
     condition = (
       jsondecode(aws_iam_role.github["deploy_content"].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
-      == "repo:octo-org/blueprint-fork:environment:prod"
+      == "repo:octo-org/blueprint-fork:environment:prod-content"
     )
     error_message = "The legacy format has no numeric IDs."
   }
+
+  assert {
+    condition = (
+      jsondecode(aws_iam_role.github["apply"].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+      == "repo:octo-org/blueprint-fork:environment:prod"
+    )
+    error_message = "gh-apply stays on prod in the legacy format too."
+  }
+}
+
+run "custom_environments" {
+  variables {
+    plan_environment           = "staging-plan"
+    apply_environment          = "staging"
+    deploy_content_environment = "staging-content"
+  }
+
+  assert {
+    condition = [
+      for key in ["plan", "apply", "deploy_content"] :
+      jsondecode(aws_iam_role.github[key].assume_role_policy).Statement[0].Condition.StringEquals["token.actions.githubusercontent.com:sub"]
+      ] == [
+      "repo:octo-org@1001/blueprint-fork@2002:environment:staging-plan",
+      "repo:octo-org@1001/blueprint-fork@2002:environment:staging",
+      "repo:octo-org@1001/blueprint-fork@2002:environment:staging-content",
+    ]
+    error_message = "Each role trusts the environment of its variable."
+  }
+}
+
+# gh-apply is the only role behind reviewers: sharing its environment with one of the others would
+# let that environment, without reviewers, assume it.
+run "rejects_shared_apply_environment" {
+  command = plan
+
+  variables {
+    deploy_content_environment = "prod"
+  }
+
+  expect_failures = [var.apply_environment]
+}
+
+run "rejects_content_on_plan_environment" {
+  command = plan
+
+  variables {
+    deploy_content_environment = "prod-plan"
+  }
+
+  expect_failures = [var.deploy_content_environment]
+}
+
+run "rejects_bad_environment_name" {
+  command = plan
+
+  variables {
+    deploy_content_environment = "prod:*"
+  }
+
+  expect_failures = [var.deploy_content_environment]
 }
 
 run "reuses_existing_oidc_provider" {
@@ -146,6 +251,11 @@ run "policies_fit_iam_limits" {
 }
 
 run "no_route53_without_zone" {
+  variables {
+    route53_zone_id      = ""
+    route53_record_names = []
+  }
+
   assert {
     condition = length([
       for s in jsondecode(aws_iam_role_policy.github["apply"].policy).Statement : s
@@ -214,6 +324,11 @@ run "boundary_condition_actions" {
 # Origin access controls and response headers policies have no tags: other projects of a shared
 # account can have their own, so only the IDs of the variables can be updated or deleted.
 run "cloudfront_untaggable_without_ids" {
+  variables {
+    cloudfront_oac_ids                     = []
+    cloudfront_response_headers_policy_ids = []
+  }
+
   assert {
     condition = length([
       for s in concat(

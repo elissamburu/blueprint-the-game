@@ -1,7 +1,11 @@
 name: Deploy
 
 # Production of the site (ADR-0014): plan → approval (environment prod) → apply → upload of the web
-# and the content bundle → CloudFront invalidation. Guide: docs/guias/configurar-aws-en-tu-fork.md.
+# and the content bundle (environment prod-content, no approval) → CloudFront invalidation.
+# Guide: docs/guias/configurar-aws-en-tu-fork.md.
+#
+# Only infrastructure changes wait for a reviewer: when the plan has no changes, apply is skipped and
+# deploy publishes the commit right away (amendment of 2026-10-08 of ADR-0014).
 #
 # The repository is public and so are these logs:
 #   - the account ID, the certificate ARN and the budget email are secrets, so GitHub masks them
@@ -45,6 +49,12 @@ jobs:
     permissions:
       contents: read
       id-token: write
+    # changes: whether apply has anything to do. bucket-template and distribution-id: the site of the
+    # current state, for deploy when apply is skipped (empty on pull_request and before the first apply).
+    outputs:
+      changes: ${{ steps.plan.outputs.changes }}
+      distribution-id: ${{ steps.outputs.outputs.distribution-id }}
+      bucket-template: ${{ steps.outputs.outputs.bucket-template }}
     env:
       TF_VAR_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
       TF_VAR_acm_certificate_arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
@@ -119,15 +129,44 @@ jobs:
             -backend-config="bucket=$TF_STATE_BUCKET" -backend-config="region=$AWS_REGION"
 
       # Plans of different PRs share the state lock: wait for it instead of failing.
+      # -detailed-exitcode: 0 = no changes, 2 = changes, 1 = error. The step runs with bash -e, so the
+      # exit code is caught with || and only 1 (or anything else) fails the job: on a PR, pending
+      # changes are the expected result.
       - name: Terraform plan
-        run: terraform -chdir="$TF_DIR" plan -no-color -lock-timeout=10m
+        id: plan
+        run: |
+          code=0
+          terraform -chdir="$TF_DIR" plan -no-color -lock-timeout=10m -detailed-exitcode || code=$?
+          case "$code" in
+            0) echo "changes=false" >> "$GITHUB_OUTPUT" ;;
+            2) echo "changes=true" >> "$GITHUB_OUTPUT" ;;
+            *) exit "$code" ;;
+          esac
+
+      # Same placeholder as apply: job outputs that contain a secret are dropped by GitHub, and the
+      # bucket name carries the account ID. A state without outputs (first deploy of a fork) leaves
+      # both empty: the plan then has changes, apply runs and provides them.
+      - name: Read outputs
+        id: outputs
+        if: github.event_name != 'pull_request'
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          outputs=$(terraform -chdir="$TF_DIR" output -no-color -json)
+          bucket=$(jq -r '.bucket.value // empty' <<< "$outputs")
+          distribution_id=$(jq -r '.distribution_id.value // empty' <<< "$outputs")
+          echo "bucket-template=${bucket//$AWS_ACCOUNT_ID/@ACCOUNT_ID@}" >> "$GITHUB_OUTPUT"
+          echo "distribution-id=$distribution_id" >> "$GITHUB_OUTPUT"
 
   # Plans again with gh-apply and applies that plan, after a reviewer approves the environment prod
-  # (only main). The plan file stays in the runner and is deleted: it holds the variable values.
+  # (only main). Only when the plan has changes: without them there is nothing to approve. The plan
+  # file stays in the runner and is deleted: it holds the variable values.
   apply:
     name: apply
     needs: plan
-    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    if: >-
+      (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && needs.plan.outputs.changes == 'true'
     runs-on: ubuntu-latest
     timeout-minutes: 60
     environment: prod
@@ -243,15 +282,29 @@ jobs:
   # Builds the site with the same steps as pnpm build:site and uploads it with tools/deploy-site
   # (Cache-Control per file, index.html last, stale files deleted, invalidation of /index.html and
   # /content/*). gh-deploy-content is assumed only after the build: the build never sees credentials.
+  #
+  # Environment prod-content: no reviewers, only main. That branch rule is the only thing that keeps
+  # another branch from assuming gh-deploy-content. Runs after apply, or without it when the plan had
+  # no changes (apply skipped); never when plan or apply failed or apply was rejected. !cancelled()
+  # instead of always(): a cancelled run does not deploy.
   deploy:
     name: deploy
-    needs: apply
+    needs: [plan, apply]
+    if: >-
+      !cancelled()
+      && (github.event_name == 'push' || github.event_name == 'workflow_dispatch')
+      && needs.plan.result == 'success'
+      && (needs.apply.result == 'success' || needs.apply.result == 'skipped')
     runs-on: ubuntu-latest
     timeout-minutes: 30
-    environment: prod
+    environment: prod-content
     permissions:
       contents: read
       id-token: write
+    env:
+      # From apply when it ran (it may have created or replaced them), otherwise from the plan.
+      BUCKET_TEMPLATE: ${{ needs.apply.result == 'success' && needs.apply.outputs.bucket-template || needs.plan.outputs.bucket-template }}
+      SITE_DISTRIBUTION_ID: ${{ needs.apply.result == 'success' && needs.apply.outputs.distribution-id || needs.plan.outputs.distribution-id }}
     steps:
       # Fails with the names of what is missing instead of a credentials error further down. Only
       # checks that each value is set: their values are never printed.
@@ -266,6 +319,10 @@ jobs:
           done
           if [ "${#missing[@]}" -gt 0 ]; then
             echo "::error::Faltan secrets o variables del repo: ${missing[*]}. Ver docs/guias/configurar-aws-en-tu-fork.md, pasos 4 y 5.a."
+            exit 1
+          fi
+          if [ -z "$BUCKET_TEMPLATE" ] || [ -z "$SITE_DISTRIBUTION_ID" ]; then
+            echo "::error::No hay bucket ni distribución del sitio: ni el apply ni el state de infra/envs/prod (terraform output) los tienen. Corré deploy.yml sobre main para que el apply cree la infraestructura (paso 5 de docs/guias/configurar-aws-en-tu-fork.md)."
             exit 1
           fi
 
@@ -319,8 +376,6 @@ jobs:
       - name: Upload the site and invalidate CloudFront
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
-          BUCKET_TEMPLATE: ${{ needs.apply.outputs.bucket-template }}
-          SITE_DISTRIBUTION_ID: ${{ needs.apply.outputs.distribution-id }}
         run: |
           export SITE_BUCKET="${BUCKET_TEMPLATE//@ACCOUNT_ID@/$AWS_ACCOUNT_ID}"
           pnpm deploy:site

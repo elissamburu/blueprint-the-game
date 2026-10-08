@@ -14,7 +14,7 @@ blueprint/
 ├── .github/
 │   ├── workflows/
 │   │   ├── ci.yml                     # PR (incluye forks): lint, test, content, build, tf validate — SIN AWS
-│   │   ├── deploy.yml                 # push a main: plan → aprobación → apply → deploy de contenido/web
+│   │   ├── deploy.yml                 # push a main: plan → (aprobación → apply, si hay cambios de infra) → deploy de contenido/web
 │   │   ├── catalog-sync.yml           # mensual: SSM → diff con el catálogo → abre PR
 │   │   ├── link-check.yml             # semanal: enlaces de referencias (L017)
 │   │   ├── oidc-debug.yml             # manual: imprime el `sub` OIDC (diagnóstico de la guía de forks)

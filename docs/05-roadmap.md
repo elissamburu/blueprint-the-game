@@ -105,7 +105,7 @@ Todo dato de AWS lleva su referencia oficial; si no se puede verificar, queda co
 **Objetivo**: el juego (modo invitado) publicado en AWS con CI/CD por OIDC.
 
 - `infra/bootstrap`, `infra/modules/static-site`, `observability` (presupuesto), `envs/prod`.
-- `deploy.yml` (plan → aprobación con environment → apply → subida de web + bundle de contenido → invalidación).
+- `deploy.yml` (plan → aprobación con environment → apply → subida de web + bundle de contenido → invalidación). La aprobación se pide solo si el plan tiene cambios de infraestructura ([enmienda de ADR-0014](adr/0014-infra-terraform-oidc.md#2026-10-08--deploy-de-contenido-sin-aprobación)).
 - Guía [configurar AWS en tu fork](guias/configurar-aws-en-tu-fork.md) probada end-to-end en una cuenta limpia.
 - Comentario de CI con el resumen del escenario (RF-CNT-06) y control de `version` (RF-CNT-07).
 - **Reemplazar el deploy manual de la beta pública**: la primera beta (2026-09-30) se publicó antes de esta fase, a mano, con una guía de deploy manual (ya eliminada) y el tool que hoy es `tools/deploy-site`. F3 crea todo de cero con Terraform (sin importar nada de la beta), desarma la beta manual, elimina esa guía, deja el tool solo para el job `deploy` y suma lo que quedó pendiente: una `Content-Security-Policy` propia (RNF-10, [issue #44](https://github.com/elissamburu/blueprint-the-game/issues/44)), probada antes de activarla.

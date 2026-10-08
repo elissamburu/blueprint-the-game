@@ -1,6 +1,6 @@
 # Guía · Configurar AWS en tu fork (OIDC, sin access keys)
 
-Esta guía deja tu fork desplegando en **tu** cuenta de AWS con GitHub Actions, sin credenciales de larga vida. Se hace **una sola vez, a mano**. Después, cada merge a `main` despliega solo (con tu aprobación).
+Esta guía deja tu fork desplegando en **tu** cuenta de AWS con GitHub Actions, sin credenciales de larga vida. Se hace **una sola vez, a mano**. Después, cada merge a `main` despliega solo: sin aprobaciones si solo cambian la web o el contenido, y con una tuya si cambia la infraestructura.
 
 > Decisiones de diseño detrás de esta guía: [ADR-0014](../adr/0014-infra-terraform-oidc.md) (con su enmienda por cuenta compartida) y [ADR-0015](../adr/0015-ci-para-prs-de-forks.md).
 > Tiempo estimado: 30–45 minutos, más hasta 48 horas de espera para la etiqueta de costos (no bloquea).
@@ -17,7 +17,7 @@ Tu cuenta de AWS (región principal: us-east-2, configurable)
 ├── Permissions boundary <prefijo>-gh-boundary
 ├── Rol <prefijo>-gh-plan            ← solo desde el environment "prod-plan" de TU repo
 ├── Rol <prefijo>-gh-apply           ← solo desde el environment "prod" de TU repo (con aprobación manual)
-└── Rol <prefijo>-gh-deploy-content  ← solo desde el environment "prod" de TU repo
+└── Rol <prefijo>-gh-deploy-content  ← solo desde el environment "prod-content" de TU repo (solo main, sin aprobación)
 ```
 
 Ningún rol se puede asumir desde otro repo, otra rama sin environment ni un PR de un fork. Todo lleva la etiqueta `Project = <project_tag>`.
@@ -92,22 +92,28 @@ En tu fork: **Settings → Environments**:
 | Environment | Reviewers obligatorios | Ramas de despliegue | Para qué |
 |---|---|---|---|
 | `prod-plan` | No | **Todas** (el plan corre en las ramas de los PR) | `terraform plan` (rol `gh-plan`) |
-| `prod` | **Sí (vos, y quien más apruebe despliegues)** | Solo `main` | `terraform apply` y subida de la web y el contenido (roles `gh-apply` y `gh-deploy-content`) |
+| `prod` | **Sí (vos, y quien más apruebe despliegues)** | Solo `main` | `terraform apply` (rol `gh-apply`), solo cuando el plan tiene cambios |
+| `prod-content` | **No** | Solo `main` | Subida de la web y el contenido e invalidación de CloudFront (rol `gh-deploy-content`) |
 
 En `prod`:
 
 - **Required reviewers**: agregá al menos una persona. El job que asume `gh-apply` se pausa hasta que alguien lo apruebe.
 - **Deployment branches and tags**: *Selected branches and tags* → `main`.
-- Si hay más de una persona con permisos, activá **Prevent self-review** para que quien dispara el despliegue no se lo apruebe a sí misma.
+- **Prevent self-review**: si sos la única persona que mantiene el repo, **dejalo apagado** (si no, no podrías aprobar los despliegues que disparás vos). Si hay más de una persona con permisos, activalo para que quien dispara el despliegue no se lo apruebe a sí misma.
+
+En `prod-content`:
+
+- **Required reviewers**: ninguno. Un merge que solo cambia la web o el contenido se publica sin esperar a nadie: el control humano está en la revisión del PR y en los cambios de infraestructura ([ADR-0014](../adr/0014-infra-terraform-oidc.md#2026-10-08--deploy-de-contenido-sin-aprobación)).
+- **Deployment branches and tags**: *Selected branches and tags* → `main`. **Es lo único que impide que otra rama asuma `gh-deploy-content`**: sin reviewers, cualquier workflow de una rama de tu repo que declare `environment: prod-content` podría subir archivos al sitio si el environment aceptara esa rama. No la dejes en *No restriction*.
 
 En `prod-plan`, ni reviewers ni restricción de ramas: el `plan` de un PR corre en la rama del PR. Eso quiere decir que un workflow de **cualquier rama de tu repo** puede asumir `gh-plan`, que solo lee (los recursos del proyecto y el state) y toma el lock del state. Por eso:
 
 - El job `plan` de [`deploy.yml`](../../.github/workflows/deploy.yml) **no corre en PR de forks**: su job lleva la condición `github.event.pull_request.head.repo.full_name == github.repository`, además de que los PR de forks corren sin acceso a AWS ([ADR-0015](../adr/0015-ci-para-prs-de-forks.md)).
 - Quien puede crear ramas en tu repo puede leer el state y la configuración del proyecto: dale permiso de escritura solo a personas de confianza.
 
-Los nombres tienen que ser exactamente `prod-plan` y `prod`: son parte del `sub` que la trust policy compara.
+Los nombres son parte del `sub` que la trust policy compara: tienen que ser exactamente `prod-plan`, `prod` y `prod-content`, o los que pongas en `plan_environment`, `apply_environment` y `deploy_content_environment` del bootstrap (paso 3.3).
 
-> ⚠️ **Creá `prod` con sus reviewers antes del primer push a `main` que incluya `deploy.yml`.** Si un workflow referencia un environment que no existe, GitHub lo crea solo y **sin ninguna protección**: el `apply` correría sin esperar aprobación y desde cualquier rama. Revisá en **Settings → Environments** que `prod` tenga *Required reviewers* y la regla de ramas antes de hacer merge.
+> ⚠️ **Creá `prod` (con sus reviewers) y `prod-content` (con su regla de ramas) antes del primer push a `main` que incluya `deploy.yml`.** Si un workflow referencia un environment que no existe, GitHub lo crea solo y **sin ninguna protección**: el `apply` correría sin esperar aprobación y, con cualquiera de los dos, desde cualquier rama. Revisá en **Settings → Environments** que `prod` tenga *Required reviewers* y la regla de ramas, y que `prod-content` tenga la regla de ramas, antes de hacer merge.
 
 Además, en **Settings → Branches**, protegé `main`: PR obligatorio, checks requeridos (`ci`) y sin force-push.
 
@@ -190,6 +196,11 @@ github_repo     = "<REPO>"
 github_owner_id = 12345678       # del paso 1
 github_repo_id  = 987654321      # del paso 1
 subject_format  = "immutable"    # o "legacy" según el paso 1
+
+# Opcional: environments del paso 2. Solo si les pusiste otros nombres (por defecto, estos).
+# plan_environment           = "prod-plan"
+# apply_environment          = "prod"
+# deploy_content_environment = "prod-content"
 
 create_oidc_provider = true      # false si el paso 3.2 encontró uno
 
@@ -300,7 +311,7 @@ Si perdés el state, los recursos siguen funcionando. Para volver a administrarl
 
 ### 3.7 Qué quedó creado
 
-**Trust policy** de `gh-apply` (formato inmutable):
+**Trust policies**: las tres son iguales salvo el environment del `sub`. La de `gh-deploy-content` (formato inmutable):
 
 ```json
 {
@@ -313,12 +324,14 @@ Si perdés el state, los recursos siguen funcionando. Para volver a administrarl
     "Condition": {
       "StringEquals": {
         "token.actions.githubusercontent.com:aud": "sts.amazonaws.com",
-        "token.actions.githubusercontent.com:sub": "repo:<OWNER>@<OWNER_ID>/<REPO>@<REPO_ID>:environment:prod"
+        "token.actions.githubusercontent.com:sub": "repo:<OWNER>@<OWNER_ID>/<REPO>@<REPO_ID>:environment:prod-content"
       }
     }
   }]
 }
 ```
+
+Las de `gh-plan` y `gh-apply` terminan en `:environment:prod-plan` y `:environment:prod`. Un solo `sub` por rol, con `StringEquals`: `gh-deploy-content` ya no acepta `prod` ni `gh-apply` acepta `prod-content`.
 
 En Terraform, el `sub` se arma en [infra/bootstrap/locals.tf](../../infra/bootstrap/locals.tf):
 
@@ -328,16 +341,18 @@ repo_ref = (
   ? "${var.github_owner}@${var.github_owner_id}/${var.github_repo}@${var.github_repo_id}"
   : "${var.github_owner}/${var.github_repo}"
 )
-# sub = "repo:${local.repo_ref}:environment:${environment}"   (prod-plan o prod)
+# sub = "repo:${local.repo_ref}:environment:${environment}"
+# environment: var.plan_environment, var.apply_environment o var.deploy_content_environment
+#              (por defecto prod-plan, prod y prod-content)
 ```
 
 **Permisos** ([infra/bootstrap/iam_policies.tf](../../infra/bootstrap/iam_policies.tf)), pensados para una cuenta compartida:
 
-| Rol | Puede |
-|---|---|
-| `gh-plan` | Leer el state y tomar el lock; leer los buckets `<prefijo>-*`, CloudFront, los certificados de `us-east-1`, los presupuestos `<prefijo>-*`, los roles y políticas `<prefijo>-*` y, si la configuraste, la hosted zone. |
-| `gh-apply` | Lo de `gh-plan`, escribir el state, y crear o cambiar los recursos del proyecto: buckets `<prefijo>-*`; distribuciones, funciones y certificados **con la etiqueta `Project`**; crear *origin access controls* y *response headers policies*, y cambiar o borrar solo los de `cloudfront_oac_ids` y `cloudfront_response_headers_policy_ids`; presupuestos `<prefijo>-*`; roles y políticas `<prefijo>-*` con el boundary; los registros de Route 53 listados. |
-| `gh-deploy-content` | Listar, subir y borrar archivos en buckets `<prefijo>-*` (nunca en el de state) e invalidar distribuciones con la etiqueta `Project`. |
+| Rol | Environment (`sub`) | Puede |
+|---|---|---|
+| `gh-plan` | `prod-plan` (sin reviewers, cualquier rama) | Leer el state y tomar el lock; leer los buckets `<prefijo>-*`, CloudFront, los certificados de `us-east-1`, los presupuestos `<prefijo>-*`, los roles y políticas `<prefijo>-*` y, si la configuraste, la hosted zone. |
+| `gh-apply` | `prod` (reviewers, solo `main`) | Lo de `gh-plan`, escribir el state, y crear o cambiar los recursos del proyecto: buckets `<prefijo>-*`; distribuciones, funciones y certificados **con la etiqueta `Project`**; crear *origin access controls* y *response headers policies*, y cambiar o borrar solo los de `cloudfront_oac_ids` y `cloudfront_response_headers_policy_ids`; presupuestos `<prefijo>-*`; roles y políticas `<prefijo>-*` con el boundary; los registros de Route 53 listados. |
+| `gh-deploy-content` | `prod-content` (sin reviewers, solo `main`) | Listar, subir y borrar archivos en buckets `<prefijo>-*` (nunca en el de state) e invalidar distribuciones con la etiqueta `Project`. |
 
 Los tres llevan el **permissions boundary** `<prefijo>-gh-boundary`, que además:
 
@@ -354,6 +369,26 @@ Dónde no alcanza la etiqueta (AWS no ofrece condiciones por etiqueta para esos 
 - **Adopción de recursos sin etiqueta**: crear una distribución o un certificado con etiquetas usa el mismo permiso que etiquetar uno existente, así que `gh-apply` podría ponerle `Project` a una distribución o un certificado **sin** esa etiqueta. Si la cuenta es compartida, etiquetá los recursos de los otros proyectos con su propio `Project`: el boundary impide cambiarlo.
 
 Además: duración máxima de sesión de 1 hora, y `StringEquals` (nunca `StringLike`) sobre `aud` y `sub`.
+
+### 3.8 Si ya tenías el bootstrap aplicado: migrar a `prod-content`
+
+Hasta el 2026-10-08, `gh-deploy-content` confiaba en `prod` y el job `deploy` usaba ese environment, así que cada push a `main` pedía dos aprobaciones. Si aplicaste el bootstrap antes, migrá en este orden:
+
+1. **Creá el environment `prod-content`** (paso 2): sin reviewers y con *Deployment branches and tags* → *Selected branches and tags* → `main`. Hacelo antes que nada: si el workflow nuevo llega a `main` sin el environment, GitHub lo crea sin la regla de ramas.
+2. **Re-aplicá el bootstrap desde la rama del PR** que trae el cambio (con la sesión de administrador del paso 3.1, desde `infra/bootstrap`):
+
+   ```powershell
+   git fetch origin
+   git switch <rama-del-PR>
+   terraform plan -out bootstrap.tfplan    # esperado: 1 to change (la trust y la descripción de gh-deploy-content), 0 to add, 0 to destroy
+   terraform apply bootstrap.tfplan
+   Remove-Item bootstrap.tfplan
+   ```
+
+   Si el plan muestra algo más que `<prefijo>-gh-deploy-content`, no apliques. Resguardá el state otra vez (paso 3.6).
+3. **Mergeá el PR.** El push a `main` corre el workflow nuevo: `deploy` usa `prod-content` y asume `gh-deploy-content` sin aprobación.
+
+> ⚠️ **Entre el paso 2 y el paso 3**, `gh-deploy-content` ya no acepta `prod`. Un deploy desde `main` con el workflow viejo (un push a `main` o una ejecución manual en ese lapso) falla en *Assume gh-deploy-content* con `Not authorized to perform sts:AssumeRoleWithWebIdentity`, después del `apply`. No es grave (el sitio queda como estaba), pero conviene no mergear otra cosa en el medio. Si pasa, volvé a correr `deploy.yml` sobre `main` después del merge.
 
 ## 4. Configurá los secrets y las variables del repo
 
@@ -392,7 +427,7 @@ gh variable set NAME_PREFIX         --body "blueprint"     # el mismo name_prefi
 gh variable set PROJECT_TAG         --body "blueprint"     # el mismo project_tag del bootstrap
 ```
 
-`SITE_DOMAIN`, `ACM_CERTIFICATE_ARN` y `BUDGET_EMAIL` se cargan en el [paso 5.a](#a-certificado-y-valores-del-sitio). Cargalos como secrets **del repositorio** (no de un environment): los usan tanto el plan (`prod-plan`) como el apply (`prod`).
+`SITE_DOMAIN`, `ACM_CERTIFICATE_ARN` y `BUDGET_EMAIL` se cargan en el [paso 5.a](#a-certificado-y-valores-del-sitio). Cargalos como secrets **del repositorio** (no de un environment): los usan tanto el plan (`prod-plan`) como el apply (`prod`), y `AWS_ACCOUNT_ID` también el deploy (`prod-content`).
 
 `infra/envs/prod` usa `TF_STATE_BUCKET` como backend S3 con `use_lockfile = true` (lock nativo de S3; el lock con DynamoDB está deprecado). El nombre del bucket entra solo por `-backend-config` en el workflow: no está escrito en el repo.
 
@@ -412,7 +447,7 @@ Cada job enmascara además el ARN del rol que asume (`::add-mask::`) antes de cu
 
 ## 5. Primer despliegue
 
-Antes de empezar: los secrets y las variables del paso 4 cargados (sin ellos, cada job falla en su primer paso, *Check the configuration*, con la lista de lo que falta) y el environment `prod` creado con reviewers (paso 2).
+Antes de empezar: los secrets y las variables del paso 4 cargados (sin ellos, cada job falla en su primer paso, *Check the configuration*, con la lista de lo que falta) y los environments `prod` (con reviewers) y `prod-content` (solo `main`) creados (paso 2).
 
 El orden importa: **a)** certificado y valores del sitio, **b)** desarmar la beta manual y borrar su registro DNS (solo si ya tenías una), **c)** aprobar el `apply`, **d)** CNAME en tu DNS y **e)** re-aplicar el bootstrap con los IDs nuevos ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)).
 
@@ -420,11 +455,21 @@ Qué hace [`deploy.yml`](../../.github/workflows/deploy.yml):
 
 | Job | Cuándo | Environment y rol | Qué hace |
 |---|---|---|---|
-| `plan` | PR que tocan `infra/**` (solo ramas de tu repo, nunca de forks), push a `main` y ejecución manual | `prod-plan`, `gh-plan` | `terraform plan` de `infra/envs/prod`. |
-| `apply` | Push a `main` y ejecución manual, después de `plan` | `prod` (**espera tu aprobación**), `gh-apply` | Vuelve a planificar y aplica ese plan. Deja en el resumen del job la URL, el destino del CNAME y los IDs del paso 5.1. |
-| `deploy` | Después de `apply` | `prod` (**espera tu aprobación**), `gh-deploy-content` | Arma el sitio con `pnpm build:site` (íconos, bundle de contenido sin borradores, build de la web), lo sube con el `Cache-Control` de cada archivo (assets con hash: inmutables; `index.html` y `/content/*.json`: `no-cache`), borra lo que sobra e invalida `/index.html` y `/content/*` con `pnpm deploy:site`. Asume el rol recién después del build. |
+| `plan` | PR que tocan `infra/**` (solo ramas de tu repo, nunca de forks), push a `main` y ejecución manual | `prod-plan`, `gh-plan` | `terraform plan -detailed-exitcode` de `infra/envs/prod`: dice si hay cambios. En push y ejecución manual lee además el bucket y la distribución del state (vacíos si todavía no hay infraestructura). En un PR, que haya cambios no hace fallar el job. |
+| `apply` | Push a `main` y ejecución manual, después de `plan`, **solo si el plan tiene cambios** | `prod` (**espera tu aprobación**), `gh-apply` | Vuelve a planificar y aplica ese plan. Deja en el resumen del job la URL, el destino del CNAME y los IDs del paso 5.1. |
+| `deploy` | Push a `main` y ejecución manual, después de `apply`, o de `plan` si `apply` se salteó. Nunca si alguno falló, se canceló o rechazaste el `apply` | `prod-content` (sin aprobación), `gh-deploy-content` | Arma el sitio con `pnpm build:site` (íconos, bundle de contenido sin borradores, build de la web), lo sube con el `Cache-Control` de cada archivo (assets con hash: inmutables; `index.html` y `/content/*.json`: `no-cache`), borra lo que sobra e invalida `/index.html` y `/content/*` con `pnpm deploy:site`. Asume el rol recién después del build. |
 
-Cada push a `main` pide **dos aprobaciones**: una para `apply` y otra para `deploy` (los dos jobs usan `prod`).
+Cuántas aprobaciones pide cada ejecución:
+
+| Caso | Jobs que corren | Aprobaciones |
+|---|---|---|
+| PR que toca `infra/**` (rama de tu repo) | `plan` | 0 |
+| Push a `main` sin cambios de infraestructura (web o contenido) | `plan` → `deploy` | 0 |
+| Push a `main` con cambios de infraestructura | `plan` → `apply` → `deploy` | 1 (`apply`) |
+| Ejecución manual sobre `main` | Igual que un push: con o sin `apply` según el plan | 0 o 1 |
+| Primer despliegue de un fork (state vacío) | `plan` → `apply` → `deploy` (el plan crea todo) | 1 (`apply`) |
+
+`deploy` toma el bucket y la distribución del `apply` si corrió (los pudo crear o reemplazar) y, si no, del state que leyó `plan`. Si los dos vienen vacíos, falla en *Check the configuration* con un mensaje que lo dice.
 
 ### a) Certificado y valores del sitio
 
@@ -554,7 +599,7 @@ Resolve-DnsName "<tu-dominio.com>" -Type SOA -Server 1.1.1.1 | Select-Object Nam
 
 En la pestaña **Actions**, abrí la ejecución de `Deploy`, **Review deployments** → `prod` → **Approve and deploy**. El `apply` crea el bucket, el OAC, la función, la *response headers policy*, la distribución (tarda varios minutos en desplegarse) y el presupuesto. Revisá antes el log de `plan`: no tiene que tocar nada fuera de esa lista.
 
-Al terminar, el resumen del job muestra el **destino del CNAME** (`dxxxxxxxxxxxxx.cloudfront.net`) y los IDs del paso 5.1. Después, `deploy` pide la segunda aprobación y sube el sitio.
+Al terminar, el resumen del job muestra el **destino del CNAME** (`dxxxxxxxxxxxxx.cloudfront.net`) y los IDs del paso 5.1. Después, `deploy` sube el sitio sin pedir otra aprobación.
 
 ### d) CNAME del sitio en tu DNS
 
@@ -631,14 +676,16 @@ Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos re
 ### Deploys siguientes
 
 - Un PR que toca `infra/**` (desde una rama de tu repo) corre `plan`: revisalo en el log antes de aprobar el merge.
-- Cada push a `main` corre `plan`, `apply` y `deploy`, con dos aprobaciones. Si no hay cambios de infraestructura, el `apply` no cambia nada y `deploy` publica la web y el contenido de ese commit.
+- Cada push a `main` corre `plan` y `deploy`. Si el plan tiene cambios de infraestructura, en el medio corre `apply`, que espera tu aprobación; si no, `apply` se saltea y `deploy` publica la web y el contenido de ese commit sin pedir nada. Lo que llega a `main` se publica: la revisión del PR es el control.
 - Para volver atrás, revertí el commit en `main` (o corré `deploy.yml` sobre `main` después del revert): el sitio se regenera completo desde el código.
 
 ## 6. Verificá que el aislamiento funciona
 
 | Prueba | Resultado esperado |
 |---|---|
-| Correr `deploy.yml` desde una rama que no es `main` | `prod` la rechaza (regla de ramas): no se asumen `gh-apply` ni `gh-deploy-content`. |
+| Correr `deploy.yml` desde una rama que no es `main` | `prod` y `prod-content` la rechazan (regla de ramas): no se asumen `gh-apply` ni `gh-deploy-content`. |
+| Un workflow de otra rama con un job `environment: prod-content` | `prod-content` lo rechaza por la regla de ramas (no tiene reviewers que lo frenen): no se asume `gh-deploy-content`. |
+| Asumir `gh-deploy-content` desde un job con `environment: prod` | `Not authorized to perform sts:AssumeRoleWithWebIdentity`: solo confía en `prod-content`. |
 | Correr el plan desde la rama de un PR de tu repo | Corre con `prod-plan` y asume `gh-plan`, que solo lee y toma el lock. |
 | Abrir un PR desde otro fork | El job de plan no corre (condición sobre `head.repo.full_name`) y `ci.yml` corre sin `id-token`: sin acceso a AWS. |
 | Asumir `gh-apply` desde un job sin `environment: prod` | `Not authorized to perform sts:AssumeRoleWithWebIdentity`. |
@@ -655,6 +702,8 @@ Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos re
 | `AccessDenied` en `gh-apply` sobre un recurso existente | El recurso no tiene la etiqueta `Project` o su nombre no empieza con el prefijo. | Etiquetalo (o importalo con la etiqueta) con credenciales de administrador. |
 | `AccessDenied` en `cloudfront:UpdateOriginAccessControl`, `UpdateResponseHeadersPolicy` o sus `Delete*` | El ID no está en `cloudfront_oac_ids` o `cloudfront_response_headers_policy_ids`. | Agregalo y re-aplicá el bootstrap ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)). |
 | `Error acquiring the state lock` | Quedó un lock de una ejecución cancelada. | Confirmá que no haya otra ejecución y usá `terraform force-unlock <ID>`. |
+| `No hay bucket ni distribución del sitio` en *Check the configuration* del job `deploy` | El plan no tuvo cambios pero el state de `infra/envs/prod` no tiene outputs (p. ej., se borró la infraestructura fuera de Terraform). | Revisá el log de `plan` y corré `deploy.yml` sobre `main`: si falta infraestructura, el plan tiene cambios y `apply` la vuelve a crear. |
+| `Not authorized to perform sts:AssumeRoleWithWebIdentity` en *Assume gh-deploy-content* | El bootstrap y `deploy.yml` no coinciden en el environment: uno usa `prod` y el otro `prod-content`. | Seguí el orden del [paso 3.8](#38-si-ya-tenías-el-bootstrap-aplicado-migrar-a-prod-content). |
 | El sitio muestra `AccessDenied` | Contenido no subido o política de OAC incompleta. | Revisá el job `deploy` y la política del bucket del sitio. |
 | `CNAMEAlreadyExists` en el `apply` | Otra distribución (p. ej. la de la beta manual) tiene el mismo dominio como alias, o el DNS del dominio todavía apunta a otra distribución (*incorrectly configured DNS record that points to another CloudFront distribution*), aunque esa ya no exista. | Desarmá la beta y borrá el registro DNS del sitio ([paso 5.b](#b-desarmá-la-beta-manual-solo-si-la-tenés)); confirmá con `Resolve-DnsName <dominio> -Server 1.1.1.1` y volvé a correr el workflow. |
 | `InvalidViewerCertificate` en el `apply` | El certificado no está emitido o no cubre `SITE_DOMAIN`. | `aws acm describe-certificate --certificate-arn <ARN> --region us-east-1 --query Certificate.Status` ([paso 5.a](#a-certificado-y-valores-del-sitio)). |
