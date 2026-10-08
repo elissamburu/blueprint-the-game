@@ -2,6 +2,10 @@
 # They render the trust and permission policies and check the rules of ADR-0014 on them.
 # "apply" here only applies against the mock, in memory.
 # Run with: terraform init -backend=false && terraform test
+#
+# terraform test also loads the local terraform.tfvars (ignored by git) when it exists: every value
+# the asserts rely on is set below, so a real tfvars never changes the result. Values in a test file
+# take precedence over tfvars, and a run's own variables over these.
 
 mock_provider "aws" {
   override_data {
@@ -35,11 +39,29 @@ mock_provider "aws" {
 }
 
 variables {
-  account_id      = "111111111111"
+  account_id  = "111111111111"
+  aws_region  = "us-east-2"
+  name_prefix = "blueprint"
+  project_tag = "blueprint"
+
   github_owner    = "octo-org"
   github_repo     = "blueprint-fork"
   github_owner_id = 1001
   github_repo_id  = 2002
+  subject_format  = "immutable"
+
+  plan_environment           = "prod-plan"
+  apply_environment          = "prod"
+  deploy_content_environment = "prod-content"
+
+  create_oidc_provider       = true
+  state_bucket_force_destroy = false
+
+  route53_zone_id      = ""
+  route53_record_names = []
+
+  cloudfront_oac_ids                     = []
+  cloudfront_response_headers_policy_ids = []
 }
 
 run "immutable_subject_per_environment" {
@@ -229,6 +251,11 @@ run "policies_fit_iam_limits" {
 }
 
 run "no_route53_without_zone" {
+  variables {
+    route53_zone_id      = ""
+    route53_record_names = []
+  }
+
   assert {
     condition = length([
       for s in jsondecode(aws_iam_role_policy.github["apply"].policy).Statement : s
@@ -297,6 +324,11 @@ run "boundary_condition_actions" {
 # Origin access controls and response headers policies have no tags: other projects of a shared
 # account can have their own, so only the IDs of the variables can be updated or deleted.
 run "cloudfront_untaggable_without_ids" {
+  variables {
+    cloudfront_oac_ids                     = []
+    cloudfront_response_headers_policy_ids = []
+  }
+
   assert {
     condition = length([
       for s in concat(
