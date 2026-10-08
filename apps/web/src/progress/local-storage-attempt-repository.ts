@@ -6,6 +6,7 @@
 // lose, so a format change bumps ATTEMPT_SCHEMA_VERSION and older games are dropped.
 import type { Command, SavedAttempt } from "@blueprint/game-engine";
 import * as z from "zod";
+import type { AttemptStore } from "./attempt-store";
 
 export const ATTEMPT_STORAGE_PREFIX = "blueprint.attempt.";
 
@@ -23,13 +24,16 @@ const CommandSchema = z.discriminatedUnion("type", [
   z.strictObject({ type: z.literal("revealSolution"), slotId: id.nullable() }),
 ]) satisfies z.ZodType<Command>;
 
+/** A game in progress as SavedAttempt, validated (also what the cloud profile stores). */
+export const SavedAttemptSchema = z.strictObject({
+  scenarioId: id,
+  version: z.int().positive(),
+  commands: z.array(CommandSchema),
+}) satisfies z.ZodType<SavedAttempt>;
+
 const StoredAttemptSchema = z.strictObject({
   schemaVersion: z.literal(ATTEMPT_SCHEMA_VERSION),
-  attempt: z.strictObject({
-    scenarioId: id,
-    version: z.int().positive(),
-    commands: z.array(CommandSchema),
-  }),
+  attempt: SavedAttemptSchema,
 });
 
 export interface LocalStorageAttemptRepositoryOptions {
@@ -41,7 +45,7 @@ export interface LocalStorageAttemptRepositoryOptions {
   readonly warn?: (message: string) => void;
 }
 
-export class LocalStorageAttemptRepository {
+export class LocalStorageAttemptRepository implements AttemptStore {
   readonly #storage: () => Storage;
   readonly #warn: (message: string) => void;
 
@@ -119,3 +123,23 @@ export class LocalStorageAttemptRepository {
 }
 
 export const attemptRepository = new LocalStorageAttemptRepository();
+
+/**
+ * The games in progress kept in this browser, to upload them when a guest signs in to an empty
+ * profile (ADR-0029). Unreadable ones are skipped (and dropped, as load does).
+ */
+export const listLocalAttempts = (
+  repository: LocalStorageAttemptRepository = attemptRepository,
+  storage: () => Storage = () => window.localStorage,
+): SavedAttempt[] => {
+  let ids: string[];
+  try {
+    const store = storage();
+    ids = Array.from({ length: store.length }, (_, i) => store.key(i))
+      .filter((key): key is string => key?.startsWith(ATTEMPT_STORAGE_PREFIX) === true)
+      .map((key) => key.slice(ATTEMPT_STORAGE_PREFIX.length));
+  } catch {
+    return [];
+  }
+  return ids.flatMap((id) => repository.load(id) ?? []);
+};

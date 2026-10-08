@@ -293,5 +293,45 @@
     "title": "Página no encontrada",
     "description": "La dirección no existe o cambió.",
     "back": "Ir a escenarios"
+  },
+  "auth": {
+    "signIn": "Ingresar o crear cuenta",
+    "working": "Un momento…",
+    "menu": "Tu cuenta",
+    "menuLabel": "Cuenta de {{name}}",
+    "xp": "{{xp}} XP",
+    "editName": "Cambiar nombre visible",
+    "signOut": "Cerrar sesión",
+    "delete": "Eliminar mi cuenta",
+    "uploaded": "Subimos a tu cuenta el progreso de este navegador.",
+    "nameDialog": {
+      "title": "Nombre visible",
+      "description": "Es el nombre de tu cuenta en el juego, de hasta {{max}} caracteres. No pongas datos personales.",
+      "label": "Nombre visible",
+      "save": "Guardar",
+      "cancel": "Cancelar",
+      "empty": "Escribí un nombre.",
+      "tooLong": "Usá hasta {{max}} caracteres.",
+      "saved": "Guardamos tu nombre visible."
+    },
+    "deleteDialog": {
+      "title": "¿Eliminar tu cuenta?",
+      "description": "Se borran tu perfil, tu progreso y tus partidas en curso de la nube, y tu cuenta de acceso. No se puede deshacer. El progreso guardado en este navegador no se toca.",
+      "confirm": "Eliminar mi cuenta",
+      "cancel": "Cancelar",
+      "done": "Eliminamos tu cuenta y tus datos."
+    },
+    "callback": {
+      "title": "Ingresar",
+      "working": "Ingresando…",
+      "failed": "No pudimos iniciar tu sesión. Podés seguir jugando como invitado.",
+      "home": "Volver al inicio"
+    },
+    "errors": {
+      "sign-in": "No pudimos iniciar tu sesión. Seguís jugando como invitado.",
+      "sign-out": "No pudimos cerrar tu sesión. Probá de nuevo.",
+      "delete": "No pudimos eliminar tu cuenta. Probá de nuevo.",
+      "display-name": "No pudimos guardar tu nombre visible. Probá de nuevo."
+    }
   }
 }

@@ -14,6 +14,7 @@ const PrintPage = lazy(() => import("../features/play/PrintPage"));
 const ProfilePage = lazy(() => import("../features/profile/ProfilePage"));
 const AboutPage = lazy(() => import("../features/about/AboutPage"));
 const NotFoundPage = lazy(() => import("./NotFoundPage"));
+const AuthCallbackPage = lazy(() => import("../auth/AuthCallbackPage"));
 
 /** Component catalog: development only, so the production build does not even emit it. */
 const ComponentCatalog = import.meta.env.DEV
@@ -36,6 +37,7 @@ export function AppRoutes() {
         <Route path="escenarios/:id/imprimir" element={<PrintPage />} />
         <Route path="perfil" element={<ProfilePage />} />
         <Route path="acerca" element={<AboutPage />} />
+        <Route path="auth/callback" element={<AuthCallbackPage />} />
         {DiagramPlayground !== null && <Route path="_diagrama" element={<DiagramPlayground />} />}
         <Route path="*" element={<NotFoundPage />} />
       </Route>

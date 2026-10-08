@@ -146,3 +146,40 @@ test("el sitio no viola su Content-Security-Policy en el recorrido principal", a
   await page.waitForTimeout(250);
   expect(await violations(context)).toEqual([]);
 });
+
+test("el login, el menú de la cuenta y sus diálogos no violan la Content-Security-Policy", async ({
+  context,
+  page,
+}) => {
+  const index = siteIndex();
+  await recordViolations(context);
+  const response = await page.goto("/");
+  // connect-src has the endpoints of the login and the profile (ADR-0029), never a wildcard.
+  const policy = response?.headers()["content-security-policy-report-only"] ?? "";
+  expect(policy).toMatch(
+    /; connect-src 'self' https:\/\/[a-z0-9-]+\.auth\.[a-z0-9-]+\.amazoncognito\.com https:\/\/cognito-idp\.[a-z0-9-]+\.amazonaws\.com https:\/\/cognito-identity\.[a-z0-9-]+\.amazonaws\.com https:\/\/dynamodb\.[a-z0-9-]+\.amazonaws\.com; /,
+  );
+  expect(policy).not.toContain("*");
+  expect(policy).toContain("; form-action 'none'; ");
+
+  await onboard(page, { areas: index.areas.slice(0, 1).map((a) => a.name), experience: "Experto" });
+  // The e2e build has the fake login: the same callback, menu and dialogs, without AWS.
+  await page.getByRole("button", { name: "Ingresar o crear cuenta" }).click();
+  const account = page.getByRole("banner").getByRole("button", { name: "Cuenta de Tu cuenta" });
+  await expect(account).toBeVisible();
+  await account.click();
+  await page.getByRole("menuitem", { name: "Cambiar nombre visible" }).click();
+  const dialog = page.getByRole("dialog", { name: "Nombre visible" });
+  await dialog.getByRole("textbox", { name: "Nombre visible" }).fill("Ada");
+  await dialog.getByRole("button", { name: "Guardar" }).click();
+  await expect(dialog).toBeHidden();
+  await page.getByRole("banner").getByRole("button", { name: "Cuenta de Ada" }).click();
+  await page.getByRole("menuitem", { name: "Eliminar mi cuenta" }).click();
+  await page.getByRole("alertdialog").getByRole("button", { name: "Cancelar" }).click();
+  await page.getByRole("banner").getByRole("button", { name: "Cuenta de Ada" }).click();
+  await page.getByRole("menuitem", { name: "Cerrar sesión" }).click();
+  await expect(page.getByRole("button", { name: "Ingresar o crear cuenta" })).toBeVisible();
+
+  await page.waitForTimeout(250);
+  expect(await violations(context)).toEqual([]);
+});

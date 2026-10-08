@@ -1,11 +1,12 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-import { mkdir, mkdtemp, rm, writeFile } from "node:fs/promises";
+import { mkdir, mkdtemp, readFile, rm, writeFile } from "node:fs/promises";
 import os from "node:os";
 import path from "node:path";
 import { afterEach, beforeEach, describe, expect, it } from "vitest";
 import {
   deploy,
   DeployError,
+  FAKE_AUTH_MARKER,
   INVALIDATION_PATHS,
   invalidationArgs,
   listArgs,
@@ -17,6 +18,7 @@ import {
   type AwsResult,
   type DeployTarget,
 } from "./deploy.js";
+import { REPO_ROOT } from "./cli.js";
 
 const TARGET: DeployTarget = {
   bucket: "blueprint-site-test",
@@ -333,5 +335,25 @@ describe("deploy", () => {
       'No hay un Content-Type definido para "video.mp4"',
     );
     expect(aws.calls).toEqual([]);
+  });
+
+  it("refuses a site built with the fake login of the e2e tests (ADR-0029)", async () => {
+    await writeSite();
+    const asset = KEYS.find((key) => key.endsWith(".js")) ?? "assets/index.js";
+    await writeFile(
+      path.join(siteDir, ...asset.split("/")),
+      `console.warn("${FAKE_AUTH_MARKER}: fake login");`,
+    );
+    const aws = fakeAws();
+    await expect(runDeploy(aws)).rejects.toThrow("tiene el login falso de los e2e");
+    expect(aws.calls).toEqual([]);
+  });
+
+  it("looks for the marker that the fake login of the web carries", async () => {
+    const fake = await readFile(
+      path.join(REPO_ROOT, "apps", "web", "src", "auth", "fake-session.ts"),
+      "utf8",
+    );
+    expect(fake).toContain(`"${FAKE_AUTH_MARKER}"`);
   });
 });

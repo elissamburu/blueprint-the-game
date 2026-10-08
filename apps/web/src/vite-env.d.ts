@@ -12,8 +12,26 @@ interface ImportMetaEnv {
    * Without it, the feedback-beta.yml issue form of the repository.
    */
   readonly VITE_FEEDBACK_URL?: string;
+  /**
+   * Login and profile (ADR-0029): the outputs of infra/envs/prod (deploy.yml passes them). All six
+   * or none; without them the game stays in guest mode (src/auth/config.ts).
+   */
+  readonly VITE_AUTH_REGION?: string;
+  readonly VITE_AUTH_USER_POOL_ID?: string;
+  readonly VITE_AUTH_CLIENT_ID?: string;
+  readonly VITE_AUTH_IDENTITY_POOL_ID?: string;
+  readonly VITE_AUTH_DOMAIN?: string;
+  readonly VITE_AUTH_TABLE?: string;
+  /** "true" only in `vite build --mode e2e` (.env.e2e): the fake login of the e2e tests. */
+  readonly VITE_AUTH_FAKE?: string;
 }
 
 interface ImportMeta {
   readonly env: ImportMetaEnv;
 }
+
+/**
+ * True only in `vite build --mode e2e` with VITE_AUTH_FAKE=true (vite.config.ts, plugin
+ * blueprint-fake-auth): the fake login of the e2e tests. A literal at build time.
+ */
+declare const __BLUEPRINT_FAKE_AUTH__: boolean;
