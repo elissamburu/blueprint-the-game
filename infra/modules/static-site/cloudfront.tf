@@ -1,5 +1,5 @@
 # CloudFront in front of the private bucket: origin access control, the rewrite of the game routes,
-# security headers and the managed cache policy (docs/guias/deploy-manual-beta.md, steps 3 and 4).
+# security headers and the managed cache policy (the same setup the manual beta had).
 
 resource "aws_cloudfront_origin_access_control" "site" {
   name                              = "${var.name_prefix}-site"
@@ -10,13 +10,13 @@ resource "aws_cloudfront_origin_access_control" "site" {
 }
 
 # Viewer request: every path without a file extension gets /index.html, so reloading a route of the
-# game works. Same code as the manual beta, with its tests and the preview server that runs it in
-# tools/deploy-beta (pnpm --filter @blueprint/tools-deploy-beta test): one copy, not two.
+# game works. The code lives in tools/deploy-site, with its tests and the preview server that runs
+# it (pnpm --filter @blueprint/tools-deploy-site test): one copy, not two.
 resource "aws_cloudfront_function" "spa_rewrite" {
   name    = "${var.name_prefix}-spa-rewrite"
   runtime = "cloudfront-js-2.0"
   comment = "Serves /index.html on the game routes (paths without a file extension)"
-  code    = file("${path.module}/../../../tools/deploy-beta/cloudfront/spa-rewrite.js")
+  code    = file("${path.module}/../../../tools/deploy-site/cloudfront/spa-rewrite.js")
   publish = true
   tags    = local.tags
 }

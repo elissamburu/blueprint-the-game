@@ -102,7 +102,7 @@ blueprint/
 │   ├── content/                       # content:validate | content:gen | content:build
 │   ├── catalog-sync/                  # consulta SSM, genera diff y cuerpo del PR
 │   ├── icons-fetch/                   # descarga el paquete oficial de íconos y mapea a ids
-│   └── deploy-beta/                   # ⏳ temporal (lo reemplaza F3): build, vista previa y subida manual de la beta
+│   └── deploy-site/                   # build, vista previa y subida del sitio (la corre deploy.yml)
 │
 ├── infra/                             # 🏗️ Terraform (ADR-0014)
 │   ├── bootstrap/                     # se aplica UNA vez, a mano: bucket de state, OIDC provider, roles (state local)
@@ -211,9 +211,9 @@ Reglas (enforced con `eslint-plugin-boundaries` o `dependency-cruiser`):
 | `pnpm content:dev` | Bundle con `draft` en `dist/content-dev`, el que sirve `vite dev` en `/content/` (la UI marca los borradores). `vite preview` sirve `dist/content`. |
 | `pnpm icons:fetch` | Descarga el paquete oficial de íconos. |
 | `pnpm catalog:sync [--dry-run]` | Diff del catálogo contra SSM (requiere credenciales AWS de solo lectura). |
-| `pnpm build:beta` | ⏳ Temporal (beta pública, lo reemplaza F3). Build de producción en `dist/beta-site`: íconos, bundle de contenido sin `draft`, la web y todo lo que va al bucket. |
-| `pnpm preview:beta [--port]` | ⏳ Sirve `dist/beta-site` como CloudFront: misma función de rutas y mismos headers. |
-| `pnpm deploy:beta [--dry-run]` | ⏳ Sube `dist/beta-site` con el AWS CLI e invalida CloudFront ([guía](guias/deploy-manual-beta.md)). Lo corre el mantenedor. |
+| `pnpm build:site` | Build de producción en `dist/site`: íconos, bundle de contenido sin `draft`, la web y todo lo que va al bucket. |
+| `pnpm preview:site [--port]` | Sirve `dist/site` como CloudFront: misma función de rutas y mismos headers. |
+| `pnpm deploy:site [--dry-run]` | Sube `dist/site` con el AWS CLI e invalida CloudFront. Lo corre el job `deploy` de [`deploy.yml`](../.github/workflows/deploy.yml) con las credenciales de `gh-deploy-content` en el entorno; sin ellas falla (no usa perfiles). `--dry-run` no contacta a AWS. |
 
 ## 4. Convenciones
 

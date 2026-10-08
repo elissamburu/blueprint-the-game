@@ -21,7 +21,6 @@ Este paquete es el punto de partida del repositorio: se copia en la raíz del re
 | [docs/adr/](docs/adr/README.md) | 27 ADRs |
 | [docs/design/](docs/design/README.md) | Referencia visual: pantallas, tokens y estilos de referencia (ADR-0021) |
 | [docs/guias/configurar-aws-en-tu-fork.md](docs/guias/configurar-aws-en-tu-fork.md) | Guía de OIDC + Terraform para forks |
-| [docs/guias/deploy-manual-beta.md](docs/guias/deploy-manual-beta.md) | Deploy manual de la beta pública (temporal, lo reemplaza F3) |
 | [content/scenarios/serverless-pdf-processing/](content/scenarios/serverless-pdf-processing/scenario.yaml) | Escenario de ejemplo completo (nivel 200) |
 | [content/scenarios/_templates/](content/scenarios/_templates/scenario.template.yaml) | Plantilla comentada |
 | [.claude/skills/nuevo-escenario/](.claude/skills/nuevo-escenario/SKILL.md) | Skill de Claude Code para generar escenarios |

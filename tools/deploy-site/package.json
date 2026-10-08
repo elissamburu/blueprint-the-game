@@ -1,8 +1,8 @@
 {
-  "name": "@blueprint/tools-deploy-beta",
+  "name": "@blueprint/tools-deploy-site",
   "version": "0.0.0",
   "private": true,
-  "description": "Build, vista previa y subida manual del sitio de la beta (S3 + CloudFront). Temporal: lo reemplaza F3. Se ejecuta con tsx.",
+  "description": "Build, vista previa y subida del sitio (S3 + CloudFront) que corre el job deploy de deploy.yml. Se ejecuta con tsx.",
   "license": "PolyForm-Noncommercial-1.0.0",
   "type": "module",
   "scripts": {

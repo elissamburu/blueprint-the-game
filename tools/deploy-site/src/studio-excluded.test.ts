@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// RF-STU-18: the Scenario Studio is never deployed. The beta site is built only from apps/web and
+// RF-STU-18: the Scenario Studio is never deployed. The site is built only from apps/web and
 // the content bundle, and nothing in that build depends on apps/studio.
 import { readFile } from "node:fs/promises";
 import path from "node:path";
@@ -14,16 +14,16 @@ const readJson = async (...segments: string[]) =>
     devDependencies?: Record<string, string>;
   };
 
-describe("the Studio stays out of the beta (RF-STU-18)", () => {
-  it("build:beta builds only the web and its dependencies, and deploy:beta does not build", async () => {
+describe("the Studio stays out of the site (RF-STU-18)", () => {
+  it("build:site builds only the web and its dependencies, and deploy:site does not build", async () => {
     const { scripts = {} } = await readJson("package.json");
-    const buildBeta = scripts["build:beta"] ?? "";
-    const filters = [...buildBeta.matchAll(/--filter[= ](\S+)/g)].map((match) => match[1]);
+    const buildSite = scripts["build:site"] ?? "";
+    const filters = [...buildSite.matchAll(/--filter[= ](\S+)/g)].map((match) => match[1]);
     expect(filters.filter((filter) => !filter?.startsWith("@blueprint/tools-"))).toEqual([
       "@blueprint/web...",
     ]);
-    expect(buildBeta).not.toMatch(/studio/);
-    expect(scripts["deploy:beta"]).not.toMatch(/studio|turbo run build/);
+    expect(buildSite).not.toMatch(/studio/);
+    expect(scripts["deploy:site"]).not.toMatch(/studio|turbo run build/);
   });
 
   it("the web does not depend on the Studio", async () => {

@@ -53,7 +53,7 @@ const writeWeb = async ({ icons = true } = {}) => {
 const run = () => assemble({ webDist, contentDir, outDir });
 
 beforeEach(async () => {
-  root = await mkdtemp(path.join(os.tmpdir(), "deploy-beta-"));
+  root = await mkdtemp(path.join(os.tmpdir(), "deploy-site-"));
   webDist = path.join(root, "web");
   contentDir = path.join(root, "content");
   outDir = path.join(root, "site");
@@ -116,7 +116,7 @@ describe("assemble", () => {
 
   it("refuses an invalid or missing index.json", async () => {
     await writeWeb();
-    await expect(run()).rejects.toThrow("Corré pnpm build:beta (genera el bundle de contenido)");
+    await expect(run()).rejects.toThrow("Corré pnpm build:site (genera el bundle de contenido)");
     await write(path.join(contentDir, "index.json"), "{broken");
     await expect(run()).rejects.toThrow("no es un JSON válido");
     await write(path.join(contentDir, "index.json"), JSON.stringify({ schemaVersion: 99 }));
@@ -125,7 +125,7 @@ describe("assemble", () => {
 
   it("refuses a web build that is missing or has no icons", async () => {
     await writeContent([entry("club-photos", "beta")]);
-    await expect(run()).rejects.toThrow("Corré pnpm build:beta (compila la web)");
+    await expect(run()).rejects.toThrow("Corré pnpm build:site (compila la web)");
     await writeWeb({ icons: false });
     await expect(run()).rejects.toThrow("no tiene íconos en /icons");
   });

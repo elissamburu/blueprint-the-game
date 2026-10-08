@@ -1,9 +1,0 @@
-{
-  "BudgetName": "blueprint-beta-mensual",
-  "BudgetType": "COST",
-  "TimeUnit": "MONTHLY",
-  "BudgetLimit": {
-    "Amount": "<BUDGET_USD>",
-    "Unit": "USD"
-  }
-}

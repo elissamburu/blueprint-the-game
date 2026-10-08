@@ -19,9 +19,8 @@ import {
 } from "./deploy.js";
 
 const TARGET: DeployTarget = {
-  bucket: "blueprint-beta-site",
+  bucket: "blueprint-site-test",
   distributionId: "E1ABCDEFGHIJKL",
-  profile: "beta-admin",
 };
 
 const KEYS = [
@@ -77,8 +76,8 @@ const runDeploy = async (aws: ReturnType<typeof fakeAws>, dryRun = false) => {
 };
 
 beforeEach(async () => {
-  root = await mkdtemp(path.join(os.tmpdir(), "deploy-beta-"));
-  siteDir = path.join(root, "beta-site");
+  root = await mkdtemp(path.join(os.tmpdir(), "deploy-site-"));
+  siteDir = path.join(root, "site");
 });
 
 afterEach(async () => {
@@ -87,49 +86,54 @@ afterEach(async () => {
 
 describe("readTarget", () => {
   const env = {
-    BETA_BUCKET: " blueprint-beta-site ",
-    BETA_DISTRIBUTION_ID: "E1ABCDEFGHIJKL",
-    AWS_PROFILE: "beta-admin",
+    SITE_BUCKET: " blueprint-site-test ",
+    SITE_DISTRIBUTION_ID: "E1ABCDEFGHIJKL",
+    AWS_ACCESS_KEY_ID: "ASIAEXAMPLE",
   };
 
-  it("reads bucket, distribution and profile from the environment", () => {
+  it("reads bucket and distribution from the environment, with its credentials", () => {
     expect(readTarget(env, false)).toEqual(TARGET);
   });
 
   it("fails naming every missing or invalid variable", () => {
     expect(() => readTarget({}, false)).toThrow(DeployError);
-    expect(() => readTarget({ BETA_BUCKET: "", AWS_PROFILE: "  " }, false)).toThrow(
-      /Falta BETA_BUCKET[\s\S]*Falta BETA_DISTRIBUTION_ID[\s\S]*Falta AWS_PROFILE/,
+    expect(() => readTarget({ SITE_BUCKET: "", AWS_ACCESS_KEY_ID: "  " }, false)).toThrow(
+      /Falta SITE_BUCKET[\s\S]*Falta SITE_DISTRIBUTION_ID[\s\S]*Faltan las credenciales del entorno \(AWS_ACCESS_KEY_ID\)/,
     );
-    expect(() => readTarget({ ...env, BETA_BUCKET: "s3://blueprint-beta-site" }, false)).toThrow(
-      "BETA_BUCKET tiene que ser el nombre del bucket",
+    expect(() => readTarget({ ...env, SITE_BUCKET: "s3://blueprint-site-test" }, false)).toThrow(
+      "SITE_BUCKET tiene que ser el nombre del bucket",
     );
     expect(() =>
-      readTarget({ ...env, BETA_DISTRIBUTION_ID: "d111111abcdef8.cloudfront.net" }, false),
-    ).toThrow("BETA_DISTRIBUTION_ID tiene que ser el ID de la distribución");
+      readTarget({ ...env, SITE_DISTRIBUTION_ID: "d111111abcdef8.cloudfront.net" }, false),
+    ).toThrow("SITE_DISTRIBUTION_ID tiene que ser el ID de la distribución");
   });
 
   it("with dry-run shows placeholders for what is missing, but still rejects invalid values", () => {
     expect(readTarget({}, true)).toEqual({
-      bucket: "<BETA_BUCKET>",
-      distributionId: "<BETA_DISTRIBUTION_ID>",
-      profile: "<AWS_PROFILE>",
+      bucket: "<SITE_BUCKET>",
+      distributionId: "<SITE_DISTRIBUTION_ID>",
     });
     expect(readTarget(env, true)).toEqual(TARGET);
-    expect(() => readTarget({ BETA_BUCKET: "Not A Bucket" }, true)).toThrow(DeployError);
+    // dry-run never contacts AWS: it needs no credentials.
+    expect(readTarget({ ...env, AWS_ACCESS_KEY_ID: undefined }, true)).toEqual(TARGET);
+    expect(() => readTarget({ SITE_BUCKET: "Not A Bucket" }, true)).toThrow(DeployError);
   });
 
-  it("without a profile uses the credentials of the environment (deploy.yml), never a default", () => {
-    const ci = {
-      BETA_BUCKET: "blueprint-beta-site",
-      BETA_DISTRIBUTION_ID: "E1ABCDEFGHIJKL",
-      AWS_ACCESS_KEY_ID: "ASIAEXAMPLE",
-    };
-    expect(readTarget(ci, false)).toEqual({ ...TARGET, profile: undefined });
-    expect(readTarget(ci, true)).toEqual({ ...TARGET, profile: undefined });
-    expect(() => readTarget({ ...ci, AWS_ACCESS_KEY_ID: " " }, false)).toThrow("Falta AWS_PROFILE");
-    // An explicit profile still wins over credentials in the environment.
-    expect(readTarget({ ...ci, AWS_PROFILE: "beta-admin" }, false)).toEqual(TARGET);
+  it("without credentials in the environment fails, never falls back to a profile or a default", () => {
+    const noCredentials = { ...env, AWS_ACCESS_KEY_ID: undefined };
+    expect(() => readTarget(noCredentials, false)).toThrow(
+      "Faltan las credenciales del entorno (AWS_ACCESS_KEY_ID)",
+    );
+    expect(() => readTarget({ ...env, AWS_ACCESS_KEY_ID: " " }, false)).toThrow(
+      "Faltan las credenciales del entorno",
+    );
+    // A profile is not a way in anymore, with or without credentials in the environment.
+    expect(() => readTarget({ ...noCredentials, AWS_PROFILE: "admin" }, false)).toThrow(
+      "Faltan las credenciales del entorno",
+    );
+    expect(readTarget({ ...env, AWS_PROFILE: "admin" }, false)).toEqual(TARGET);
+    // The value of the key is never shown.
+    expect(() => readTarget({ ...env, SITE_BUCKET: "" }, false)).toThrow(/^(?![\s\S]*ASIAEXAMPLE)/);
   });
 });
 
@@ -174,37 +178,31 @@ describe("AWS CLI arguments", () => {
       "s3",
       "cp",
       path.join(siteDir, "assets", "index-BFQKd29Q.js"),
-      "s3://blueprint-beta-site/assets/index-BFQKd29Q.js",
+      "s3://blueprint-site-test/assets/index-BFQKd29Q.js",
       "--content-type",
       "text/javascript; charset=utf-8",
       "--cache-control",
       "public, max-age=31536000, immutable",
       "--only-show-errors",
-      "--profile",
-      "beta-admin",
     ]);
   });
 
-  it("lists, removes and invalidates with the profile", () => {
+  it("lists, removes and invalidates", () => {
     expect(listArgs(TARGET)).toEqual([
       "s3api",
       "list-objects-v2",
       "--bucket",
-      "blueprint-beta-site",
+      "blueprint-site-test",
       "--query",
       "Contents[].Key",
       "--output",
       "json",
-      "--profile",
-      "beta-admin",
     ]);
     expect(removeArgs("assets/index-OLDOLDOL.js", TARGET)).toEqual([
       "s3",
       "rm",
-      "s3://blueprint-beta-site/assets/index-OLDOLDOL.js",
+      "s3://blueprint-site-test/assets/index-OLDOLDOL.js",
       "--only-show-errors",
-      "--profile",
-      "beta-admin",
     ]);
     // Only what keeps its name between deploys: never the whole distribution.
     expect(INVALIDATION_PATHS).toEqual(["/index.html", "/content/*"]);
@@ -220,18 +218,15 @@ describe("AWS CLI arguments", () => {
       "Invalidation.Id",
       "--output",
       "text",
-      "--profile",
-      "beta-admin",
     ]);
   });
 
-  it("passes no --profile when the credentials come from the environment", () => {
-    const ci = { ...TARGET, profile: undefined };
+  it("never passes --profile: the credentials come from the environment", () => {
     for (const args of [
-      uploadArgs(planUploads(["index.html"])[0]!, siteDir, ci),
-      listArgs(ci),
-      removeArgs("index.html", ci),
-      invalidationArgs(ci),
+      uploadArgs(planUploads(["index.html"])[0]!, siteDir, TARGET),
+      listArgs(TARGET),
+      removeArgs("index.html", TARGET),
+      invalidationArgs(TARGET),
     ]) {
       expect(args).not.toContain("--profile");
     }
@@ -252,9 +247,9 @@ describe("deploy", () => {
       "cloudfront create-invalidation",
     ]);
     const uploads = aws.calls.filter((args) => args[1] === "cp");
-    expect(uploads.at(-1)?.[3]).toBe("s3://blueprint-beta-site/index.html");
+    expect(uploads.at(-1)?.[3]).toBe("s3://blueprint-site-test/index.html");
     expect(aws.calls.find((args) => args[1] === "rm")?.[2]).toBe(
-      "s3://blueprint-beta-site/assets/index-OLDOLDOL.js",
+      "s3://blueprint-site-test/assets/index-OLDOLDOL.js",
     );
     expect(result).toEqual({
       uploaded: planUploads(KEYS).map((item) => item.key),
@@ -284,18 +279,18 @@ describe("deploy", () => {
     const text = lines.join("\n");
     expect(text).toContain("Modo --dry-run: no se ejecuta ningún comando ni se contacta a AWS.");
     expect(text).toContain(
-      's3://blueprint-beta-site/index.html --content-type "text/html; charset=utf-8" --cache-control no-cache',
+      's3://blueprint-site-test/index.html --content-type "text/html; charset=utf-8" --cache-control no-cache',
     );
     expect(text).toContain(
-      '--cache-control "public, max-age=31536000, immutable" --only-show-errors --profile beta-admin',
+      '--cache-control "public, max-age=31536000, immutable" --only-show-errors',
     );
-    expect(text).toContain("aws s3api list-objects-v2 --bucket blueprint-beta-site");
+    expect(text).toContain("aws s3api list-objects-v2 --bucket blueprint-site-test");
     expect(text).toContain(
       'aws cloudfront create-invalidation --distribution-id E1ABCDEFGHIJKL --paths /index.html "/content/*"',
     );
     // index.html is the last upload shown.
     const cps = lines.filter((line) => line.includes("aws s3 cp"));
-    expect(cps.at(-1)).toContain("s3://blueprint-beta-site/index.html");
+    expect(cps.at(-1)).toContain("s3://blueprint-site-test/index.html");
   });
 
   it("stops before index.html, the deletions and the invalidation when an upload fails", async () => {
@@ -325,7 +320,7 @@ describe("deploy", () => {
 
   it("refuses a directory that is not a built site", async () => {
     const aws = fakeAws();
-    await expect(runDeploy(aws)).rejects.toThrow("Corré pnpm build:beta antes de pnpm deploy:beta");
+    await expect(runDeploy(aws)).rejects.toThrow("Corré pnpm build:site antes de pnpm deploy:site");
     await writeSite(["index.html"]);
     await expect(runDeploy(aws)).rejects.toThrow("Falta content/index.json");
     expect(aws.calls).toEqual([]);

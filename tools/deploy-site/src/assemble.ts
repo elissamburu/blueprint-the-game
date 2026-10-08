@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Last step of pnpm build:beta: one directory with everything that goes to the bucket. The web
+// Last step of pnpm build:site: one directory with everything that goes to the bucket. The web
 // build (apps/web/dist) already has /icons, copied by Vite from public/ after icons:fetch; the
 // production content bundle (dist/content, without drafts) goes to /content. It checks what a
 // broken build would miss, so a deploy never publishes a site without content or icons.
@@ -42,7 +42,7 @@ const readIndex = async (contentDir: string) => {
     text = await readFile(file, "utf8");
   } catch {
     throw new AssembleError(
-      `Falta ${file}. Corré pnpm build:beta (genera el bundle de contenido).`,
+      `Falta ${file}. Corré pnpm build:site (genera el bundle de contenido).`,
     );
   }
   let raw: unknown;
@@ -65,7 +65,7 @@ export const assemble = async (options: AssembleOptions): Promise<AssembleResult
 
   if (!(await exists(path.join(webDist, "index.html")))) {
     throw new AssembleError(
-      `Falta ${path.join(webDist, "index.html")}. Corré pnpm build:beta (compila la web).`,
+      `Falta ${path.join(webDist, "index.html")}. Corré pnpm build:site (compila la web).`,
     );
   }
   const index = await readIndex(contentDir);
@@ -77,7 +77,7 @@ export const assemble = async (options: AssembleOptions): Promise<AssembleResult
   const drafts = index.scenarios.filter((scenario) => scenario.status === "draft");
   if (drafts.length > 0) {
     throw new AssembleError(
-      `El bundle de contenido lista borradores (${drafts.map((d) => d.id).join(", ")}): se generó con --include-drafts. Corré pnpm build:beta.`,
+      `El bundle de contenido lista borradores (${drafts.map((d) => d.id).join(", ")}): se generó con --include-drafts. Corré pnpm build:site.`,
     );
   }
   for (const name of ["catalog.json", "game-rules.json", ...index.scenarios.map((s) => s.file)]) {
@@ -101,7 +101,7 @@ export const assemble = async (options: AssembleOptions): Promise<AssembleResult
   const icons = files.filter((key) => key.startsWith("icons/") && key.endsWith(".svg")).length;
   if (icons === 0) {
     throw new AssembleError(
-      "El sitio no tiene íconos en /icons. Corré pnpm build:beta: baja los íconos antes de compilar la web.",
+      "El sitio no tiene íconos en /icons. Corré pnpm build:site: baja los íconos antes de compilar la web.",
     );
   }
   // Fails here, not in the middle of an upload, on a file the deploy has no Content-Type for.

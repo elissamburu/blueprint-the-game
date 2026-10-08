@@ -18,7 +18,7 @@ const write = async (key: string, text: string) => {
 };
 
 beforeAll(async () => {
-  root = await mkdtemp(path.join(os.tmpdir(), "deploy-beta-preview-"));
+  root = await mkdtemp(path.join(os.tmpdir(), "deploy-site-preview-"));
   await write("index.html", "<!doctype html>app");
   await write("assets/index-BFQKd29Q.js", "js");
   await write("content/index.json", "{}");

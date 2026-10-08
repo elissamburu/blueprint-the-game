@@ -1,7 +1,7 @@
 # Private bucket of the site: only the distribution reads it, through the origin access control
 # (Restrict access to an Amazon S3 origin:
 # https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/private-content-restricting-access-to-s3.html).
-# Same settings as the manual beta (docs/guias/deploy-manual-beta/).
+# Same settings as the manual beta had.
 
 resource "aws_s3_bucket" "site" {
   bucket = local.bucket_name
