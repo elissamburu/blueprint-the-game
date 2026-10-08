@@ -93,3 +93,8 @@ variable "budget_email" {
     error_message = "budget_email must be an email address."
   }
 }
+
+variable "auth_domain_prefix" {
+  description = "Prefix of the Cognito domain of the login: <prefix>.auth.<region>.amazoncognito.com (GitHub variable AUTH_DOMAIN_PREFIX). Unique per region across AWS; never derive it from the account ID."
+  type        = string
+}

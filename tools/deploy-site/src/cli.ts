@@ -6,6 +6,7 @@ import { fileURLToPath } from "node:url";
 import { parseArgs } from "node:util";
 import { assemble } from "./assemble.js";
 import { deploy, ENV, readTarget, runAwsCli, type AwsRunner } from "./deploy.js";
+import { cspValuesFromEnv } from "./csp.js";
 import { startPreview } from "./preview.js";
 
 export const REPO_ROOT = path.resolve(
@@ -34,7 +35,9 @@ export const USAGE = `Uso:
   pnpm preview:site [--port <puerto>]
       Sirve dist/site en http://127.0.0.1:<puerto> (por defecto 4319) como lo hace
       CloudFront: con la misma función que reescribe las rutas del juego a /index.html, con
-      los headers de cada archivo y con la Content-Security-Policy del sitio.
+      los headers de cada archivo y con la Content-Security-Policy del sitio, con la región
+      y el dominio de Cognito de VITE_AUTH_REGION y VITE_AUTH_DOMAIN (sin ellas, unos de
+      ejemplo que nadie sirve).
   pnpm deploy:site [--dry-run]
       Sube dist/site al bucket con el AWS CLI, borra del bucket lo que ya no existe y
       crea una invalidación de CloudFront de /index.html y /content/*. Lo corre el job
@@ -117,7 +120,7 @@ const run = async (argv: readonly string[], io: CliIo, deps: CliDeps): Promise<n
       if (!Number.isInteger(port) || port < 1 || port > 65535) {
         throw new UsageError(`--port tiene que ser un puerto (recibido: "${values.port}").`);
       }
-      await startPreview({ siteDir: paths.siteDir, port });
+      await startPreview({ siteDir: paths.siteDir, port, csp: cspValuesFromEnv(deps.env) });
       io.stdout(
         `Sirviendo ${shown(paths.siteDir)} en http://127.0.0.1:${port} (Ctrl+C para terminar).\n`,
       );

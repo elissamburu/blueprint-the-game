@@ -3,7 +3,7 @@ script-src 'self'
 style-src 'self' 'unsafe-inline'
 img-src 'self'
 font-src 'self'
-connect-src 'self'
+connect-src 'self' https://${auth_domain} https://cognito-idp.${aws_region}.amazonaws.com https://cognito-identity.${aws_region}.amazonaws.com https://dynamodb.${aws_region}.amazonaws.com
 manifest-src 'self'
 object-src 'none'
 base-uri 'none'

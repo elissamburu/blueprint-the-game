@@ -8,7 +8,7 @@
 import { readFile } from "node:fs/promises";
 import { createServer, type Server } from "node:http";
 import path from "node:path";
-import { CSP_HEADER, loadCsp } from "./csp.js";
+import { CSP_HEADER, loadCsp, type CspValues } from "./csp.js";
 import { headersFor, UnknownContentTypeError } from "./headers.js";
 import { loadSpaRewrite } from "./spa-rewrite.js";
 
@@ -16,6 +16,8 @@ export interface PreviewOptions {
   siteDir: string;
   port: number;
   host?: string;
+  /** Values of the placeholders of the policy: those the web was built with (cspValuesFromEnv). */
+  csp: CspValues;
 }
 
 const ACCESS_DENIED = "<Error><Code>AccessDenied</Code><Message>Access Denied</Message></Error>";
@@ -24,7 +26,7 @@ export const startPreview = async (options: PreviewOptions): Promise<Server> => 
   const siteDir = path.resolve(options.siteDir);
   const rewrite = await loadSpaRewrite();
   // CloudFront adds the headers of the policy to every response, errors included.
-  const policyHeaders = { [CSP_HEADER]: await loadCsp() };
+  const policyHeaders = { [CSP_HEADER]: await loadCsp(options.csp) };
 
   const server = createServer((req, res) => {
     const deny = (status = 403) => {

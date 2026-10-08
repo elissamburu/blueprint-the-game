@@ -16,3 +16,7 @@ price_class         = "PriceClass_All"
 
 budget_usd   = 10
 budget_email = "<EMAIL>"
+
+# Login (ADR-0029): <prefix>.auth.<region>.amazoncognito.com. Unique per region across AWS; do not
+# use the account ID.
+auth_domain_prefix = "<PREFIX>"

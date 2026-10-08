@@ -12,10 +12,15 @@ locals {
   origin_id = "site-bucket"
 
   # The Content-Security-Policy of the site, from its only source: one directive per line in
-  # tools/deploy-site, where the preview server reads it too and its tests check it. Joined as the
-  # preview server joins it (src/csp.ts): trimmed lines, no blank ones, "; " between them.
+  # tools/deploy-site, where the preview server reads it too and its tests check it. It is a
+  # template: ${aws_region} and ${auth_domain} are the endpoints of the login and the profile
+  # (ADR-0029), filled in as the preview server fills them (src/csp.ts, renderCsp) and joined as it
+  # joins them: trimmed lines, no blank ones, "; " between them.
   content_security_policy = join("; ", [
-    for line in split("\n", file("${path.module}/../../../tools/deploy-site/cloudfront/content-security-policy.txt")) :
+    for line in split("\n", templatefile("${path.module}/../../../tools/deploy-site/cloudfront/content-security-policy.txt", {
+      aws_region  = data.aws_region.current.region
+      auth_domain = var.auth_domain
+    })) :
     trimspace(line) if trimspace(line) != ""
   ])
 }
