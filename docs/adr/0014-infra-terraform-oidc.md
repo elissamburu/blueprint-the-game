@@ -33,7 +33,7 @@ El repo tiene que poder desplegarse en la cuenta de AWS de quien lo forkee, de f
 ## Enmiendas
 
 ### 2026-10-07 · Cuenta compartida y región `us-east-2`
-**Motivo.** La cuenta donde se despliega el proyecto es compartida con otros proyectos del mantenedor, y la beta pública ya está publicada a mano en ella ([deploy manual de la beta](../guias/deploy-manual-beta.md)). El bootstrap no puede asumir una cuenta dedicada.
+**Motivo.** La cuenta donde se despliega el proyecto es compartida con otros proyectos del mantenedor, y la beta pública ya está publicada a mano en ella (con una guía de deploy manual, eliminada en el paso 5a de F3 del [roadmap](../05-roadmap.md#f3--infraestructura-y-despliegue)). El bootstrap no puede asumir una cuenta dedicada.
 
 **Precisión.**
 - **Región principal `us-east-2`** (configurable con `aws_region`). Los certificados de CloudFront siguen en `us-east-1` (ver la enmienda siguiente: `infra/envs/prod` no los crea).
@@ -55,4 +55,4 @@ El repo tiene que poder desplegarse en la cuenta de AWS de quien lo forkee, de f
 - **Certificado**: `infra/envs/prod` no crea ni administra certificados. Recibe el ARN de uno ya emitido en `us-east-1` (`acm_certificate_arn`, validado contra la región y la cuenta) y solo lo referencia en la distribución. El certificado se crea a mano **sin** la etiqueta `Project`, así el boundary impide que `gh-apply` lo cambie o lo borre. No hace falta un alias de provider en `us-east-1`.
 - **DNS**: Terraform no maneja DNS. El dominio apunta a la distribución con un `CNAME` en el proveedor de DNS (en Cloudflare, en modo *DNS only*), cargado a mano ([guía de forks, paso 5](../guias/configurar-aws-en-tu-fork.md#5-primer-despliegue)). Los permisos de Route 53 del bootstrap siguen siendo opcionales (`route53_zone_id` vacío).
 - **Logs públicos**: el account ID, el ARN del certificado y el mail del presupuesto son *secrets* de GitHub (los enmascara en todo log, también dentro de ARNs y nombres de bucket), cada job enmascara el ARN de su rol, `budget_email` es `sensitive` en Terraform y los planes nunca se suben como artefactos ni se publican en el PR. El resto de los identificadores (roles, bucket de state, prefijo, dominio) son variables.
-- **Subida del sitio**: el job `deploy` reutiliza `tools/deploy-beta` (armado del sitio y `Cache-Control` por archivo) con las credenciales de `gh-deploy-content` en el entorno, sin perfil del AWS CLI.
+- **Subida del sitio**: el job `deploy` reutiliza `tools/deploy-site` (armado del sitio y `Cache-Control` por archivo) con las credenciales de `gh-deploy-content` en el entorno, sin perfil del AWS CLI. El tool no acepta perfiles: sin credenciales en el entorno, falla.

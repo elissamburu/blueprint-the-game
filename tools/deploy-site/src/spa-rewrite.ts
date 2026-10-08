@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Loads the CloudFront Function of the beta site (cloudfront/spa-rewrite.js) to run it locally:
+// Loads the CloudFront Function of the site (cloudfront/spa-rewrite.js) to run it locally:
 // in its test and in the preview server, which applies the very code CloudFront runs.
 import { readFile } from "node:fs/promises";
 import { fileURLToPath } from "node:url";

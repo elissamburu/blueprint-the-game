@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// pnpm preview:beta: serves the assembled site the way CloudFront and the private bucket do, to
+// pnpm preview:site: serves the assembled site the way CloudFront and the private bucket do, to
 // check a build before uploading it. Each request goes through the same CloudFront Function
 // (cloudfront/spa-rewrite.js) and each file is answered with the headers the deploy uploads it
 // with. A missing file is a 403, as the bucket answers without s3:ListBucket.

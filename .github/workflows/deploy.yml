@@ -240,7 +240,7 @@ jobs:
             echo "| \`cloudfront_response_headers_policy_ids\` (bootstrap) | \`$(terraform -chdir="$TF_DIR" output -raw response_headers_policy_id)\` |"
           } >> "$GITHUB_STEP_SUMMARY"
 
-  # Builds the site with the same steps as pnpm build:beta and uploads it with tools/deploy-beta
+  # Builds the site with the same steps as pnpm build:site and uploads it with tools/deploy-site
   # (Cache-Control per file, index.html last, stale files deleted, invalidation of /index.html and
   # /content/*). gh-deploy-content is assumed only after the build: the build never sees credentials.
   deploy:
@@ -300,12 +300,12 @@ jobs:
           key: aws-icons-${{ hashFiles('tools/icons-fetch/icons.config.json') }}
 
       # icons:fetch, content:build (beta and published scenarios, never drafts), build of the web and
-      # the checks of the assembled site, in dist/beta-site.
+      # the checks of the assembled site, in dist/site.
       - name: Build the site
         env:
           VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
           VITE_FEEDBACK_URL: ${{ vars.VITE_FEEDBACK_URL }}
-        run: pnpm build:beta
+        run: pnpm build:site
 
       - name: Assume gh-deploy-content
         uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
@@ -320,7 +320,7 @@ jobs:
         env:
           AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
           BUCKET_TEMPLATE: ${{ needs.apply.outputs.bucket-template }}
-          BETA_DISTRIBUTION_ID: ${{ needs.apply.outputs.distribution-id }}
+          SITE_DISTRIBUTION_ID: ${{ needs.apply.outputs.distribution-id }}
         run: |
-          export BETA_BUCKET="${BUCKET_TEMPLATE//@ACCOUNT_ID@/$AWS_ACCOUNT_ID}"
-          pnpm deploy:beta
+          export SITE_BUCKET="${BUCKET_TEMPLATE//@ACCOUNT_ID@/$AWS_ACCOUNT_ID}"
+          pnpm deploy:site

@@ -158,7 +158,7 @@ run "static_site" {
       && aws_cloudfront_function.spa_rewrite.publish
       && strcontains(aws_cloudfront_function.spa_rewrite.code, "function handler(event)")
     )
-    error_message = "The rewrite function is the one of tools/deploy-beta, published, on runtime 2.0."
+    error_message = "The rewrite function is the one of tools/deploy-site, published, on runtime 2.0."
   }
 
   assert {

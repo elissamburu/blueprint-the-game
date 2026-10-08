@@ -32,10 +32,10 @@
     "e2e:studio": "turbo run build --filter=@blueprint/studio... --output-logs=errors-only && pnpm --filter @blueprint/studio e2e",
     "icons:prepare": "turbo run build --filter=@blueprint/tools-icons-fetch... --output-logs=errors-only 1>&2",
     "icons:fetch": "pnpm --reporter=silent icons:prepare && pnpm --reporter=silent --dir tools/icons-fetch exec tsx src/bin.ts",
-    "beta:prepare": "turbo run build --filter=@blueprint/tools-deploy-beta... --output-logs=errors-only 1>&2",
-    "build:beta": "pnpm icons:fetch && pnpm content:build --out dist/content && turbo run build --filter=@blueprint/web... --force && pnpm --reporter=silent beta:prepare && pnpm --reporter=silent --dir tools/deploy-beta exec tsx src/bin.ts assemble",
-    "preview:beta": "pnpm --reporter=silent beta:prepare && pnpm --reporter=silent --dir tools/deploy-beta exec tsx src/bin.ts preview",
-    "deploy:beta": "pnpm --reporter=silent beta:prepare && pnpm --reporter=silent --dir tools/deploy-beta exec tsx src/bin.ts deploy"
+    "site:prepare": "turbo run build --filter=@blueprint/tools-deploy-site... --output-logs=errors-only 1>&2",
+    "build:site": "pnpm icons:fetch && pnpm content:build --out dist/content && turbo run build --filter=@blueprint/web... --force && pnpm --reporter=silent site:prepare && pnpm --reporter=silent --dir tools/deploy-site exec tsx src/bin.ts assemble",
+    "preview:site": "pnpm --reporter=silent site:prepare && pnpm --reporter=silent --dir tools/deploy-site exec tsx src/bin.ts preview",
+    "deploy:site": "pnpm --reporter=silent site:prepare && pnpm --reporter=silent --dir tools/deploy-site exec tsx src/bin.ts deploy"
   },
   "devDependencies": {
     "@blueprint/config": "workspace:*",

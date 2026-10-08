@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// Command line of the beta site tools (pnpm build:beta, pnpm preview:beta, pnpm deploy:beta).
+// Command line of the site tools (pnpm build:site, pnpm preview:site, pnpm deploy:site).
 // `main` never throws and never prints stack traces: it returns the exit code.
 import path from "node:path";
 import { fileURLToPath } from "node:url";
@@ -27,21 +27,22 @@ export interface CliDeps {
 }
 
 export const USAGE = `Uso:
-  pnpm build:beta
-      Build de producción de la beta: baja los íconos, genera el bundle de contenido
-      (escenarios beta y published, nunca draft), compila la web y deja en dist/beta-site
+  pnpm build:site
+      Build de producción del sitio: baja los íconos, genera el bundle de contenido
+      (escenarios beta y published, nunca draft), compila la web y deja en dist/site
       todo lo que va al bucket: la app, /content e /icons.
-  pnpm preview:beta [--port <puerto>]
-      Sirve dist/beta-site en http://127.0.0.1:<puerto> (por defecto 4319) como lo hace
+  pnpm preview:site [--port <puerto>]
+      Sirve dist/site en http://127.0.0.1:<puerto> (por defecto 4319) como lo hace
       CloudFront: con la misma función que reescribe las rutas del juego a /index.html y con
       los headers de cada archivo.
-  pnpm deploy:beta [--dry-run]
-      Sube dist/beta-site al bucket con el AWS CLI, borra del bucket lo que ya no existe y
-      crea una invalidación de CloudFront de /index.html y /content/*. Variables de entorno:
+  pnpm deploy:site [--dry-run]
+      Sube dist/site al bucket con el AWS CLI, borra del bucket lo que ya no existe y
+      crea una invalidación de CloudFront de /index.html y /content/*. Lo corre el job
+      deploy de deploy.yml. Variables de entorno:
         ${ENV.bucket}           nombre del bucket
         ${ENV.distributionId}  ID de la distribución de CloudFront
-        ${ENV.profile}           perfil del AWS CLI (sin perfil, usa las credenciales del
-                              entorno, como el job deploy de deploy.yml)
+        ${ENV.accessKeyId}     credenciales del rol, en el entorno (sin ellas, falla: no
+                              usa perfiles del AWS CLI ni credenciales por defecto)
       --dry-run  muestra los comandos que ejecutaría, sin ejecutar nada ni contactar a AWS.
 `;
 
@@ -66,7 +67,7 @@ class UsageError extends Error {}
 export const sitePaths = (repoRoot: string) => ({
   webDist: path.join(repoRoot, "apps", "web", "dist"),
   contentDir: path.join(repoRoot, "dist", "content"),
-  siteDir: path.join(repoRoot, "dist", "beta-site"),
+  siteDir: path.join(repoRoot, "dist", "site"),
 });
 
 const run = async (argv: readonly string[], io: CliIo, deps: CliDeps): Promise<number> => {

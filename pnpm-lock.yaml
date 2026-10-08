@@ -867,7 +867,7 @@ importers:
         specifier: 'catalog:'
         version: 5.0.2(@types/node@26.6.3)(@vitest/coverage-v8@5.0.2)(jsdom@30.1.1)(vite@8.3.1(@types/node@26.6.3)(esbuild@0.28.2)(jiti@2.7.0)(tsx@4.23.15)(yaml@2.9.1))
 
-  tools/deploy-beta:
+  tools/deploy-site:
     dependencies:
       '@blueprint/scenario-schema':
         specifier: workspace:*

@@ -64,13 +64,13 @@ const run = async (argv: string[], env: NodeJS.ProcessEnv = {}) => {
 };
 
 const ENV = {
-  BETA_BUCKET: "blueprint-beta-site",
-  BETA_DISTRIBUTION_ID: "E1ABCDEFGHIJKL",
-  AWS_PROFILE: "beta-admin",
+  SITE_BUCKET: "blueprint-site-test",
+  SITE_DISTRIBUTION_ID: "E1ABCDEFGHIJKL",
+  AWS_ACCESS_KEY_ID: "ASIAEXAMPLE",
 };
 
 beforeEach(async () => {
-  root = await mkdtemp(path.join(os.tmpdir(), "deploy-beta-cli-"));
+  root = await mkdtemp(path.join(os.tmpdir(), "deploy-site-cli-"));
 });
 
 afterEach(async () => {
@@ -78,20 +78,18 @@ afterEach(async () => {
 });
 
 describe("assemble", () => {
-  it("reports the site it left in dist/beta-site", async () => {
+  it("reports the site it left in dist/site", async () => {
     await writeBuild();
     const { code, stdout, stderr } = await run(["assemble"]);
     expect(stderr).toBe("");
     expect(code).toBe(0);
-    expect(stdout).toBe(
-      "OK: sitio en dist/beta-site (8 archivos; 1 escenario/s: 1 beta; 1 ícono/s).\n",
-    );
+    expect(stdout).toBe("OK: sitio en dist/site (8 archivos; 1 escenario/s: 1 beta; 1 ícono/s).\n");
   });
 
   it("fails without a stack trace when the build is missing", async () => {
     const { code, stderr } = await run(["assemble"]);
     expect(code).toBe(1);
-    expect(stderr).toMatch(/^Error: Falta .*index\.html\. Corré pnpm build:beta/);
+    expect(stderr).toMatch(/^Error: Falta .*index\.html\. Corré pnpm build:site/);
     expect(stderr).not.toContain("    at ");
   });
 });
@@ -105,7 +103,7 @@ describe("deploy", () => {
     expect(code).toBe(0);
     expect(awsCalls).toEqual([]);
     expect(stdout).toContain(
-      "Destino: s3://<BETA_BUCKET> · distribución <BETA_DISTRIBUTION_ID> · perfil <AWS_PROFILE>",
+      "Destino: s3://<SITE_BUCKET> · distribución <SITE_DISTRIBUTION_ID> · credenciales del entorno",
     );
     expect(stdout).toContain("OK (dry-run): 8 archivo/s para subir. No se cambió nada.");
   });
@@ -116,27 +114,36 @@ describe("deploy", () => {
     const { code, stdout, awsCalls } = await run(["deploy"], ENV);
     expect(code).toBe(0);
     expect(awsCalls).toHaveLength(8 + 2);
-    expect(awsCalls.every((args) => args.at(-1) === "beta-admin")).toBe(true);
+    expect(awsCalls.some((args) => args.includes("--profile"))).toBe(false);
     expect(stdout).toContain("OK: 8 archivo/s subido/s, 0 borrado/s, invalidación I2ABCDEFGH.");
   });
 
   it("fails before calling AWS when a variable is missing or the site is not built", async () => {
     const missing = await run(["deploy"]);
     expect(missing.code).toBe(1);
-    expect(missing.stderr).toContain("Falta BETA_BUCKET");
+    expect(missing.stderr).toContain("Falta SITE_BUCKET");
+    expect(missing.stderr).toContain("Faltan las credenciales del entorno (AWS_ACCESS_KEY_ID)");
+    const withProfileOnly = await run(["deploy"], {
+      SITE_BUCKET: ENV.SITE_BUCKET,
+      SITE_DISTRIBUTION_ID: ENV.SITE_DISTRIBUTION_ID,
+      AWS_PROFILE: "admin",
+    });
+    expect(withProfileOnly.code).toBe(1);
+    expect(withProfileOnly.stderr).toContain("Faltan las credenciales del entorno");
+    expect(withProfileOnly.awsCalls).toEqual([]);
     const notBuilt = await run(["deploy"], ENV);
     expect(notBuilt.code).toBe(1);
-    expect(notBuilt.stderr).toContain("Corré pnpm build:beta antes de pnpm deploy:beta");
+    expect(notBuilt.stderr).toContain("Corré pnpm build:site antes de pnpm deploy:site");
     expect(notBuilt.awsCalls).toEqual([]);
   });
 });
 
 describe("usage", () => {
   it("prints usage with --help and without a command", async () => {
-    expect((await run(["--help"])).stdout).toContain("pnpm build:beta");
+    expect((await run(["--help"])).stdout).toContain("pnpm build:site");
     const none = await run([]);
     expect(none.code).toBe(2);
-    expect(none.stdout).toContain("pnpm preview:beta");
+    expect(none.stdout).toContain("pnpm preview:site");
   });
 
   it("rejects unknown commands, options and extra arguments", async () => {

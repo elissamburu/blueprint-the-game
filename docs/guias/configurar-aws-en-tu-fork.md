@@ -121,6 +121,23 @@ $env:AWS_PROFILE = "<perfil-admin>"
 aws sts get-caller-identity          # confirmá que es la cuenta correcta
 ```
 
+**Si iniciás sesión con `aws login`** (con las credenciales de la consola, en lugar de IAM Identity Center), el AWS CLI usa esa sesión, pero Terraform no: su provider usa el SDK de AWS para Go, que no soporta las sesiones de `aws login`. Antes de correr `terraform`, exportá las credenciales temporales de la sesión como variables de entorno de **esa** consola de PowerShell:
+
+```powershell
+aws login --profile <perfil-admin>
+aws configure export-credentials --profile <perfil-admin> --format powershell | Invoke-Expression
+Remove-Item Env:AWS_PROFILE -ErrorAction SilentlyContinue   # que el perfil no compita con las credenciales exportadas
+aws sts get-caller-identity                                  # la misma cuenta, ahora desde las variables
+```
+
+El pipe a `Invoke-Expression` define las variables sin imprimirlas. Son credenciales temporales: cuando venzan, repetí `aws login` y el `export-credentials`. Al terminar (y siempre antes de pasar a otra cuenta), borralas de la consola:
+
+```powershell
+Remove-Item Env:AWS_ACCESS_KEY_ID, Env:AWS_SECRET_ACCESS_KEY, Env:AWS_SESSION_TOKEN, Env:AWS_CREDENTIAL_EXPIRATION -ErrorAction SilentlyContinue
+```
+
+Cerrar la consola también las borra: nunca se escriben en un archivo.
+
 ### 3.2 Chequeos previos
 
 **¿Ya hay un proveedor OIDC de GitHub en la cuenta?** Puede haber uno solo por URL, y en una cuenta compartida otro proyecto puede haberlo creado:
@@ -397,7 +414,7 @@ Cada job enmascara además el ARN del rol que asume (`::add-mask::`) antes de cu
 
 Antes de empezar: los secrets y las variables del paso 4 cargados (sin ellos, cada job falla en su primer paso, *Check the configuration*, con la lista de lo que falta) y el environment `prod` creado con reviewers (paso 2).
 
-El orden importa: **a)** certificado y valores del sitio, **b)** desarmar la beta manual (solo si ya tenías una), **c)** aprobar el `apply`, **d)** CNAME en tu DNS y **e)** re-aplicar el bootstrap con los IDs nuevos ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)).
+El orden importa: **a)** certificado y valores del sitio, **b)** desarmar la beta manual y borrar su registro DNS (solo si ya tenías una), **c)** aprobar el `apply`, **d)** CNAME en tu DNS y **e)** re-aplicar el bootstrap con los IDs nuevos ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)).
 
 Qué hace [`deploy.yml`](../../.github/workflows/deploy.yml):
 
@@ -405,7 +422,7 @@ Qué hace [`deploy.yml`](../../.github/workflows/deploy.yml):
 |---|---|---|---|
 | `plan` | PR que tocan `infra/**` (solo ramas de tu repo, nunca de forks), push a `main` y ejecución manual | `prod-plan`, `gh-plan` | `terraform plan` de `infra/envs/prod`. |
 | `apply` | Push a `main` y ejecución manual, después de `plan` | `prod` (**espera tu aprobación**), `gh-apply` | Vuelve a planificar y aplica ese plan. Deja en el resumen del job la URL, el destino del CNAME y los IDs del paso 5.1. |
-| `deploy` | Después de `apply` | `prod` (**espera tu aprobación**), `gh-deploy-content` | Arma el sitio como `pnpm build:beta` (íconos, bundle de contenido sin borradores, build de la web), lo sube con el `Cache-Control` de cada archivo (assets con hash: inmutables; `index.html` y `/content/*.json`: `no-cache`), borra lo que sobra e invalida `/index.html` y `/content/*`. Asume el rol recién después del build. |
+| `deploy` | Después de `apply` | `prod` (**espera tu aprobación**), `gh-deploy-content` | Arma el sitio con `pnpm build:site` (íconos, bundle de contenido sin borradores, build de la web), lo sube con el `Cache-Control` de cada archivo (assets con hash: inmutables; `index.html` y `/content/*.json`: `no-cache`), borra lo que sobra e invalida `/index.html` y `/content/*` con `pnpm deploy:site`. Asume el rol recién después del build. |
 
 Cada push a `main` pide **dos aprobaciones**: una para `apply` y otra para `deploy` (los dos jobs usan `prod`).
 
@@ -449,7 +466,16 @@ gh variable set BUDGET_USD --body "10"    # opcional
 
 ### b) Desarmá la beta manual (solo si la tenés)
 
-Si publicaste antes la beta con la [guía de deploy manual](deploy-manual-beta.md), hay que desarmarla **antes de aprobar el primer `apply`**: CloudFront no permite el mismo nombre alternativo (CNAME) en dos distribuciones, y la nueva falla con `CNAMEAlreadyExists` mientras la vieja exista. El sitio queda caído desde este paso hasta el paso d.
+Si publicaste antes la beta a mano (con la guía de deploy manual que tuvo este repo hasta F3), hay que desarmarla **antes de aprobar el primer `apply`**. Son dos condiciones, y la nueva distribución falla con `CNAMEAlreadyExists` si no se cumple cualquiera de las dos:
+
+- **Ninguna otra distribución tiene el dominio como alias.** CloudFront no permite el mismo nombre alternativo (CNAME) en dos distribuciones.
+- **El DNS del dominio ya no apunta a otra distribución.** Al agregar un alias, CloudFront consulta el DNS de ese nombre. Si todavía resuelve a otra distribución, falla aunque esa distribución ya no tenga el alias, o aunque ya no exista. No alcanza con sacarle el alias a la vieja ni con borrarla: hay que borrar (o cambiar) el registro DNS. El error es ([Troubleshooting distribution issues](https://docs.aws.amazon.com/AmazonCloudFront/latest/DeveloperGuide/troubleshooting-distributions.html#troubleshoot-incorrectly-configured-DNS-record-error)):
+
+  ```text
+  One or more aliases specified for the distribution includes an incorrectly configured DNS record that points to another CloudFront distribution. You must update the DNS record to correct the problem.
+  ```
+
+Lo mismo vale si el dominio apunta a cualquier otra distribución, aunque no sea de una beta. El sitio queda caído desde este paso hasta el paso d.
 
 El momento justo: hacé merge a `main` (o `gh workflow run deploy.yml --ref main`), esperá a que `plan` termine bien y, **mientras `apply` espera la aprobación**, desarmá la beta. Con la sesión de administrador:
 
@@ -483,7 +509,7 @@ $ETag = aws cloudfront get-origin-access-control --id $OacId --query ETag --outp
 aws cloudfront delete-origin-access-control --id $OacId --if-match $ETag --profile $Profile
 ```
 
-4. **Response headers policy**: la guía manual usa la administrada `SecurityHeadersPolicy`, que es de AWS y no se borra. Solo si creaste una propia para la beta, borrala igual que el OAC (`aws cloudfront list-response-headers-policies --type custom`, `get-response-headers-policy` para el ETag y `delete-response-headers-policy`).
+4. **Response headers policy**: la beta manual usaba la administrada `SecurityHeadersPolicy`, que es de AWS y no se borra. Solo si creaste una propia para la beta, borrala igual que el OAC (`aws cloudfront list-response-headers-policies --type custom`, `get-response-headers-policy` para el ETag y `delete-response-headers-policy`).
 
 ```powershell
 # 5. El bucket: primero todas sus versiones y marcadores de borrado (está versionado), después el bucket.
@@ -503,13 +529,26 @@ $AccountId = aws sts get-caller-identity --query Account --output text --profile
 aws budgets delete-budget --account-id $AccountId --budget-name "blueprint-beta-mensual" --profile $Profile
 ```
 
+7. **El registro DNS del sitio**, el que apunta el dominio a la distribución vieja: en Cloudflare, el `CNAME` (**DNS → Records** → el registro → **Delete**); en Route 53, los alias `A` y `AAAA`. **Borralo**, o cambialo a un destino que no sea de CloudFront. Hacelo aunque la distribución vieja ya no exista: el `apply` falla mientras el dominio resuelva a un `*.cloudfront.net` (ver arriba). En el paso d se crea el registro nuevo.
+
+Antes de aprobar el `apply`, confirmá que el dominio ya no resuelve a la distribución vieja. Consultá un resolver público, no el de tu máquina, que puede tener la respuesta vieja en caché:
+
+```powershell
+Resolve-DnsName $Domain -Server 1.1.1.1 -DnsOnly   # bien: "DNS name does not exist"; mal: un CNAME a *.cloudfront.net
+```
+
+Si todavía muestra el `*.cloudfront.net` viejo, esperá el TTL del registro que borraste (en Cloudflare, *Auto* son 300 s) y repetí.
+
+Desde que borrás el registro, los resolvers que consultan el dominio guardan la **respuesta negativa** («no existe»). La guardan por el menor de dos valores del registro SOA de la zona: su TTL y su campo MINIMUM ([RFC 2308, sección 5](https://www.rfc-editor.org/rfc/rfc2308#section-5)). Por eso, en el paso d, el dominio puede seguir sin resolver ese tiempo aunque el registro nuevo ya esté bien cargado. Para saber cuánto es:
+
+```powershell
+Resolve-DnsName "<tu-dominio.com>" -Type SOA -Server 1.1.1.1 | Select-Object Name, TTL, DefaultTTL   # DefaultTTL es el MINIMUM
+```
+
 **No** borres:
 
 - el **certificado** de ACM: lo reutiliza la distribución nueva (`ACM_CERTIFICATE_ARN`);
-- su **CNAME de validación** en el DNS: sin él, ACM no lo puede renovar;
-- el CNAME del sitio en tu DNS: se actualiza en el paso d.
-
-Si la beta usaba registros de Route 53, borralos en el paso d, cuando el CNAME nuevo ya esté cargado.
+- su **CNAME de validación** en el DNS (el que empieza con `_`): sin él, ACM no lo puede renovar.
 
 ### c) Aprobá el `apply`
 
@@ -519,7 +558,7 @@ Al terminar, el resumen del job muestra el **destino del CNAME** (`dxxxxxxxxxxxx
 
 ### d) CNAME del sitio en tu DNS
 
-Terraform no maneja el DNS. En tu proveedor, apuntá el dominio a la distribución nueva. En **Cloudflare**: **DNS → Records**, editá (o creá) el registro:
+Terraform no maneja el DNS. En tu proveedor, apuntá el dominio a la distribución nueva. En **Cloudflare**: **DNS → Records**, creá el registro (el viejo lo borraste en el paso b):
 
 | Tipo | Nombre | Destino | Proxy |
 |---|---|---|---|
@@ -527,16 +566,42 @@ Terraform no maneja el DNS. En tu proveedor, apuntá el dominio a la distribuci�
 
 Con el proxy de Cloudflare encendido, el tráfico pasaría primero por Cloudflare, con su propio certificado y su propia caché, delante de CloudFront: el sitio está pensado para que lo sirva CloudFront directamente. La guía asume un subdominio: un dominio raíz no admite un `CNAME` estándar.
 
-Verificá (puede tardar unos minutos en propagarse):
+Verificá contra un resolver público:
 
 ```powershell
-Resolve-DnsName $Domain -Type CNAME | Select-Object NameHost
-curl.exe -sI "https://$Domain/" | Select-String "^HTTP|strict-transport-security|x-content-type-options|x-frame-options|referrer-policy|cache-control"
-curl.exe -sI "https://$Domain/escenarios" | Select-String "^HTTP|content-type"            # 200, text/html
-curl.exe -sI "https://$Domain/content/index.json" | Select-String "content-type|cache-control"   # application/json, no-cache
+Resolve-DnsName $Domain -Type CNAME -Server 1.1.1.1 -DnsOnly | Select-Object NameHost   # el destino del resumen de apply
 ```
 
-Y en el navegador, el checklist de la [guía de deploy manual](deploy-manual-beta.md) (sección 8.3): home, recarga de `/escenarios`, escenarios, íconos y enlaces de feedback.
+Si todavía dice que el nombre no existe, es la respuesta negativa en caché del paso b: esperá el tiempo del SOA que calculaste ahí y repetí. Cuando `1.1.1.1` ya resuelve bien pero tu máquina no, lo que queda es el caché local:
+
+- **Windows**: `Clear-DnsClientCache` (o `ipconfig /flushdns`; si da *acceso denegado*, en una consola de administrador). Comprobalo con `Resolve-DnsName $Domain -Type CNAME`, sin `-Server`.
+- **Chrome** tiene su propio caché: abrí `chrome://net-internals/#dns` y apretá **Clear host cache**. Si sigue fallando, en `chrome://net-internals/#sockets`, **Flush socket pools**.
+
+#### Checklist de verificación
+
+Con `$Site = "https://$Domain"`:
+
+- [ ] **La home carga**: abrí `$Site` en una ventana privada. Aparece el onboarding y, arriba, el aviso de beta.
+- [ ] **Recargar `/escenarios` funciona**: completá el onboarding, y en el listado apretá F5. También abrí directo `$Site/escenarios/serverless-pdf-processing`.
+- [ ] **El contenido carga**: el listado muestra los escenarios publicados (`beta` y `published`) y ninguno dice "Borrador".
+- [ ] **Los íconos cargan**: entrá a un escenario; la paleta muestra los íconos de los servicios.
+- [ ] **Los headers de seguridad están presentes**:
+
+  ```powershell
+  curl.exe -sI "$Site/" | Select-String "strict-transport-security|x-content-type-options|x-frame-options|referrer-policy|cache-control|content-type"
+  curl.exe -sI "$Site/escenarios" | Select-String "^HTTP|content-type"          # 200, text/html
+  curl.exe -sI "$Site/content/index.json" | Select-String "content-type|cache-control"   # application/json, no-cache
+  curl.exe -sI "http://$Domain/" | Select-String "^HTTP|location"               # 301 hacia https
+  curl.exe -sI --http3 "$Site/" | Select-String "^HTTP"                          # HTTP/3, si tu curl lo soporta
+  ```
+
+- [ ] **El bucket no es público**: `curl.exe -sI "https://<bucket del sitio>.s3.<región>.amazonaws.com/index.html"` responde 403 (el bucket es `<prefijo>-site-<cuenta>-<región>`).
+- [ ] **"Reportar un problema"** (menú "⋯" del juego y pantalla de resumen) abre un issue nuevo en el repositorio con la plantilla "Error en un escenario" y el escenario ya cargado.
+- [ ] **"Contanos qué te pareció"** (aviso de beta) abre la plantilla "Feedback de la beta" en GitHub, o tu formulario si definiste `VITE_FEEDBACK_URL`.
+- [ ] En una ventana de menos de 1024 px de ancho aparece el aviso de "pensado para escritorio" y se puede cerrar.
+- [ ] El código fuente de la página tiene `<meta name="robots" content="noindex">`.
+
+Repetí el checklist después de cada `deploy` que cambie la web.
 
 ### 5.1 Acotá los OAC y las response headers policies
 
@@ -591,10 +656,12 @@ Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos re
 | `AccessDenied` en `cloudfront:UpdateOriginAccessControl`, `UpdateResponseHeadersPolicy` o sus `Delete*` | El ID no está en `cloudfront_oac_ids` o `cloudfront_response_headers_policy_ids`. | Agregalo y re-aplicá el bootstrap ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)). |
 | `Error acquiring the state lock` | Quedó un lock de una ejecución cancelada. | Confirmá que no haya otra ejecución y usá `terraform force-unlock <ID>`. |
 | El sitio muestra `AccessDenied` | Contenido no subido o política de OAC incompleta. | Revisá el job `deploy` y la política del bucket del sitio. |
-| `CNAMEAlreadyExists` en el `apply` | Otra distribución (p. ej. la de la beta manual) tiene el mismo dominio como alias. | Desarmá la beta ([paso 5.b](#b-desarmá-la-beta-manual-solo-si-la-tenés)) y volvé a correr el workflow. |
+| `CNAMEAlreadyExists` en el `apply` | Otra distribución (p. ej. la de la beta manual) tiene el mismo dominio como alias, o el DNS del dominio todavía apunta a otra distribución (*incorrectly configured DNS record that points to another CloudFront distribution*), aunque esa ya no exista. | Desarmá la beta y borrá el registro DNS del sitio ([paso 5.b](#b-desarmá-la-beta-manual-solo-si-la-tenés)); confirmá con `Resolve-DnsName <dominio> -Server 1.1.1.1` y volvé a correr el workflow. |
 | `InvalidViewerCertificate` en el `apply` | El certificado no está emitido o no cubre `SITE_DOMAIN`. | `aws acm describe-certificate --certificate-arn <ARN> --region us-east-1 --query Certificate.Status` ([paso 5.a](#a-certificado-y-valores-del-sitio)). |
 | El plan falla en la validación de `acm_certificate_arn`, `domain` o `budget_email` | Falta el secret o la variable, o tiene otro formato. | Paso 4 y paso 5.a. |
 | El dominio no resuelve o muestra el certificado de Cloudflare | Falta el `CNAME` o tiene el proxy encendido. | [Paso 5.d](#d-cname-del-sitio-en-tu-dns): *DNS only*. |
+| El `CNAME` está bien cargado pero el dominio sigue sin resolver | Respuesta negativa en caché (RFC 2308), en un resolver, en Windows o en Chrome. | [Paso 5.d](#d-cname-del-sitio-en-tu-dns): verificá con `-Server 1.1.1.1` y limpiá los cachés locales. |
+| Terraform no encuentra credenciales aunque `aws sts get-caller-identity` funciona | Sesión de `aws login`, que el SDK de Go de Terraform no soporta. | Exportá las credenciales ([paso 3.1](#31-sesión-y-chequeo-de-la-cuenta)). |
 | Renombraste o transferiste el repo | Desde el 15/07/2026, eso cambia el `sub` al formato inmutable. | Actualizá `subject_format`/IDs y re-aplicá el bootstrap. |
 
 ## 8. Checklist de seguridad de la cuenta (recomendado)

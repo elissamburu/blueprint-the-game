@@ -1,5 +1,5 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
-// HTTP headers of every object of the beta site, by its key in the bucket. Pure: the deploy
+// HTTP headers of every object of the site, by its key in the bucket. Pure: the deploy
 // uploads with them and the preview server answers with them.
 
 export const CACHE_CONTROL = {
@@ -39,7 +39,7 @@ export interface ObjectHeaders {
 export class UnknownContentTypeError extends Error {
   constructor(readonly key: string) {
     super(
-      `No hay un Content-Type definido para "${key}". Agregá su extensión en tools/deploy-beta/src/headers.ts.`,
+      `No hay un Content-Type definido para "${key}". Agregá su extensión en tools/deploy-site/src/headers.ts.`,
     );
   }
 }
