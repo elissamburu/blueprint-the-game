@@ -89,7 +89,7 @@ describe("progress store", () => {
 
 describe("progress store reset", () => {
   it("forgets every game in progress with the progress (RF-PLAY-18)", async () => {
-    const attempts = { clearAll: vi.fn() };
+    const attempts = { load: () => null, save: vi.fn(), clear: vi.fn(), clearAll: vi.fn() };
     const store = createProgressStore(
       fakeRepository({ status: "loaded", progress }).repository,
       attempts,
@@ -97,5 +97,47 @@ describe("progress store reset", () => {
     await store.getState().hydrate();
     await store.getState().reset();
     expect(attempts.clearAll).toHaveBeenCalledOnce();
+  });
+});
+
+describe("progress store switchTo (ADR-0029)", () => {
+  it("reads the progress of the new backend and uses its games in progress", async () => {
+    const store = createProgressStore(fakeRepository({ status: "empty" }).repository);
+    await store.getState().hydrate();
+    const attempts = { load: () => null, save: vi.fn(), clear: vi.fn(), clearAll: vi.fn() };
+    await store.getState().switchTo({
+      progress: fakeRepository({ status: "loaded", progress }).repository,
+      attempts,
+    });
+    expect(store.getState()).toMatchObject({ status: "ready", progress });
+    expect(store.getState().attempts).toBe(attempts);
+  });
+
+  it("ignores a read of the previous backend that ends after the switch", async () => {
+    let finishLocal: (load: ProgressLoad) => void = () => undefined;
+    const slow = fakeRepository({ status: "empty" }).repository;
+    slow.load = () => new Promise<ProgressLoad>((resolve) => (finishLocal = resolve));
+    const store = createProgressStore(slow);
+    const localRead = store.getState().hydrate();
+    await store.getState().switchTo({
+      progress: fakeRepository({ status: "loaded", progress }).repository,
+      attempts: { load: () => null, save: vi.fn(), clear: vi.fn(), clearAll: vi.fn() },
+    });
+    finishLocal({ status: "empty" });
+    await localRead;
+    expect(store.getState().progress).toBe(progress);
+  });
+
+  it("saves to the new backend after the switch", async () => {
+    const before = fakeRepository({ status: "empty" });
+    const after = fakeRepository({ status: "empty" });
+    const store = createProgressStore(before.repository);
+    await store.getState().switchTo({
+      progress: after.repository,
+      attempts: { load: () => null, save: vi.fn(), clear: vi.fn(), clearAll: vi.fn() },
+    });
+    await store.getState().replace(progress);
+    expect(before.saved).toEqual([]);
+    expect(after.saved).toEqual([progress]);
   });
 });

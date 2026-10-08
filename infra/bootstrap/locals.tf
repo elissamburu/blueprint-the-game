@@ -50,6 +50,18 @@ locals {
   project_policy_arn   = "arn:${local.partition}:iam::${local.account}:policy/${local.prefix}-*"
   hosted_zone_arn      = "arn:${local.partition}:route53:::hostedzone/${var.route53_zone_id}"
 
+  # F4 (ADR-0029): login and the player profile, in the main region. User pools and identity pools
+  # have generated IDs in their ARNs, so they are scoped by the Project tag only; tables by name and
+  # tag. ARN formats: Service Authorization Reference, resource types of cognito-idp
+  # (userpool), cognito-identity (identitypool) and dynamodb (table).
+  project_user_pool_arn     = "arn:${local.partition}:cognito-idp:${var.aws_region}:${local.account}:userpool/*"
+  project_identity_pool_arn = "arn:${local.partition}:cognito-identity:${var.aws_region}:${local.account}:identitypool/*"
+  project_table_arn         = "arn:${local.partition}:dynamodb:${var.aws_region}:${local.account}:table/${local.prefix}-*"
+  # The role the identity pool gives signed-in players (created by infra/modules/auth).
+  player_role_arn = "arn:${local.partition}:iam::${local.account}:role/${local.prefix}-player"
+  # Service principal that receives the player role (SetIdentityPoolRoles).
+  identity_pool_service = "cognito-identity.amazonaws.com"
+
   # Origin access controls and response headers policies have no tags and their ARNs carry a
   # generated ID: arn:${Partition}:cloudfront::${Account}:origin-access-control/${Id} and
   # .../response-headers-policy/${Id} (Service Authorization Reference for CloudFront, resource types:

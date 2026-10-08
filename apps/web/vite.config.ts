@@ -5,7 +5,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import tailwindcss from "@tailwindcss/vite";
 import react from "@vitejs/plugin-react";
-import { defineConfig, type Connect, type Plugin } from "vite";
+import { defineConfig, loadEnv, type Connect, type Plugin } from "vite";
 
 const REPO_ROOT = fileURLToPath(new URL("../..", import.meta.url));
 
@@ -76,8 +76,32 @@ const forbidStudioOnlyDeps = (): Plugin => ({
   },
 });
 
+/**
+ * The fake login of the e2e tests (src/auth/fake-session.ts, ADR-0029) only exists in
+ * `vite build --mode e2e`, which reads VITE_AUTH_FAKE from .env.e2e. Any other build with it (the
+ * production one above all) fails here, and tools/deploy-site refuses to upload a site that contains
+ * the fake. __BLUEPRINT_FAKE_AUTH__ is a literal for the bundler, so every other build drops the
+ * import() of the fake module and the module itself.
+ */
+const E2E_MODE = "e2e";
+const WEB_DIR = fileURLToPath(new URL(".", import.meta.url));
+
+const fakeAuth = (): Plugin => ({
+  name: "blueprint-fake-auth",
+  config(_config, { mode }) {
+    // loadEnv reads the .env files of the mode and the VITE_* variables of the environment.
+    const value = loadEnv(mode, WEB_DIR, "VITE_").VITE_AUTH_FAKE ?? "";
+    if (value !== "" && mode !== E2E_MODE) {
+      throw new Error(
+        `VITE_AUTH_FAKE solo se permite en el build de los e2e (--mode ${E2E_MODE}); este es --mode ${mode}.`,
+      );
+    }
+    return { define: { __BLUEPRINT_FAKE_AUTH__: JSON.stringify(value === "true") } };
+  },
+});
+
 export default defineConfig({
-  plugins: [react(), tailwindcss(), contentBundle(), forbidStudioOnlyDeps()],
+  plugins: [react(), tailwindcss(), contentBundle(), forbidStudioOnlyDeps(), fakeAuth()],
   // The manifest lets scripts/check-bundle-size.js measure the initial JS (RNF-03).
   build: { manifest: true },
   resolve: {

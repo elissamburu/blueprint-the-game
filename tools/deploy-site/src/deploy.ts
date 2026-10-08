@@ -5,6 +5,7 @@
 // without a shell, so it works the same on Windows, macOS and Linux. With dryRun nothing is run
 // and AWS is never contacted.
 import { spawn } from "node:child_process";
+import { readFile } from "node:fs/promises";
 import path from "node:path";
 import * as z from "zod";
 import { CACHE_CONTROL, headersFor, type ObjectHeaders } from "./headers.js";
@@ -226,6 +227,23 @@ const inParallel = async <T>(
   if (rejected !== undefined) throw rejected.reason;
 };
 
+/**
+ * The fake login of the e2e tests (apps/web/src/auth/fake-session.ts) carries this marker. A
+ * production build never has it (vite.config.ts fails a build with VITE_AUTH_FAKE outside
+ * --mode e2e); this is the second barrier: the e2e build is never uploaded.
+ */
+export const FAKE_AUTH_MARKER = "blueprint-fake-auth:never-deploy";
+
+export const refuseFakeAuth = async (siteDir: string, keys: readonly string[]): Promise<void> => {
+  for (const key of keys.filter((k) => k.endsWith(".js") || k.endsWith(".html"))) {
+    if ((await readFile(path.join(siteDir, key), "utf8")).includes(FAKE_AUTH_MARKER)) {
+      throw new DeployError(
+        `${key} tiene el login falso de los e2e (VITE_AUTH_FAKE): no se sube. Armá el sitio con pnpm build:site.`,
+      );
+    }
+  }
+};
+
 export const deploy = async (options: DeployOptions): Promise<DeployResult> => {
   const { target, dryRun, run, log } = options;
   const siteDir = path.resolve(options.siteDir);
@@ -239,6 +257,7 @@ export const deploy = async (options: DeployOptions): Promise<DeployResult> => {
       );
     }
   }
+  await refuseFakeAuth(siteDir, keys);
   const uploads = planUploads(keys);
 
   const aws = async (args: readonly string[], what: string): Promise<string> => {

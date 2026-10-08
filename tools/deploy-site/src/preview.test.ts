@@ -5,7 +5,7 @@ import type { AddressInfo } from "node:net";
 import os from "node:os";
 import path from "node:path";
 import { afterAll, beforeAll, describe, expect, it } from "vitest";
-import { CSP_HEADER, loadCsp } from "./csp.js";
+import { CSP_HEADER, loadCsp, PREVIEW_CSP_VALUES } from "./csp.js";
 import { startPreview } from "./preview.js";
 
 let root: string;
@@ -25,7 +25,11 @@ beforeAll(async () => {
   await write("content/index.json", "{}");
   await write("icons/s3.svg", "<svg/>");
   await writeFile(path.join(root, "secret.json"), "{}");
-  server = await startPreview({ siteDir: path.join(root, "site"), port: 0 });
+  server = await startPreview({
+    siteDir: path.join(root, "site"),
+    port: 0,
+    csp: PREVIEW_CSP_VALUES,
+  });
   origin = `http://127.0.0.1:${(server.address() as AddressInfo).port}`;
 });
 
@@ -69,7 +73,7 @@ describe("preview server", () => {
   });
 
   it("sends the Content-Security-Policy of the policy file on every response, errors included", async () => {
-    const policy = await loadCsp();
+    const policy = await loadCsp(PREVIEW_CSP_VALUES);
     expect(CSP_HEADER).toBe("Content-Security-Policy-Report-Only");
     for (const route of ["/", "/escenarios", "/assets/index-BFQKd29Q.js", "/icons/s3.svg"]) {
       const response = await fetch(`${origin}${route}`);

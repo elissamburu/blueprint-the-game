@@ -1,11 +1,13 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // Top bar (docs/design/pantallas/02): brand, navigation and the player's rank. There is no
-// "Nv. N" nor streak: the player has a rank (RF-GAM-01) and "level" is a scenario difficulty.
+// "Nv. N" nor streak: the player has a rank (RF-GAM-01) and "level" is a scenario difficulty. The
+// account (sign in, or the menu of a signed-in player) goes next to the rank (ADR-0029).
 import { rankForXp } from "@blueprint/game-engine";
 import { cn } from "@blueprint/ui/lib/utils";
 import { BoxIcon, CloudIcon, MedalIcon, UserIcon, type LucideIcon } from "lucide-react";
 import { useTranslation } from "react-i18next";
 import { Link, NavLink } from "react-router";
+import { AccountArea } from "../auth/AccountArea";
 import { useContentStore } from "../content/content-store";
 import { useProgressStore } from "../progress/progress-store";
 
@@ -30,7 +32,10 @@ export function AppHeader() {
         <NavItem to="/escenarios" icon={CloudIcon} label={t("nav.scenarios")} />
         <NavItem to="/perfil" icon={UserIcon} label={t("nav.profile")} />
       </nav>
-      <RankPill />
+      <div className="flex items-center gap-3 justify-self-end">
+        <RankPill />
+        <AccountArea />
+      </div>
     </header>
   );
 }
@@ -65,7 +70,7 @@ function RankPill() {
   if (rules === null || xp === null) return <span aria-hidden className="hidden md:block" />;
   const rank = rankForXp(xp, rules);
   return (
-    <p className="flex items-center gap-[0.45rem] justify-self-end text-sm font-bold">
+    <p className="flex items-center gap-[0.45rem] text-sm font-bold">
       <MedalIcon aria-hidden className="size-[17px] text-warning" />
       <span className="sr-only">{t("nav.rank")}:</span>
       <span className="rounded-md bg-secondary px-[0.6rem] py-[0.35rem] text-primary">

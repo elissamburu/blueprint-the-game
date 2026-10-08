@@ -10,6 +10,7 @@ import { Toaster, toast } from "@blueprint/ui/components/sonner";
 import { Suspense, useEffect, useState } from "react";
 import { useTranslation } from "react-i18next";
 import { Link, Outlet } from "react-router";
+import { useAuthStore } from "../auth/auth-store";
 import { useContentStore } from "../content/content-store";
 import { Loading } from "../content/RequireContent";
 import { useProgressStore } from "../progress/progress-store";
@@ -26,10 +27,12 @@ export function AppLayout() {
   const hydrate = useProgressStore((s) => s.hydrate);
   const [mode, setMode] = useState<LayoutMode>("default");
   const immersive = mode === "immersive";
+  const initAuth = useAuthStore((s) => s.init);
   useEffect(() => {
     void loadContent();
-    void hydrate();
-  }, [loadContent, hydrate]);
+    // With a session (or on the callback of the login) the progress comes from the cloud profile.
+    if (!initAuth()) void hydrate();
+  }, [loadContent, hydrate, initAuth]);
 
   return (
     <ImmersiveContext.Provider value={setMode}>
@@ -77,6 +80,7 @@ export function AppLayout() {
           </footer>
         )}
         <ProgressNotices />
+        <AuthNotices />
         <div className="contents print:hidden">
           <Toaster />
         </div>
@@ -96,6 +100,27 @@ function ProgressNotices() {
     else toast.error(t("progress.saveFailed"));
     dismiss();
   }, [notice, dismiss, t]);
+  return null;
+}
+
+/** Tells the player, once, what happened with the login (ADR-0029). */
+function AuthNotices() {
+  const { t } = useTranslation();
+  const error = useAuthStore((s) => s.error);
+  const uploaded = useAuthStore((s) => s.uploaded);
+  const dismissError = useAuthStore((s) => s.dismissError);
+  const dismissUploaded = useAuthStore((s) => s.dismissUploaded);
+  useEffect(() => {
+    // The visible name has its own message inside its dialog.
+    if (error === null || error === "display-name") return;
+    toast.error(t(`auth.errors.${error}`));
+    dismissError();
+  }, [error, dismissError, t]);
+  useEffect(() => {
+    if (!uploaded) return;
+    toast.success(t("auth.uploaded"));
+    dismissUploaded();
+  }, [uploaded, dismissUploaded, t]);
   return null;
 }
 

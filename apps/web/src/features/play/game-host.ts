@@ -2,7 +2,8 @@
 // The web game's GameHost (ADR-0025): what the game screen of @blueprint/play needs from this app.
 // The first move marks the scenario "en curso" and "Terminar" saves the result and goes to the
 // summary, both in the local progress. The game in progress is kept in this browser after every
-// move and resumed when the scenario opens again (RF-PLAY-18). The screen takes the immersive
+// move and resumed when the scenario opens again (RF-PLAY-18), or in the cloud profile of a signed-in
+// player (ADR-0029). The screen takes the immersive
 // layout, the icons of public/icons and the routes of this router.
 import { markScenarioStarted } from "@blueprint/game-engine";
 import type { GameHost } from "@blueprint/play";
@@ -12,7 +13,6 @@ import { useTranslation } from "react-i18next";
 import { useNavigate } from "react-router";
 import { useImmersiveLayout } from "../../app/immersive";
 import type { ContentBundle } from "../../content/load-bundle";
-import { attemptRepository } from "../../progress/local-storage-attempt-repository";
 import { useProgressStore } from "../../progress/progress-store";
 import { serviceIconSrc } from "../../service-icons";
 import { finishScenario, summaryState } from "./finish";
@@ -52,11 +52,14 @@ export const useWebGameHost = (scenario: Scenario, bundle: ContentBundle): GameH
         // nothing was saved): toasts on top of it would be read twice.
         void navigate(`/escenarios/${scenario.id}/resumen`, { state: summaryState(outcome) });
       },
-      loadAttempt: (scenarioId) => (keepsGames() ? attemptRepository.load(scenarioId) : null),
+      // The games in progress of the current backend: this browser, or the cloud profile after
+      // signing in (ADR-0029).
+      loadAttempt: (scenarioId) =>
+        keepsGames() ? useProgressStore.getState().attempts.load(scenarioId) : null,
       saveAttempt: (attempt) => {
-        if (keepsGames()) attemptRepository.save(attempt);
+        if (keepsGames()) useProgressStore.getState().attempts.save(attempt);
       },
-      clearAttempt: (scenarioId) => attemptRepository.clear(scenarioId),
+      clearAttempt: (scenarioId) => useProgressStore.getState().attempts.clear(scenarioId),
       exit: { label: t("play:back"), href: "/escenarios" },
       reportIssueUrl: (slotId) =>
         reportIssueUrl(REPOSITORY, {

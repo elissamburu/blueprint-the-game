@@ -44,3 +44,17 @@ resource "aws_iam_role_policy" "github" {
   role   = aws_iam_role.github[each.key].id
   policy = each.value
 }
+
+# F4 (ADR-0029): login and the player profile. Managed (not inline) so the inline policy of gh-apply
+# stays under the per-role limit. Its name starts with "<prefix>-gh-", so the boundary keeps it out
+# of reach of every role, gh-apply included.
+resource "aws_iam_policy" "apply_auth" {
+  name        = "${local.prefix}-gh-apply-auth"
+  description = "gh-apply of ${local.prefix}: Cognito user and identity pools, the profiles table and the player role (ADR-0029)"
+  policy      = local.apply_auth_policy
+}
+
+resource "aws_iam_role_policy_attachment" "apply_auth" {
+  role       = aws_iam_role.github["apply"].name
+  policy_arn = aws_iam_policy.apply_auth.arn
+}

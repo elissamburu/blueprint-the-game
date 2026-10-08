@@ -93,3 +93,20 @@ variable "budget_email" {
     error_message = "budget_email must be an email address."
   }
 }
+
+variable "auth_domain_prefix" {
+  description = "Prefix of the Cognito domain of the login: <prefix>.auth.<region>.amazoncognito.com (GitHub variable AUTH_DOMAIN_PREFIX). Unique per region across AWS; never derive it from the account ID."
+  type        = string
+}
+variable "google_client_id" {
+  description = "Client ID of the Google OAuth client (GitHub variable GOOGLE_CLIENT_ID), or empty for no sign-in with Google."
+  type        = string
+  default     = ""
+}
+
+variable "google_client_secret" {
+  description = "Client secret of the Google OAuth client (GitHub secret GOOGLE_CLIENT_SECRET). It ends up in the state, which lives in the encrypted state bucket."
+  type        = string
+  default     = ""
+  sensitive   = true
+}

@@ -33,3 +33,8 @@ variable "noncurrent_version_days" {
   type        = number
   default     = 30
 }
+
+variable "auth_domain" {
+  description = "Host of the Cognito domain of the login (<prefix>.auth.<region>.amazoncognito.com): the Content-Security-Policy lets the web call it (ADR-0029)."
+  type        = string
+}

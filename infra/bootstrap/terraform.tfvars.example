@@ -28,6 +28,7 @@ route53_record_names = [] # e.g. ["beta.example.com", "_*.beta.example.com"]
 
 # CloudFront origin access controls and response headers policies have no tags: gh-apply can create
 # them but only update or delete these IDs. Empty on the first apply; fill in after the first apply of
-# infra/envs/prod and re-apply (step 5.1 of the guide).
+# infra/envs/prod and re-apply (step 5.1 of the guide). At most one ID of each type: each ID adds
+# its ARN to the permissions boundary, which only fits 6,144 characters.
 cloudfront_oac_ids                     = [] # e.g. ["E1ABCDEFGHIJKL"]
 cloudfront_response_headers_policy_ids = [] # e.g. ["67f7725c-6f97-4210-82d7-5512b31e9d03"]

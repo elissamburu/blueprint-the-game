@@ -28,6 +28,8 @@ pnpm-debug.log*
 .env
 .env.*
 !.env.example
+# The fake login of the e2e build (ADR-0029): no secrets.
+!apps/web/.env.e2e
 
 # Terraform
 .terraform/
