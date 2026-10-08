@@ -56,6 +56,26 @@ jobs:
       TF_VAR_price_class: ${{ vars.PRICE_CLASS || 'PriceClass_All' }}
       TF_VAR_budget_usd: ${{ vars.BUDGET_USD || '10' }}
     steps:
+      # Fails with the names of what is missing instead of a credentials error further down. Only
+      # checks that each value is set: their values are never printed.
+      - name: Check the configuration
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          ACM_CERTIFICATE_ARN: ${{ secrets.ACM_CERTIFICATE_ARN }}
+          BUDGET_EMAIL: ${{ secrets.BUDGET_EMAIL }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+          AWS_ROLE_PLAN_ARN: ${{ vars.AWS_ROLE_PLAN_ARN }}
+        run: |
+          missing=()
+          for name in AWS_ACCOUNT_ID ACM_CERTIFICATE_ARN BUDGET_EMAIL TF_STATE_BUCKET SITE_DOMAIN AWS_ROLE_PLAN_ARN; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Faltan secrets o variables del repo: ${missing[*]}. Ver docs/guias/configurar-aws-en-tu-fork.md, pasos 4 y 5.a."
+            exit 1
+          fi
+
       - name: Mask the role ARN
         env:
           ROLE_ARN: ${{ vars.AWS_ROLE_PLAN_ARN }}
@@ -128,6 +148,26 @@ jobs:
       TF_VAR_price_class: ${{ vars.PRICE_CLASS || 'PriceClass_All' }}
       TF_VAR_budget_usd: ${{ vars.BUDGET_USD || '10' }}
     steps:
+      # Fails with the names of what is missing instead of a credentials error further down. Only
+      # checks that each value is set: their values are never printed.
+      - name: Check the configuration
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          ACM_CERTIFICATE_ARN: ${{ secrets.ACM_CERTIFICATE_ARN }}
+          BUDGET_EMAIL: ${{ secrets.BUDGET_EMAIL }}
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          SITE_DOMAIN: ${{ vars.SITE_DOMAIN }}
+          AWS_ROLE_APPLY_ARN: ${{ vars.AWS_ROLE_APPLY_ARN }}
+        run: |
+          missing=()
+          for name in AWS_ACCOUNT_ID ACM_CERTIFICATE_ARN BUDGET_EMAIL TF_STATE_BUCKET SITE_DOMAIN AWS_ROLE_APPLY_ARN; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Faltan secrets o variables del repo: ${missing[*]}. Ver docs/guias/configurar-aws-en-tu-fork.md, pasos 4 y 5.a."
+            exit 1
+          fi
+
       - name: Mask the role ARN
         env:
           ROLE_ARN: ${{ vars.AWS_ROLE_APPLY_ARN }}
@@ -213,6 +253,22 @@ jobs:
       contents: read
       id-token: write
     steps:
+      # Fails with the names of what is missing instead of a credentials error further down. Only
+      # checks that each value is set: their values are never printed.
+      - name: Check the configuration
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          AWS_ROLE_DEPLOY_ARN: ${{ vars.AWS_ROLE_DEPLOY_ARN }}
+        run: |
+          missing=()
+          for name in AWS_ACCOUNT_ID AWS_ROLE_DEPLOY_ARN; do
+            [ -n "${!name}" ] || missing+=("$name")
+          done
+          if [ "${#missing[@]}" -gt 0 ]; then
+            echo "::error::Faltan secrets o variables del repo: ${missing[*]}. Ver docs/guias/configurar-aws-en-tu-fork.md, pasos 4 y 5.a."
+            exit 1
+          fi
+
       - name: Mask the role ARN
         env:
           ROLE_ARN: ${{ vars.AWS_ROLE_DEPLOY_ARN }}

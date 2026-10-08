@@ -107,6 +107,8 @@ En `prod-plan`, ni reviewers ni restricción de ramas: el `plan` de un PR corre 
 
 Los nombres tienen que ser exactamente `prod-plan` y `prod`: son parte del `sub` que la trust policy compara.
 
+> ⚠️ **Creá `prod` con sus reviewers antes del primer push a `main` que incluya `deploy.yml`.** Si un workflow referencia un environment que no existe, GitHub lo crea solo y **sin ninguna protección**: el `apply` correría sin esperar aprobación y desde cualquier rama. Revisá en **Settings → Environments** que `prod` tenga *Required reviewers* y la regla de ramas antes de hacer merge.
+
 Además, en **Settings → Branches**, protegé `main`: PR obligatorio, checks requeridos (`ci`) y sin force-push.
 
 ## 3. Aplicá el bootstrap (una sola vez)
@@ -393,6 +395,8 @@ Cada job enmascara además el ARN del rol que asume (`::add-mask::`) antes de cu
 
 ## 5. Primer despliegue
 
+Antes de empezar: los secrets y las variables del paso 4 cargados (sin ellos, cada job falla en su primer paso, *Check the configuration*, con la lista de lo que falta) y el environment `prod` creado con reviewers (paso 2).
+
 El orden importa: **a)** certificado y valores del sitio, **b)** desarmar la beta manual (solo si ya tenías una), **c)** aprobar el `apply`, **d)** CNAME en tu DNS y **e)** re-aplicar el bootstrap con los IDs nuevos ([paso 5.1](#51-acotá-los-oac-y-las-response-headers-policies)).
 
 Qué hace [`deploy.yml`](../../.github/workflows/deploy.yml):
@@ -579,7 +583,8 @@ Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos re
 | Síntoma | Causa probable | Solución |
 |---|---|---|
 | `Not authorized to perform sts:AssumeRoleWithWebIdentity` | El `sub` no coincide (formato inmutable vs anterior, environment mal escrito, IDs incorrectos). | Corré `oidc-debug.yml` y compará el `sub` con la trust policy. Ajustá `subject_format` o los IDs y re-aplicá el bootstrap. |
-| `Credentials could not be loaded` | Falta `permissions: id-token: write` en el workflow o en el job. | Agregalo en el job que asume el rol. |
+| `Faltan secrets o variables del repo: …` en *Check the configuration* | No se cargaron los valores del paso 4 o del 5.a. | Cargá los que nombra el error y volvé a correr el job. |
+| `Credentials could not be loaded` | Falta `permissions: id-token: write` en el job, o `AWS_ROLE_*_ARN` está vacía. | Revisá el job y las variables del paso 4. |
 | `EntityAlreadyExists` al crear el proveedor OIDC | La cuenta ya tiene uno para `token.actions.githubusercontent.com`. | `create_oidc_provider = false` (paso 3.2). |
 | `terraform plan` falla porque el account ID no está permitido (`allowed_account_ids`) | El perfil apunta a otra cuenta que `account_id`. | Revisá `aws sts get-caller-identity` y el perfil. |
 | `AccessDenied` en `gh-apply` sobre un recurso existente | El recurso no tiene la etiqueta `Project` o su nombre no empieza con el prefijo. | Etiquetalo (o importalo con la etiqueta) con credenciales de administrador. |
