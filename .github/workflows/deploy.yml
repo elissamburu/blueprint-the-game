@@ -1,0 +1,270 @@
+name: Deploy
+
+# Production of the site (ADR-0014): plan → approval (environment prod) → apply → upload of the web
+# and the content bundle → CloudFront invalidation. Guide: docs/guias/configurar-aws-en-tu-fork.md.
+#
+# The repository is public and so are these logs:
+#   - the account ID, the certificate ARN and the budget email are secrets, so GitHub masks them
+#     wherever they appear (also inside ARNs and the bucket names), and every job masks its role ARN;
+#   - plans are printed with -no-color and Terraform hides sensitive values; they are never uploaded
+#     as artifacts nor posted to the PR.
+# Never pull_request_target: PRs from forks get no AWS access (ADR-0015) and do not run the plan.
+on:
+  pull_request:
+    branches: [main]
+    paths:
+      - "infra/**"
+      - ".github/workflows/deploy.yml"
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions: {}
+
+# One run at a time per PR, and one at a time for main (a newer push replaces a pending one).
+# Never cancelled midway: a cancelled terraform run can leave the state lock behind.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.event_name == 'pull_request' && github.head_ref || 'prod' }}
+  cancel-in-progress: false
+
+env:
+  TF_IN_AUTOMATION: "1"
+  TF_INPUT: "0"
+  TF_DIR: infra/envs/prod
+
+jobs:
+  # terraform plan with gh-plan (reads the project and the state, takes the lock). prod-plan has no
+  # branch rules, so the job itself keeps PRs from forks out: on pull_request it only runs when the
+  # head branch is in this repository.
+  plan:
+    name: plan
+    if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.full_name == github.repository
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    environment: prod-plan
+    permissions:
+      contents: read
+      id-token: write
+    env:
+      TF_VAR_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+      TF_VAR_acm_certificate_arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
+      TF_VAR_budget_email: ${{ secrets.BUDGET_EMAIL }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-2' }}
+      TF_VAR_name_prefix: ${{ vars.NAME_PREFIX || 'blueprint' }}
+      TF_VAR_project_tag: ${{ vars.PROJECT_TAG || 'blueprint' }}
+      TF_VAR_domain: ${{ vars.SITE_DOMAIN }}
+      TF_VAR_price_class: ${{ vars.PRICE_CLASS || 'PriceClass_All' }}
+      TF_VAR_budget_usd: ${{ vars.BUDGET_USD || '10' }}
+    steps:
+      - name: Mask the role ARN
+        env:
+          ROLE_ARN: ${{ vars.AWS_ROLE_PLAN_ARN }}
+        run: echo "::add-mask::$ROLE_ARN"
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Same version as required_version in infra/envs/prod/versions.tf, read from there.
+      - name: Read Terraform version
+        id: terraform-version
+        run: |
+          version=$(sed -nE 's/^[[:space:]]*required_version[[:space:]]*=[[:space:]]*"=[[:space:]]*([0-9.]+)".*/\1/p' "$TF_DIR/versions.tf")
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ steps.terraform-version.outputs.version }}
+          terraform_wrapper: false
+
+      - name: Assume gh-plan
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_PLAN_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-2' }}
+          role-session-name: gh-plan-${{ github.run_id }}
+          mask-aws-account-id: true
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      # The state bucket enters only here (backend partial configuration), never in the repo.
+      - name: Terraform init
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+        run: |
+          terraform -chdir="$TF_DIR" init -no-color -lockfile=readonly \
+            -backend-config="bucket=$TF_STATE_BUCKET" -backend-config="region=$AWS_REGION"
+
+      # Plans of different PRs share the state lock: wait for it instead of failing.
+      - name: Terraform plan
+        run: terraform -chdir="$TF_DIR" plan -no-color -lock-timeout=10m
+
+  # Plans again with gh-apply and applies that plan, after a reviewer approves the environment prod
+  # (only main). The plan file stays in the runner and is deleted: it holds the variable values.
+  apply:
+    name: apply
+    needs: plan
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    runs-on: ubuntu-latest
+    timeout-minutes: 60
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    outputs:
+      distribution-id: ${{ steps.outputs.outputs.distribution-id }}
+      bucket-template: ${{ steps.outputs.outputs.bucket-template }}
+    env:
+      TF_VAR_account_id: ${{ secrets.AWS_ACCOUNT_ID }}
+      TF_VAR_acm_certificate_arn: ${{ secrets.ACM_CERTIFICATE_ARN }}
+      TF_VAR_budget_email: ${{ secrets.BUDGET_EMAIL }}
+      TF_VAR_aws_region: ${{ vars.AWS_REGION || 'us-east-2' }}
+      TF_VAR_name_prefix: ${{ vars.NAME_PREFIX || 'blueprint' }}
+      TF_VAR_project_tag: ${{ vars.PROJECT_TAG || 'blueprint' }}
+      TF_VAR_domain: ${{ vars.SITE_DOMAIN }}
+      TF_VAR_price_class: ${{ vars.PRICE_CLASS || 'PriceClass_All' }}
+      TF_VAR_budget_usd: ${{ vars.BUDGET_USD || '10' }}
+    steps:
+      - name: Mask the role ARN
+        env:
+          ROLE_ARN: ${{ vars.AWS_ROLE_APPLY_ARN }}
+        run: echo "::add-mask::$ROLE_ARN"
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      - name: Read Terraform version
+        id: terraform-version
+        run: |
+          version=$(sed -nE 's/^[[:space:]]*required_version[[:space:]]*=[[:space:]]*"=[[:space:]]*([0-9.]+)".*/\1/p' "$TF_DIR/versions.tf")
+          test -n "$version"
+          echo "version=$version" >> "$GITHUB_OUTPUT"
+
+      - name: Set up Terraform
+        uses: hashicorp/setup-terraform@dfe3c3f87815947d99a8997f908cb6525fc44e9e # v4.0.1
+        with:
+          terraform_version: ${{ steps.terraform-version.outputs.version }}
+          terraform_wrapper: false
+
+      - name: Assume gh-apply
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_APPLY_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-2' }}
+          role-session-name: gh-apply-${{ github.run_id }}
+          mask-aws-account-id: true
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      - name: Terraform init
+        env:
+          TF_STATE_BUCKET: ${{ vars.TF_STATE_BUCKET }}
+          AWS_REGION: ${{ vars.AWS_REGION || 'us-east-2' }}
+        run: |
+          terraform -chdir="$TF_DIR" init -no-color -lockfile=readonly \
+            -backend-config="bucket=$TF_STATE_BUCKET" -backend-config="region=$AWS_REGION"
+
+      - name: Terraform plan
+        run: terraform -chdir="$TF_DIR" plan -no-color -lock-timeout=10m -out="$RUNNER_TEMP/prod.tfplan"
+
+      - name: Terraform apply
+        run: terraform -chdir="$TF_DIR" apply -no-color -lock-timeout=10m "$RUNNER_TEMP/prod.tfplan"
+
+      - name: Delete the plan file
+        if: always()
+        run: rm -f "$RUNNER_TEMP/prod.tfplan"
+
+      # Job outputs that contain a secret are dropped by GitHub, and the bucket name carries the
+      # account ID: it travels with a placeholder that the deploy job replaces.
+      - name: Read outputs
+        id: outputs
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+        run: |
+          bucket=$(terraform -chdir="$TF_DIR" output -raw bucket)
+          distribution_id=$(terraform -chdir="$TF_DIR" output -raw distribution_id)
+          test -n "$bucket" && test -n "$distribution_id"
+          echo "bucket-template=${bucket//$AWS_ACCOUNT_ID/@ACCOUNT_ID@}" >> "$GITHUB_OUTPUT"
+          echo "distribution-id=$distribution_id" >> "$GITHUB_OUTPUT"
+          {
+            echo "## Infraestructura"
+            echo "| | |"
+            echo "|---|---|"
+            echo "| Sitio | $(terraform -chdir="$TF_DIR" output -raw site_url) |"
+            echo "| Destino del CNAME | \`$(terraform -chdir="$TF_DIR" output -raw distribution_domain_name)\` |"
+            echo "| \`cloudfront_oac_ids\` (bootstrap) | \`$(terraform -chdir="$TF_DIR" output -raw origin_access_control_id)\` |"
+            echo "| \`cloudfront_response_headers_policy_ids\` (bootstrap) | \`$(terraform -chdir="$TF_DIR" output -raw response_headers_policy_id)\` |"
+          } >> "$GITHUB_STEP_SUMMARY"
+
+  # Builds the site with the same steps as pnpm build:beta and uploads it with tools/deploy-beta
+  # (Cache-Control per file, index.html last, stale files deleted, invalidation of /index.html and
+  # /content/*). gh-deploy-content is assumed only after the build: the build never sees credentials.
+  deploy:
+    name: deploy
+    needs: apply
+    runs-on: ubuntu-latest
+    timeout-minutes: 30
+    environment: prod
+    permissions:
+      contents: read
+      id-token: write
+    steps:
+      - name: Mask the role ARN
+        env:
+          ROLE_ARN: ${{ vars.AWS_ROLE_DEPLOY_ARN }}
+        run: echo "::add-mask::$ROLE_ARN"
+
+      - name: Checkout
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+
+      # Version comes from "packageManager" in package.json.
+      - name: Set up pnpm
+        uses: pnpm/action-setup@ea17c68df8912ef543352723c149a84f56e3d413 # v6.1.0
+
+      - name: Set up Node.js
+        uses: actions/setup-node@820762786026740c76f36085b0efc47a31fe5020 # v7.0.0
+        with:
+          node-version-file: .nvmrc
+          cache: pnpm
+
+      - name: Install dependencies
+        run: pnpm install --frozen-lockfile
+
+      # Same cache as ci.yml: icons:fetch verifies the SHA-256 of the cached zip too.
+      - name: Cache AWS icons package
+        uses: actions/cache@55cc8345863c7cc4c66a329aec7e433d2d1c52a9 # v6.1.0
+        with:
+          path: .cache/aws-icons
+          key: aws-icons-${{ hashFiles('tools/icons-fetch/icons.config.json') }}
+
+      # icons:fetch, content:build (beta and published scenarios, never drafts), build of the web and
+      # the checks of the assembled site, in dist/beta-site.
+      - name: Build the site
+        env:
+          VITE_REPO_URL: ${{ github.server_url }}/${{ github.repository }}
+          VITE_FEEDBACK_URL: ${{ vars.VITE_FEEDBACK_URL }}
+        run: pnpm build:beta
+
+      - name: Assume gh-deploy-content
+        uses: aws-actions/configure-aws-credentials@e1253824e5c10ff9df46874f81ed3ec929e19cfd # v6.3.0
+        with:
+          role-to-assume: ${{ vars.AWS_ROLE_DEPLOY_ARN }}
+          aws-region: ${{ vars.AWS_REGION || 'us-east-2' }}
+          role-session-name: gh-deploy-content-${{ github.run_id }}
+          mask-aws-account-id: true
+          allowed-account-ids: ${{ secrets.AWS_ACCOUNT_ID }}
+
+      - name: Upload the site and invalidate CloudFront
+        env:
+          AWS_ACCOUNT_ID: ${{ secrets.AWS_ACCOUNT_ID }}
+          BUCKET_TEMPLATE: ${{ needs.apply.outputs.bucket-template }}
+          BETA_DISTRIBUTION_ID: ${{ needs.apply.outputs.distribution-id }}
+        run: |
+          export BETA_BUCKET="${BUCKET_TEMPLATE//@ACCOUNT_ID@/$AWS_ACCOUNT_ID}"
+          pnpm deploy:beta

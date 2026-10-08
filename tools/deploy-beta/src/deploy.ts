@@ -1,8 +1,9 @@
 // SPDX-License-Identifier: PolyForm-Noncommercial-1.0.0
 // pnpm deploy:beta: uploads dist/beta-site to the bucket of the beta with the AWS CLI and
-// invalidates CloudFront (docs/guias/deploy-manual-beta.md). Temporary: F3 replaces it with
-// deploy.yml and OIDC. It only builds argument lists and runs `aws` without a shell, so it works
-// the same on Windows, macOS and Linux. With dryRun nothing is run and AWS is never contacted.
+// invalidates CloudFront (docs/guias/deploy-manual-beta.md). The deploy job of deploy.yml runs it
+// too, with the OIDC credentials of gh-deploy-content in the environment instead of a profile.
+// It only builds argument lists and runs `aws` without a shell, so it works the same on Windows,
+// macOS and Linux. With dryRun nothing is run and AWS is never contacted.
 import { spawn } from "node:child_process";
 import path from "node:path";
 import * as z from "zod";
@@ -15,13 +16,16 @@ export class DeployError extends Error {}
 export interface DeployTarget {
   bucket: string;
   distributionId: string;
-  profile: string;
+  /** AWS CLI profile; undefined when the credentials come from the environment (CI). */
+  profile: string | undefined;
 }
 
 export const ENV = {
   bucket: "BETA_BUCKET",
   distributionId: "BETA_DISTRIBUTION_ID",
   profile: "AWS_PROFILE",
+  /** Set by aws-actions/configure-aws-credentials in deploy.yml, with the session of the role. */
+  accessKeyId: "AWS_ACCESS_KEY_ID",
 } as const;
 
 const TargetSchema = z.object({
@@ -44,6 +48,9 @@ const envValue = (env: NodeJS.ProcessEnv, name: string): string | undefined => {
 /**
  * Bucket, distribution and profile from the environment. With `dryRun` a missing variable is
  * shown as a placeholder instead of failing, so the plan can be read without an AWS account.
+ * Without a profile, credentials already in the environment (AWS_ACCESS_KEY_ID, as GitHub Actions
+ * leaves them after assuming the role) are used; with neither, it fails: a missing profile never
+ * falls back to whatever default credentials the machine has.
  */
 export const readTarget = (env: NodeJS.ProcessEnv, dryRun: boolean): DeployTarget => {
   const raw = {
@@ -51,14 +58,21 @@ export const readTarget = (env: NodeJS.ProcessEnv, dryRun: boolean): DeployTarge
     distributionId: envValue(env, ENV.distributionId),
     profile: envValue(env, ENV.profile),
   };
+  const environmentCredentials =
+    raw.profile === undefined && envValue(env, ENV.accessKeyId) !== undefined;
   if (dryRun) {
     const present = TargetSchema.partial().safeParse(raw);
     if (!present.success) throw new DeployError(formatTargetIssues(present.error));
     return {
       bucket: raw.bucket ?? `<${ENV.bucket}>`,
       distributionId: raw.distributionId ?? `<${ENV.distributionId}>`,
-      profile: raw.profile ?? `<${ENV.profile}>`,
+      profile: environmentCredentials ? undefined : (raw.profile ?? `<${ENV.profile}>`),
     };
+  }
+  if (environmentCredentials) {
+    const parsed = TargetSchema.omit({ profile: true }).safeParse(raw);
+    if (!parsed.success) throw new DeployError(formatTargetIssues(parsed.error));
+    return { ...parsed.data, profile: undefined };
   }
   const parsed = TargetSchema.safeParse(raw);
   if (!parsed.success) throw new DeployError(formatTargetIssues(parsed.error));
@@ -69,7 +83,7 @@ const formatTargetIssues = (error: z.ZodError): string =>
   [
     "Configuración del deploy incompleta o inválida:",
     ...error.issues.map((issue) => `  - ${issue.message}`),
-    `Definí ${ENV.bucket}, ${ENV.distributionId} y ${ENV.profile} como variables de entorno.`,
+    `Definí ${ENV.bucket}, ${ENV.distributionId} y ${ENV.profile} (o credenciales en ${ENV.accessKeyId}) como variables de entorno.`,
   ].join("\n");
 
 export interface UploadItem extends ObjectHeaders {
@@ -100,6 +114,10 @@ export const staleKeys = (remote: readonly string[], local: readonly string[]): 
 /** What CloudFront must fetch again: the files that keep their name between deploys. */
 export const INVALIDATION_PATHS = ["/index.html", "/content/*"] as const;
 
+/** `--profile <name>`, or nothing when the credentials come from the environment. */
+const profileArgs = (target: DeployTarget): string[] =>
+  target.profile === undefined ? [] : ["--profile", target.profile];
+
 export const uploadArgs = (item: UploadItem, siteDir: string, target: DeployTarget): string[] => [
   "s3",
   "cp",
@@ -110,8 +128,7 @@ export const uploadArgs = (item: UploadItem, siteDir: string, target: DeployTarg
   "--cache-control",
   item.cacheControl,
   "--only-show-errors",
-  "--profile",
-  target.profile,
+  ...profileArgs(target),
 ];
 
 export const listArgs = (target: DeployTarget): string[] => [
@@ -123,8 +140,7 @@ export const listArgs = (target: DeployTarget): string[] => [
   "Contents[].Key",
   "--output",
   "json",
-  "--profile",
-  target.profile,
+  ...profileArgs(target),
 ];
 
 export const removeArgs = (key: string, target: DeployTarget): string[] => [
@@ -132,8 +148,7 @@ export const removeArgs = (key: string, target: DeployTarget): string[] => [
   "rm",
   `s3://${target.bucket}/${key}`,
   "--only-show-errors",
-  "--profile",
-  target.profile,
+  ...profileArgs(target),
 ];
 
 export const invalidationArgs = (target: DeployTarget): string[] => [
@@ -147,8 +162,7 @@ export const invalidationArgs = (target: DeployTarget): string[] => [
   "Invalidation.Id",
   "--output",
   "text",
-  "--profile",
-  target.profile,
+  ...profileArgs(target),
 ];
 
 export interface AwsResult {
@@ -252,7 +266,9 @@ export const deploy = async (options: DeployOptions): Promise<DeployResult> => {
   };
 
   log(
-    `Destino: s3://${target.bucket} · distribución ${target.distributionId} · perfil ${target.profile}`,
+    `Destino: s3://${target.bucket} · distribución ${target.distributionId} · ${
+      target.profile === undefined ? "credenciales del entorno" : `perfil ${target.profile}`
+    }`,
   );
 
   if (dryRun) {
