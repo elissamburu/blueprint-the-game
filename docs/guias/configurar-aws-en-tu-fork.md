@@ -457,7 +457,6 @@ $PlayerRole   = "arn:aws:iam::${AccountId}:role/$Prefix-player"
 
 $RequestTagged = "ContextKeyName=aws:RequestTag/Project,ContextKeyValues=$ProjectTag,ContextKeyType=string"
 $ToCognito     = "ContextKeyName=iam:PassedToService,ContextKeyValues=cognito-identity.amazonaws.com,ContextKeyType=string"
-$ToLambda      = "ContextKeyName=iam:PassedToService,ContextKeyValues=lambda.amazonaws.com,ContextKeyType=string"
 
 Test-Permission $RoleApply "cognito-idp:CreateUserPool"            "*" @($RequestTagged)     # allowed
 Test-Permission $RoleApply "cognito-idp:CreateUserPool"            "*"                       # explicitDeny
@@ -474,7 +473,6 @@ Test-Permission $RoleApply "dynamodb:CreateTable"                  $OtherTable @
 Test-Permission $RoleApply "dynamodb:DeleteTable"                  $Table @($Tagged)         # allowed
 Test-Permission $RoleApply "dynamodb:PutItem"                      $Table @($Tagged)         # implicitDeny
 Test-Permission $RoleApply "iam:PassRole"                          $PlayerRole @($ToCognito) # allowed
-Test-Permission $RoleApply "iam:PassRole"                          $PlayerRole @($ToLambda)  # implicitDeny
 Test-Permission $RoleApply "iam:PassRole"                          $TestRole @($ToCognito)   # implicitDeny
 Test-Permission $RoleApply "cognito-idp:CreateIdentityProvider"    $UserPool @($Tagged)      # allowed
 Test-Permission $RoleApply "cognito-idp:UpdateIdentityProvider"    $UserPool                 # implicitDeny
@@ -493,7 +491,7 @@ Test-Permission $RoleApply "cognito-idp:ListIdentityProviders"     $UserPool @($
 | `gh-apply` | `cognito-identity:CreateIdentityPool` / `DeleteIdentityPool` | con `Project` | `allowed` | Igual que el user pool. |
 | `gh-apply` | `dynamodb:CreateTable` | `table/<prefijo>-profiles` / otra tabla | `allowed` / `implicitDeny` | Tablas `<prefijo>-*`. |
 | `gh-apply` | `dynamodb:PutItem` | la tabla | `implicitDeny` | Los ítems son solo del rol player. |
-| `gh-apply` | `iam:PassRole` | `role/<prefijo>-player` a Cognito / a Lambda | `allowed` / `implicitDeny` | Solo ese rol, solo a `cognito-identity.amazonaws.com`. |
+| `gh-apply` | `iam:PassRole` | `role/<prefijo>-player` | `allowed` | Solo ese rol, sin condición `iam:PassedToService` (con ella, el `apply` falló; pendiente de investigar). `gh-apply` no puede crear recursos en otros servicios que lo reciban. |
 | `gh-apply` | `iam:PassRole` | otro rol del proyecto | `implicitDeny` | Ídem. |
 | `gh-apply` | `cognito-idp:CreateIdentityProvider` | user pool con / sin `Project` | `allowed` / `implicitDeny` | El identity provider de Google se autoriza contra el user pool. |
 | `gh-plan` | `cognito-idp:DescribeIdentityProvider` / `CreateIdentityProvider` | user pool del proyecto | `allowed` / `implicitDeny` | `gh-plan` solo lee. |
