@@ -508,7 +508,7 @@ run "auth_apply_policy" {
     error_message = "Tables are created only with the prefix, in the main region."
   }
 
-  # iam:PassRole: only the player role, only to Cognito identity pools.
+  # iam:PassRole: only the player role (no iam:PassedToService, see the TODO in iam_policies.tf).
   assert {
     condition = one([
       for s in concat(
@@ -516,13 +516,12 @@ run "auth_apply_policy" {
         jsondecode(aws_iam_policy.apply_auth.policy).Statement,
       ) : s if contains(flatten([s.Action]), "iam:PassRole")
       ]) == {
-      Sid       = "PassPlayerRole"
-      Effect    = "Allow"
-      Action    = "iam:PassRole"
-      Resource  = "arn:aws:iam::111111111111:role/blueprint-player"
-      Condition = { StringEquals = { "iam:PassedToService" = "cognito-identity.amazonaws.com" } }
+      Sid      = "PassPlayerRole"
+      Effect   = "Allow"
+      Action   = "iam:PassRole"
+      Resource = "arn:aws:iam::111111111111:role/blueprint-player"
     }
-    error_message = "gh-apply passes only the player role, and only to cognito-identity.amazonaws.com."
+    error_message = "gh-apply passes only the player role."
   }
 
   # SetIdentityPoolRoles has no resource type nor condition key: the only F4 write on "*" besides

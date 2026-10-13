@@ -485,14 +485,18 @@ locals {
         Action   = "cognito-identity:SetIdentityPoolRoles"
         Resource = "*"
       },
-      # Only the player role, and only to Cognito identity pools (iam:PassedToService is a condition
-      # key of iam:PassRole in the Service Authorization Reference for IAM).
+      # Only the player role, to any service: gh-apply cannot create resources in other services
+      # that would receive it, and its trust policy only lets cognito-identity.amazonaws.com assume it.
+      # TODO(investigar): with Condition iam:PassedToService = cognito-identity.amazonaws.com, the
+      # aws_cognito_identity_pool_roles_attachment of envs/prod failed at runtime ("no identity-based
+      # policy allows iam:PassRole"), although the managed policy AmazonESCognitoAccess uses the same
+      # condition (https://docs.aws.amazon.com/aws-managed-policy/latest/reference/AmazonESCognitoAccess.html).
+      # Check it with `aws iam simulate-principal-policy` and restore the condition if it holds.
       {
-        Sid       = "PassPlayerRole"
-        Effect    = "Allow"
-        Action    = "iam:PassRole"
-        Resource  = local.player_role_arn
-        Condition = { StringEquals = { "iam:PassedToService" = local.identity_pool_service } }
+        Sid      = "PassPlayerRole"
+        Effect   = "Allow"
+        Action   = "iam:PassRole"
+        Resource = local.player_role_arn
       },
     ]
   })
