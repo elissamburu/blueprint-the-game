@@ -82,6 +82,8 @@ jobs:
       # Terraform prints it as (sensitive value) and GitHub masks it.
       TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
       TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      # Optional mail through SES (ADR-0029). Empty: Cognito's default sender.
+      TF_VAR_email_domain: ${{ vars.EMAIL_DOMAIN }}
     steps:
       # Fails with the names of what is missing instead of a credentials error further down. Only
       # checks that each value is set: their values are never printed.
@@ -211,6 +213,8 @@ jobs:
       # Terraform prints it as (sensitive value) and GitHub masks it.
       TF_VAR_google_client_id: ${{ vars.GOOGLE_CLIENT_ID }}
       TF_VAR_google_client_secret: ${{ secrets.GOOGLE_CLIENT_SECRET }}
+      # Optional mail through SES (ADR-0029). Empty: Cognito's default sender.
+      TF_VAR_email_domain: ${{ vars.EMAIL_DOMAIN }}
     steps:
       # Fails with the names of what is missing instead of a credentials error further down. Only
       # checks that each value is set: their values are never printed.

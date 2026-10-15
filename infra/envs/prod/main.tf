@@ -26,6 +26,8 @@ module "auth" {
 
   google_client_id     = var.google_client_id
   google_client_secret = var.google_client_secret
+
+  email_domain = var.email_domain
 }
 
 module "observability" {

@@ -28,12 +28,28 @@ locals {
 
   # Sign-in with Google only when its OAuth client is configured.
   google_enabled = var.google_client_id != ""
+
+  # Mail through Amazon SES only with email_domain: its domain identity (Easy DKIM), the account out
+  # of the sandbox, the identity policy for email.cognito-idp.amazonaws.com and the service-linked
+  # role AWSServiceRoleForAmazonCognitoIdpEmailService are created by hand (guide, step 3.10). The
+  # identity lives in the region of the user pool: us-east-2 sends with identities of its own region
+  # (Amazon SES email configuration Regions,
+  # https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-email.html).
+  ses_enabled      = var.email_domain != ""
+  ses_identity_arn = "arn:${local.partition}:ses:${local.region}:${var.account_id}:identity/${var.email_domain}"
+
+  # The verification message: sign-up and its resend, forgot password and the change of the email
+  # (Message options, in the same page). Only DEVELOPER takes a subject and a body of its own
+  # (VerificationMessageTemplateType): without SES, Cognito's default message stays.
+  verification_email_subject = "Tu código de Blueprint"
+  verification_email_message = "Tu código de Blueprint es {####}. Ingresalo para confirmar tu email o para elegir una contraseña nueva. Si no lo pediste, ignorá este mensaje."
 }
 
 resource "aws_cognito_user_pool" "players" {
   name = "${var.name_prefix}-players"
 
-  # Sign-in with the email, verified with a code that Cognito sends with its default sender.
+  # Sign-in with the email, verified with a code. Cognito sends it through SES from email_domain, or
+  # with its default sender without it.
   username_attributes      = ["email"]
   auto_verified_attributes = ["email"]
   username_configuration {
@@ -42,11 +58,29 @@ resource "aws_cognito_user_pool" "players" {
   admin_create_user_config {
     allow_admin_create_user_only = false
   }
+  # From takes "Name <address>" (EmailConfigurationType). With DEVELOPER, Cognito sends with the
+  # service-linked role, not with the credentials of gh-apply, so the role needs no SES permissions.
+  # TODO(verificar): the Cognito guide says the session that sets DEVELOPER needs
+  # iam:CreateServiceLinkedRole (user-pool-email.html, "To grant permissions to use your Amazon SES
+  # configuration"). The role exists already (created by hand), but if Cognito asks for the
+  # permission anyway, the apply fails with AccessDenied on the user pool and the pool stays as it
+  # was. Then the boundary has to make room for iam:CreateServiceLinkedRole on
+  # role/aws-service-role/email.cognito-idp.amazonaws.com/AWSServiceRoleForAmazonCognitoIdpEmailService
+  # with iam:AWSServiceName = email.cognito-idp.amazonaws.com, in gh-apply and in the boundary.
   email_configuration {
-    email_sending_account = "COGNITO_DEFAULT"
+    email_sending_account = local.ses_enabled ? "DEVELOPER" : "COGNITO_DEFAULT"
+    source_arn            = local.ses_enabled ? local.ses_identity_arn : null
+    from_email_address    = local.ses_enabled ? "Blueprint <no-reply@${var.email_domain}>" : null
   }
+  # The template, not email_verification_subject/message: UpdateUserPool no longer uses those
+  # (https://docs.aws.amazon.com/cognito-user-identity-pools/latest/APIReference/API_UpdateUserPool.html).
+  # null leaves them computed: without SES, the plan shows no change. Going back from SES to the
+  # default sender keeps the Spanish ones in the state, which only DEVELOPER takes
+  # (TODO(verificar)): if that apply fails, set Cognito's default subject and message here.
   verification_message_template {
     default_email_option = "CONFIRM_WITH_CODE"
+    email_subject        = local.ses_enabled ? local.verification_email_subject : null
+    email_message        = local.ses_enabled ? local.verification_email_message : null
   }
   account_recovery_setting {
     recovery_mechanism {

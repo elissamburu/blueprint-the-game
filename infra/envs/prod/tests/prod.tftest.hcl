@@ -460,9 +460,19 @@ run "auth" {
       && aws_cognito_user_pool.players.username_attributes == toset(["email"])
       && aws_cognito_user_pool.players.auto_verified_attributes == toset(["email"])
       && one(aws_cognito_user_pool.players.admin_create_user_config).allow_admin_create_user_only == false
-      && one(aws_cognito_user_pool.players.email_configuration).email_sending_account == "COGNITO_DEFAULT"
     )
-    error_message = "Sign-up by email with verification, the default sender of Cognito and deletion protection."
+    error_message = "Sign-up by email with verification and deletion protection."
+  }
+
+  # --- Without email_domain (forks without SES): Cognito's default sender and message.
+  assert {
+    condition = (
+      one(aws_cognito_user_pool.players.email_configuration).email_sending_account == "COGNITO_DEFAULT"
+      && one(aws_cognito_user_pool.players.email_configuration).source_arn == null
+      && one(aws_cognito_user_pool.players.email_configuration).from_email_address == null
+      && one(aws_cognito_user_pool.players.verification_message_template).default_email_option == "CONFIRM_WITH_CODE"
+    )
+    error_message = "Without email_domain, the default sender of Cognito, without a source ARN or a From of its own."
   }
 
   assert {
@@ -719,4 +729,74 @@ run "rejects_a_google_client_without_secret" {
   }
 
   expect_failures = [var.google_client_secret]
+}
+
+# --- Mail through Amazon SES (ADR-0029): only with email_domain.
+run "auth_with_ses" {
+  module {
+    source = "../../modules/auth"
+  }
+
+  variables {
+    email_domain = "example.com"
+  }
+
+  override_data {
+    target = data.aws_region.current
+    values = { region = "us-east-2" }
+  }
+
+  override_data {
+    target = data.aws_partition.current
+    values = { partition = "aws" }
+  }
+
+  override_resource {
+    target = aws_iam_role.player
+    values = { arn = "arn:aws:iam::111111111111:role/acme-player" }
+  }
+
+  override_resource {
+    target = aws_dynamodb_table.profiles
+    values = { arn = "arn:aws:dynamodb:us-east-2:111111111111:table/acme-profiles" }
+  }
+
+  assert {
+    condition = (
+      one(aws_cognito_user_pool.players.email_configuration).email_sending_account == "DEVELOPER"
+      && one(aws_cognito_user_pool.players.email_configuration).source_arn == "arn:aws:ses:us-east-2:111111111111:identity/example.com"
+      && one(aws_cognito_user_pool.players.email_configuration).from_email_address == "Blueprint <no-reply@example.com>"
+    )
+    error_message = "With email_domain, Cognito sends through SES with the domain identity of the region and account, from no-reply@<email_domain>."
+  }
+
+  assert {
+    condition = (
+      one(aws_cognito_user_pool.players.verification_message_template).default_email_option == "CONFIRM_WITH_CODE"
+      && one(aws_cognito_user_pool.players.verification_message_template).email_subject == "Tu código de Blueprint"
+      && length(one(aws_cognito_user_pool.players.verification_message_template).email_subject) <= 140
+      && strcontains(one(aws_cognito_user_pool.players.verification_message_template).email_message, "{####}")
+      && startswith(one(aws_cognito_user_pool.players.verification_message_template).email_message, "Tu código de Blueprint es {####}.")
+    )
+    error_message = "The verification message in Spanish, with the code placeholder and a subject of at most 140 characters."
+  }
+}
+
+run "rejects_an_email_domain_with_an_address" {
+  command = plan
+
+  module {
+    source = "../../modules/auth"
+  }
+
+  override_data {
+    target = data.aws_partition.current
+    values = { partition = "aws" }
+  }
+
+  variables {
+    email_domain = "no-reply@example.com"
+  }
+
+  expect_failures = [var.email_domain]
 }

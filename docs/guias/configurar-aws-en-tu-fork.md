@@ -37,7 +37,7 @@ El primer despliegue (paso 5) suma, desde GitHub Actions:
       └── Tabla DynamoDB <prefijo>-profiles         ← on demand, PITR, protección contra borrado
 ```
 
-Dos cosas quedan **fuera** de Terraform y las hacés vos: el certificado de ACM del dominio (en `us-east-1`, se reutiliza por ARN) y el registro DNS del sitio (un `CNAME` en tu proveedor de DNS, que no tiene por qué ser Route 53).
+Dos cosas quedan **fuera** de Terraform y las hacés vos: el certificado de ACM del dominio (en `us-east-1`, se reutiliza por ARN) y el registro DNS del sitio (un `CNAME` en tu proveedor de DNS, que no tiene por qué ser Route 53). Si querés que los mails de Cognito salgan desde tu dominio, también la identidad de Amazon SES y lo que la rodea ([paso 3.10](#310-opcional-mails-de-cognito-por-amazon-ses)).
 
 ---
 
@@ -513,6 +513,89 @@ Test-Permission $PlayerRole "dynamodb:PutItem"     $OtherTable @($Me, $MyItems) 
 
 Un límite que conviene conocer: `cognito-identity:SetIdentityPoolRoles` no admite recurso ni claves de condición ([Service Authorization Reference de Cognito Identity](https://docs.aws.amazon.com/service-authorization/latest/reference/list_amazoncognitoidentity.html)), así que `gh-apply` puede cambiar los roles de **cualquier** identity pool de la región. Lo único que puede asignar es el rol player (por `iam:PassRole`), que solo da acceso a ítems propios de la tabla del proyecto; en una cuenta compartida, revisá los identity pools de los otros proyectos si algo cambia sus roles.
 
+### 3.10 Opcional: mails de Cognito por Amazon SES
+
+Sin nada más, Cognito manda los códigos (registro, «¿Olvidaste tu contraseña?», cambio de email) con su remitente por defecto, `no-reply@verificationemail.com`, en inglés y con un cupo diario bajo ([Email settings for Amazon Cognito user pools](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-email.html)). Con la variable `EMAIL_DOMAIN`, el user pool los manda por **Amazon SES** desde `Blueprint <no-reply@<tu-dominio>>`, en español ([ADR-0029](../adr/0029-perfil-con-cognito-y-dynamodb-desde-el-navegador.md)).
+
+Terraform solo cambia el user pool: la identidad de SES, su DNS, la salida del sandbox, la *identity policy* y el *service-linked role* se crean a mano, como el certificado de ACM (`gh-apply` no tiene permisos de SES). Hacelo **después** del primer despliegue de F4 (la *identity policy* nombra al user pool) y con la sesión de administrador del [paso 3.1](#31-sesión-y-chequeo-de-la-cuenta):
+
+```powershell
+$Region      = "us-east-2"      # la región del user pool (aws_region): la identidad va en la misma
+$Prefix      = "blueprint"      # el name_prefix del bootstrap
+$EmailDomain = "<tu-dominio>"   # p. ej. example.com: el dominio de los mails, sin no-reply@
+$AccountId   = aws sts get-caller-identity --query Account --output text
+```
+
+1. **Identidad de dominio con Easy DKIM** ([Creating a domain identity](https://docs.aws.amazon.com/ses/latest/dg/creating-identities.html#verify-domain-procedure)). SES devuelve tres tokens; por cada uno, cargá en tu DNS un `CNAME` `<token>._domainkey.<tu-dominio>` → `<token>.dkim.amazonses.com` (en Cloudflare, *DNS only*):
+
+   ```powershell
+   aws sesv2 create-email-identity --email-identity $EmailDomain --region $Region
+   aws sesv2 get-email-identity --email-identity $EmailDomain --region $Region --query "DkimAttributes.Tokens" --output text
+   ```
+
+   Cuando SES ve los registros (minutos, a veces horas), la identidad queda verificada:
+
+   ```powershell
+   aws sesv2 get-email-identity --email-identity $EmailDomain --region $Region --query "[VerifiedForSendingStatus, DkimAttributes.Status]" --output text
+   # esperado: True  SUCCESS
+   ```
+
+2. **DMARC**: un `TXT` en `_dmarc.<tu-dominio>` con `v=DMARC1; p=none;` (podés sumar `rua=mailto:<un-buzón-tuyo>` para recibir los reportes). Con Easy DKIM, DMARC pasa por la alineación de DKIM aunque el *MAIL FROM* sea el de SES ([Complying with DMARC](https://docs.aws.amazon.com/ses/latest/dg/send-email-authentication-dmarc.html)). Empezá con `p=none` y endurecelo (`quarantine`, `reject`) cuando los reportes muestren que todo pasa.
+
+3. **Salí del sandbox de SES** en esa región: en el sandbox, SES solo entrega a direcciones verificadas y Cognito no llega a los jugadores ([Request production access](https://docs.aws.amazon.com/ses/latest/dg/request-production-access.html)). Pedilo desde la consola (*Amazon SES* → *Account dashboard* → *Request production access*, tipo *Transactional*, con la URL del sitio y el uso: códigos de verificación de cuentas); AWS lo revisa, en general en un día. Para ver el estado:
+
+   ```powershell
+   aws sesv2 get-account --region $Region --query "ProductionAccessEnabled"
+   # esperado: true
+   ```
+
+4. **Service-linked role de Cognito para SES** ([Using service-linked roles for Amazon Cognito](https://docs.aws.amazon.com/cognito/latest/developerguide/using-service-linked-roles.html)). Cognito lo crea al pasar el user pool a SES, con las credenciales de quien hace el cambio, que necesitan `iam:CreateServiceLinkedRole`. `gh-apply` no lo tiene, así que crealo vos antes. Es uno por cuenta: si el primer comando ya devuelve su ARN, salteá el segundo.
+
+   ```powershell
+   aws iam get-role --role-name AWSServiceRoleForAmazonCognitoIdpEmailService --query "Role.Arn" --output text
+   aws iam create-service-linked-role --aws-service-name email.cognito-idp.amazonaws.com
+   ```
+
+   > **TODO(verificar)**: la documentación no dice si Cognito le pide `iam:CreateServiceLinkedRole` a `gh-apply` aunque el rol ya exista. Si se lo pide, el `apply` falla con `AccessDenied` en el user pool y el pool queda sin cambios (sigue con el remitente de Cognito). En ese caso hay que hacerle lugar en el boundary (está cerca del límite de 6.144 caracteres) y sumar a `gh-apply` y al boundary `iam:CreateServiceLinkedRole` solo sobre `arn:aws:iam::<cuenta>:role/aws-service-role/email.cognito-idp.amazonaws.com/AWSServiceRoleForAmazonCognitoIdpEmailService`, con la condición `iam:AWSServiceName = email.cognito-idp.amazonaws.com`.
+
+5. **Identity policy**: autoriza a Cognito (`email.cognito-idp.amazonaws.com`) a mandar con la identidad, solo en nombre de tu cuenta y de tu user pool ([sending authorization policy](https://docs.aws.amazon.com/cognito/latest/developerguide/user-pool-email.html#user-pool-email-permissions-default)). Sin ella, el `apply` falla con `InvalidEmailRoleAccessPolicyException`:
+
+   ```powershell
+   $UserPoolId = aws cognito-idp list-user-pools --max-results 60 --region $Region --query "UserPools[?Name=='$Prefix-players'].Id" --output text
+   $Policy = @{
+     Version   = "2012-10-17"
+     Statement = @(@{
+       Sid       = "CognitoUserPool"
+       Effect    = "Allow"
+       Principal = @{ Service = "email.cognito-idp.amazonaws.com" }
+       Action    = @("ses:SendEmail", "ses:SendRawEmail")
+       Resource  = "arn:aws:ses:${Region}:${AccountId}:identity/$EmailDomain"
+       Condition = @{
+         StringEquals = @{ "aws:SourceAccount" = $AccountId }
+         ArnLike      = @{ "aws:SourceArn" = "arn:aws:cognito-idp:${Region}:${AccountId}:userpool/$UserPoolId" }
+       }
+     })
+   } | ConvertTo-Json -Depth 6 -Compress
+   $PolicyFile = Join-Path $env:TEMP "ses-cognito-policy.json"
+   Set-Content -Path $PolicyFile -Value $Policy -NoNewline
+   aws sesv2 create-email-identity-policy --email-identity $EmailDomain --policy-name "$Prefix-cognito" --policy "file://$PolicyFile" --region $Region
+   Remove-Item $PolicyFile
+   ```
+
+   Si alguna vez se recrea el user pool, su ID cambia: actualizá la policy con `aws sesv2 update-email-identity-policy` (mismos parámetros).
+
+6. **Cargá la variable** (paso 4) y corré el plan (un push a la rama o *Re-run jobs*):
+
+   ```powershell
+   gh variable set EMAIL_DOMAIN --body $EmailDomain
+   ```
+
+   Esperado en `infra/envs/prod`: `0 to add, 1 to change, 0 to destroy`, solo `module.auth.aws_cognito_user_pool.players` (`email_configuration` con `DEVELOPER`, `source_arn` y `from_email_address`, y el asunto y el cuerpo de `verification_message_template`). Aprobá el `apply`.
+
+7. **Probalo**: creá una cuenta con un email tuyo. El código tiene que llegar de `Blueprint <no-reply@<tu-dominio>>`, en español, y en los encabezados del mail (*Mostrar original* en Gmail) tienen que aparecer `dkim=pass` y `dmarc=pass` con tu dominio.
+
+**Volver al remitente de Cognito**: borrar `EMAIL_DOMAIN` vuelve `email_configuration` a `COGNITO_DEFAULT`, pero el asunto y el cuerpo en español quedan en el state, y Cognito solo los acepta con SES. Si el `apply` falla por eso, hay que volver a poner el mensaje por defecto (ver el comentario de `verification_message_template` en `infra/modules/auth/main.tf`).
+
 ## 4. Configurá los secrets y las variables del repo
 
 El repo es **público**, y los logs de GitHub Actions también: cualquiera puede leerlos. Por eso los valores se separan en dos grupos:
@@ -533,6 +616,7 @@ El repo es **público**, y los logs de GitHub Actions también: cualquiera puede
 | Variable | `GOOGLE_CLIENT_ID` | Client ID del cliente OAuth de Google, para «Continuar con Google» ([paso 3.9](#39-si-ya-tenías-el-bootstrap-aplicado-cuentas-y-perfil-f4-mvp)) | No |
 | Secret | `GOOGLE_CLIENT_SECRET` | Su client secret (queda en el state cifrado) | Solo con `GOOGLE_CLIENT_ID` |
 | Variable | `AUTH_DOMAIN_PREFIX` | Prefijo del dominio del login: `<prefijo>.auth.<región>.amazoncognito.com` ([paso 3.9](#39-si-ya-tenías-el-bootstrap-aplicado-cuentas-y-perfil-f4-mvp)). Minúsculas, números y guiones; único en la región; nunca el account ID | Sí |
+| Variable | `EMAIL_DOMAIN` | Dominio de la identidad de Amazon SES: Cognito manda los códigos desde `no-reply@<dominio>` ([paso 3.10](#310-opcional-mails-de-cognito-por-amazon-ses)). Vacía: el remitente de Cognito | No |
 | Variable | `BUDGET_USD` | Límite mensual del presupuesto, en USD | No (10) |
 | Variable | `PRICE_CLASS` | `PriceClass_All`, `PriceClass_200` o `PriceClass_100` | No (`PriceClass_All`, incluye Sudamérica) |
 | Variable | `VITE_FEEDBACK_URL` | Formulario externo de feedback, si no usás la plantilla de issue | No |
@@ -859,6 +943,9 @@ Repetí este paso si un cambio en `infra/envs/prod` **reemplaza** uno de esos re
 | `Error acquiring the state lock` | Quedó un lock de una ejecución cancelada. | Confirmá que no haya otra ejecución y usá `terraform force-unlock <ID>`. |
 | `No hay bucket ni distribución del sitio` en *Check the configuration* del job `deploy` | El plan no tuvo cambios pero el state de `infra/envs/prod` no tiene outputs (p. ej., se borró la infraestructura fuera de Terraform). | Revisá el log de `plan` y corré `deploy.yml` sobre `main`: si falta infraestructura, el plan tiene cambios y `apply` la vuelve a crear. |
 | `Not authorized to perform sts:AssumeRoleWithWebIdentity` en *Assume gh-deploy-content* | El bootstrap y `deploy.yml` no coinciden en el environment: uno usa `prod` y el otro `prod-content`. | Seguí el orden del [paso 3.8](#38-si-ya-tenías-el-bootstrap-aplicado-migrar-a-prod-content). |
+| `InvalidEmailRoleAccessPolicyException` en el `apply` del user pool | La identidad de SES de `EMAIL_DOMAIN` no está verificada, está en otra región o su *identity policy* no nombra al user pool. | [paso 3.10](#310-opcional-mails-de-cognito-por-amazon-ses), pasos 1 y 5. |
+| `AccessDenied` con `iam:CreateServiceLinkedRole` en el `apply` del user pool | Cognito le pide el permiso a `gh-apply` para el *service-linked role* de SES, aunque el rol exista. | [paso 3.10](#310-opcional-mails-de-cognito-por-amazon-ses), paso 4 (el TODO). |
+| Con `EMAIL_DOMAIN`, los códigos no llegan | La cuenta sigue en el sandbox de SES en esa región. | [paso 3.10](#310-opcional-mails-de-cognito-por-amazon-ses), paso 3. |
 | El sitio muestra `AccessDenied` | Contenido no subido o política de OAC incompleta. | Revisá el job `deploy` y la política del bucket del sitio. |
 | `CNAMEAlreadyExists` en el `apply` | Otra distribución (p. ej. la de la beta manual) tiene el mismo dominio como alias, o el DNS del dominio todavía apunta a otra distribución (*incorrectly configured DNS record that points to another CloudFront distribution*), aunque esa ya no exista. | Desarmá la beta y borrá el registro DNS del sitio ([paso 5.b](#b-desarmá-la-beta-manual-solo-si-la-tenés)); confirmá con `Resolve-DnsName <dominio> -Server 1.1.1.1` y volvé a correr el workflow. |
 | `InvalidViewerCertificate` en el `apply` | El certificado no está emitido o no cubre `SITE_DOMAIN`. | `aws acm describe-certificate --certificate-arn <ARN> --region us-east-1 --query Certificate.Status` ([paso 5.a](#a-certificado-y-valores-del-sitio)). |
