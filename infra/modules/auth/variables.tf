@@ -65,3 +65,15 @@ variable "google_client_secret" {
     error_message = "google_client_id and google_client_secret go together: both set or both empty."
   }
 }
+
+# Mail through Amazon SES (ADR-0029). Empty: Cognito's default sender, as forks without SES.
+variable "email_domain" {
+  description = "Domain of the verified SES identity (Easy DKIM) in the region of the user pool: Cognito sends from no-reply@<email_domain>. Empty for Cognito's default sender."
+  type        = string
+  default     = ""
+
+  validation {
+    condition     = var.email_domain == "" || can(regex("^([a-z0-9]([a-z0-9-]{0,61}[a-z0-9])?\\.)+[a-z]{2,63}$", var.email_domain))
+    error_message = "email_domain must be empty or a lowercase domain without a scheme, a path, an @ or a trailing dot (e.g. example.com)."
+  }
+}

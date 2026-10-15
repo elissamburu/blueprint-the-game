@@ -110,3 +110,9 @@ variable "google_client_secret" {
   default     = ""
   sensitive   = true
 }
+
+variable "email_domain" {
+  description = "Domain of the SES identity Cognito sends from, no-reply@<email_domain> (GitHub variable EMAIL_DOMAIN), or empty for Cognito's default sender. Created by hand, as the certificate."
+  type        = string
+  default     = ""
+}

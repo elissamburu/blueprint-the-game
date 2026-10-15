@@ -24,3 +24,7 @@ auth_domain_prefix = "<PREFIX>"
 # Optional: sign-in with Google (guide, step 3.9). Both empty: no Google.
 google_client_id     = "" # <number>-<id>.apps.googleusercontent.com
 google_client_secret = "" # sensitive: never commit it
+
+# Optional: mail through Amazon SES from no-reply@<email_domain> (guide, step 3.10). Empty: Cognito's
+# default sender.
+email_domain = "" # example.com
