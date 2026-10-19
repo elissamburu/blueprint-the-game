@@ -18,9 +18,9 @@
     "clean": "rimraf dist coverage .turbo test-results playwright-report"
   },
   "dependencies": {
-    "@aws-sdk/client-dynamodb": "^3.1149.0",
-    "@aws-sdk/credential-provider-cognito-identity": "^3.972.72",
-    "@aws-sdk/lib-dynamodb": "^3.1149.0",
+    "@aws-sdk/client-dynamodb": "^3.1152.0",
+    "@aws-sdk/credential-provider-cognito-identity": "^3.972.73",
+    "@aws-sdk/lib-dynamodb": "^3.1152.0",
     "@blueprint/diagram": "workspace:*",
     "@blueprint/game-engine": "workspace:*",
     "@blueprint/play": "workspace:*",
@@ -30,7 +30,7 @@
     "i18next": "catalog:",
     "lucide-react": "catalog:",
     "oidc-client-ts": "^3.5.0",
-    "radix-ui": "^1.7.0",
+    "radix-ui": "^1.8.1",
     "react": "catalog:",
     "react-dom": "catalog:",
     "react-i18next": "catalog:",
@@ -39,12 +39,12 @@
     "zustand": "catalog:"
   },
   "devDependencies": {
-    "@axe-core/playwright": "^4.13.0",
+    "@axe-core/playwright": "^4.14.0",
     "@blueprint/config": "workspace:*",
-    "@playwright/test": "^1.64.0",
+    "@playwright/test": "^1.64.1",
     "@tailwindcss/vite": "catalog:",
     "@testing-library/react": "catalog:",
-    "@testing-library/user-event": "^14.6.7",
+    "@testing-library/user-event": "^14.6.8",
     "@types/react": "catalog:",
     "@types/react-dom": "catalog:",
     "@vitejs/plugin-react": "catalog:",
